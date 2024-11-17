@@ -52,15 +52,15 @@
       }
     }
 
-    // Simulated method to retrieve data from SAC model, replace with actual API call
+    // Here, the getDataFromSACModel method should be dynamically fetching data from SAC Model
     async getDataFromSACModel() {
       return new Promise((resolve, reject) => {
         try {
-          // Access the SAC model using data binding API (example)
-          const model = this.getSACModel(); // Replace with SAC model API call
+          // Use SAC SDK to interact with SAC model and get data dynamically
+          const model = this.getSACModel(); // Replace with SAC API call to fetch model data
           const rows = [];
           
-          // Get data dynamically from the SAC model
+          // Simulate getting rows from the model, you need to replace this with actual model data fetching
           model.getData().forEach((row) => {
             rows.push([row.Dimension1, row.Dimension2, row.Measure]);
           });
@@ -72,9 +72,8 @@
       });
     }
 
-    // Example model method, replace this with actual API for data binding
+    // Simulate getting model data; you need to replace this with the SAC model binding or API
     getSACModel() {
-      // Use SAC API to get data from the selected model and dimension
       return {
         getData: () => [
           { Dimension1: "A", Dimension2: "X", Measure: 100 },

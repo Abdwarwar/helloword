@@ -143,6 +143,9 @@
         try {
           await this._myDataSource.updateCell(rowIndex, measure, newValue);
           console.log("Model updated successfully!");
+
+          // Refresh the table after update
+          this.render();
         } catch (error) {
           console.error("Error updating model:", error);
         }

@@ -77,8 +77,20 @@ var getScriptPromisify = (src) => {
         return;
       }
 
+      // Filter data to include only booking records
+      const filteredData = this._myDataSource.data.filter((row) => {
+        // Assuming the "status" dimension or measure is available to filter the "booking" records.
+        // Update 'status' with the correct field name that identifies "booking" data.
+        return row.status && row.status.label === "Booking"; // Modify condition as needed
+      });
+
+      if (filteredData.length === 0) {
+        this._root.innerHTML = `<p>No booking data available to display.</p>`;
+        return;
+      }
+
       // Map data to table rows
-      const tableData = this._myDataSource.data.map((row) => {
+      const tableData = filteredData.map((row) => {
         const rowData = {};
         dimensions.forEach((dimension) => {
           rowData[dimension] = row[dimension]?.label || "N/A";

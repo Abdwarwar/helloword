@@ -139,9 +139,17 @@
       console.log(`Updating value for row ${rowIndex}, measure ${measure}: ${newValue}`);
 
       if (this._myDataSource && this._myDataSource.data[rowIndex]) {
-        // Update the model using DataBinding API
         try {
-          await this._myDataSource.updateCell(rowIndex, measure, newValue);
+          // Step 1: Update in memory
+          this._myDataSource.data[rowIndex][measure].raw = newValue;
+
+          // Step 2: Call SAC's commit API for planning models
+          const planningAPI = sap.fpa.ui.widgets.api;
+          await planningAPI.update({
+            dataSource: this._myDataSource,
+            data: this._myDataSource.data,
+          });
+
           console.log("Model updated successfully!");
 
           // Refresh the table after update

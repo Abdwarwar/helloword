@@ -1,21 +1,27 @@
-var getScriptPromisify = (src) => {
-  // Workaround with conflict between geo widget and echarts.
-  const __define = define;
-  define = undefined;
-  return new Promise(resolve => {
-    $.getScript(src, () => {
-      define = __define;
-      resolve();
-    });
-  });
-};
-
 (function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `
         <style>
+          table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+          }
+          th {
+            background-color: #f4f4f4;
+          }
         </style>
-        <div id="root" style="width: 100%; height: 100%;">
+        <div id="root" style="width: 100%; height: 100%; overflow:auto;">
+          <table id="custom-table">
+            <thead>
+              <tr id="header-row"></tr>
+            </thead>
+            <tbody id="data-rows"></tbody>
+          </table>
         </div>
       `;
   class CustomTableWidget extends HTMLElement {
@@ -25,10 +31,10 @@ var getScriptPromisify = (src) => {
       this._shadowRoot = this.attachShadow({ mode: "open" });
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
 
-      this._root = this._shadowRoot.getElementById("root");
+      this._tableHeader = this._shadowRoot.getElementById("header-row");
+      this._tableBody = this._shadowRoot.getElementById("data-rows");
 
       this._props = {};
-      this.render();
     }
 
     onCustomWidgetResize(width, height) {
@@ -40,48 +46,50 @@ var getScriptPromisify = (src) => {
       this.render();
     }
 
-    async render() {
+    render() {
       if (!this._myDataSource || this._myDataSource.state !== "success") {
         return;
       }
 
-      // Extract data and build the table
-      const columns = this._myDataSource.metadata.feeds.dimensions.values;
-      const rows = this._myDataSource.data;
+      const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
+      const measures = this._myDataSource.metadata.feeds.measures.values;
 
-      // Clear any existing content
-      this._root.innerHTML = '';
+      // Clear existing table content
+      this._tableHeader.innerHTML = "";
+      this._tableBody.innerHTML = "";
 
-      // Create table and add header
-      const table = document.createElement('table');
-      const header = document.createElement('thead');
-      const headerRow = document.createElement('tr');
-
-      columns.forEach(col => {
-        const th = document.createElement('th');
-        th.textContent = col.label;
-        headerRow.appendChild(th);
+      // Create table headers
+      dimensions.forEach((dim) => {
+        const th = document.createElement("th");
+        th.textContent = dim;
+        this._tableHeader.appendChild(th);
+      });
+      measures.forEach((measure) => {
+        const th = document.createElement("th");
+        th.textContent = measure;
+        this._tableHeader.appendChild(th);
       });
 
-      header.appendChild(headerRow);
-      table.appendChild(header);
+      // Populate table rows
+      this._myDataSource.data.forEach((dataRow) => {
+        const tr = document.createElement("tr");
 
-      // Create table body with rows
-      const body = document.createElement('tbody');
-      rows.forEach(row => {
-        const tableRow = document.createElement('tr');
-        columns.forEach(col => {
-          const td = document.createElement('td');
-          td.textContent = row[col.id] ? row[col.id].label : '';
-          tableRow.appendChild(td);
+        dimensions.forEach((dim) => {
+          const td = document.createElement("td");
+          td.textContent = dataRow[dim]?.label || "";
+          tr.appendChild(td);
         });
-        body.appendChild(tableRow);
-      });
 
-      table.appendChild(body);
-      this._root.appendChild(table);
+        measures.forEach((measure) => {
+          const td = document.createElement("td");
+          td.textContent = dataRow[measure]?.raw || "";
+          tr.appendChild(td);
+        });
+
+        this._tableBody.appendChild(tr);
+      });
     }
   }
 
-  customElements.define("com-sap-sample-table-widget", CustomTableWidget);
+  customElements.define("com-sap-sample-echarts-custom_table", CustomTableWidget);
 })();

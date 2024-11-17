@@ -64,75 +64,10 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      // Extract dimensions and measures
+      // Extract dimensions and measures from metadata
       const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
       const measures = this._myDataSource.metadata.feeds.measures.values;
 
-      if (dimensions.length === 0 || measures.length === 0) {
-        this._root.innerHTML = `<p>Ensure dimensions and measures are configured.</p>`;
-        return;
-      }
-
-      // Map data to table rows
-      const tableData = this._myDataSource.data.map((row) => {
-        let rowData = {};
-
-        // Add dimensions to the rowData object
-        dimensions.forEach((dimension) => {
-          rowData[dimension] = row[dimension]?.label || "N/A";
-        });
-
-        // Add measures to the rowData object
-        measures.forEach((measure) => {
-          rowData[measure] = row[measure]?.raw || "N/A";
-        });
-
-        return rowData;
-      });
-
-      console.log("Mapped Table Data:", tableData);
-
-      if (tableData.length === 0) {
-        this._root.innerHTML = `<p>No data available to display.</p>`;
-        return;
-      }
-
-      // Create table header with dynamic columns for dimensions and measures
-      const tableHeader = [
-        ...dimensions.map((dimension) => `<th>${dimension}</th>`),
-        ...measures.map((measure) => `<th>${measure}</th>`),
-      ].join("");
-
-      // Create table rows for each data entry
-      const tableRows = tableData
-        .map(
-          (row) => `
-          <tr>
-            ${dimensions.map((dimension) => `<td>${row[dimension]}</td>`).join("")}
-            ${measures.map((measure) => `<td>${row[measure]}</td>`).join("")}
-          </tr>
-        `
-        )
-        .join("");
-
-      // Create the complete table
-      const table = document.createElement("table");
-      table.innerHTML = `
-          <thead>
-              <tr>
-                  ${tableHeader}
-              </tr>
-          </thead>
-          <tbody>
-              ${tableRows}
-          </tbody>
-      `;
-
-      // Clear existing content and add the table
-      this._root.innerHTML = "";
-      this._root.appendChild(table);
-    }
-  }
-
-  customElements.define("com-sap-custom-tablewidget", CustomTableWidget);
-})();
+      // Check if dimensions and measures are present
+      if (!dimensions.length || !measures.length) {
+        this._root.innerHTML = `<p>Ensure dimensions and measures are configured cor

@@ -23,10 +23,6 @@ var getScriptPromisify = (src) => {
           tr:nth-child(even) {
             background-color: #f9f9f9;
           }
-          input {
-            width: 100%;
-            box-sizing: border-box;
-          }
         </style>
         <div id="root" style="width: 100%; height: 100%; overflow: auto;">
         </div>
@@ -68,46 +64,38 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      // Inspect the data structure and check the field for filtering
-      console.log("Inspecting data rows:");
-      this._myDataSource.data.forEach((row, index) => {
-        console.log(`Row ${index + 1}:`, row);
-      });
+      // Log structure of one row to inspect how 'status' is stored
+      console.log("Single row data:", JSON.stringify(this._myDataSource.data[0], null, 2));
 
-      // Filter data to include only booking records
+      // Extract dimensions and measures
+      const dimension = this._myDataSource.metadata.feeds.dimensions.values[0];
+      const measure = this._myDataSource.metadata.feeds.measures.values[0];
+
+      if (!dimension || !measure) {
+        this._root.innerHTML = `<p>Ensure dimensions and measures are configured.</p>`;
+        return;
+      }
+
+      // Filter out only rows with "Booking" status
       const filteredData = this._myDataSource.data.filter((row) => {
-        // Replace 'status' with the correct field name (e.g., 'type', 'category', etc.)
-        // Make sure the value to filter by is correct, such as 'Booking'
-        return row.status && row.status.label === "Booking"; // Modify condition as needed
+        console.log("Row being checked:", row); // Log each row to inspect its structure
+        const isBooking = row.status && row.status.label === "Booking"; // Adjust field path here if necessary
+        console.log("Is Booking?", isBooking); // Log whether this row matches
+        return isBooking;
       });
 
-      console.log("Filtered Data:", filteredData);
+      console.log("Filtered Data (Booking only):", filteredData); // Log filtered data to confirm it's working
 
       if (filteredData.length === 0) {
         this._root.innerHTML = `<p>No booking data available to display.</p>`;
         return;
       }
 
-      // Extract dimensions and measures
-      const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
-      const measures = this._myDataSource.metadata.feeds.measures.values;
-
-      if (!dimensions || !measures) {
-        this._root.innerHTML = `<p>Ensure dimensions and measures are configured.</p>`;
-        return;
-      }
-
       // Map data to table rows
-      const tableData = filteredData.map((row) => {
-        const rowData = {};
-        dimensions.forEach((dimension) => {
-          rowData[dimension] = row[dimension]?.label || "N/A";
-        });
-        measures.forEach((measure) => {
-          rowData[measure] = row[measure]?.raw || "N/A";
-        });
-        return rowData;
-      });
+      const tableData = filteredData.map((row) => ({
+        dimension: row[dimension]?.label || "N/A",
+        measure: row[measure]?.raw || "N/A",
+      }));
 
       console.log("Mapped Table Data:", tableData);
 
@@ -116,57 +104,27 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      // Create table headers dynamically based on dimensions and measures
-      const tableHeaders = [
-        ...dimensions.map((dim) => `<th>${dim}</th>`),
-        ...measures.map((measure) => `<th>${measure}</th>`),
-      ].join("");
-
-      // Create table body with editable cells for measures
-      const tableRows = tableData
-        .map((row) => {
-          const rowCells = [
-            ...dimensions.map(
-              (dim) => `<td>${row[dim] || "N/A"}</td>`
-            ),
-            ...measures.map(
-              (measure) => `<td><input type="text" value="${row[measure]}" data-measure="${measure}" data-row-id="${row.rowId}" /></td>`
-            ),
-          ].join("");
-          return `<tr>${rowCells}</tr>`;
-        })
-        .join("");
-
       // Create table
       const table = document.createElement("table");
       table.innerHTML = `
           <thead>
               <tr>
-                  ${tableHeaders}
+                  <th>Dimension</th>
+                  <th>Measure</th>
               </tr>
           </thead>
           <tbody>
-              ${tableRows}
+              ${tableData
+                .map(
+                  (row) => `
+                  <tr>
+                      <td>${row.dimension}</td>
+                      <td>${row.measure}</td>
+                  </tr>
+              `)
+                .join("")}
           </tbody>
       `;
-
-      // Event listener to handle cell edit
-      table.querySelectorAll("input").forEach((input) => {
-        input.addEventListener("change", (e) => {
-          const measure = e.target.getAttribute("data-measure");
-          const rowId = e.target.getAttribute("data-row-id");
-          const newValue = e.target.value;
-
-          console.log(`Updated value for measure ${measure} in row ${rowId}: ${newValue}`);
-          
-          // Here, we should update the internal data structure accordingly
-          // Assuming we have a way to find the row by rowId and update the data
-          const updatedRow = this._myDataSource.data.find((row) => row.rowId === rowId);
-          if (updatedRow) {
-            updatedRow[measure].raw = newValue;
-          }
-        });
-      });
 
       // Clear existing content and add the table
       this._root.innerHTML = "";

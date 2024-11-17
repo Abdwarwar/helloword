@@ -23,6 +23,12 @@ var getScriptPromisify = (src) => {
           tr:nth-child(even) {
             background-color: #f9f9f9;
           }
+          input {
+            width: 100%;
+            border: none;
+            text-align: right;
+            background-color: transparent;
+          }
         </style>
         <div id="root" style="width: 100%; height: 100%; overflow: auto;">
         </div>
@@ -55,9 +61,6 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      console.log("Data Source Metadata:", this._myDataSource.metadata);
-      console.log("Data Source Data:", this._myDataSource.data);
-
       if (this._myDataSource.state !== "success") {
         this._root.innerHTML = `<p>Loading data...</p>`;
         return;
@@ -66,25 +69,11 @@ var getScriptPromisify = (src) => {
       const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
       const measures = this._myDataSource.metadata.feeds.measures.values;
 
-      if (dimensions.length === 0 || measures.length === 0) {
-        this._root.innerHTML = `<p>Ensure dimensions and measures are configured in the model.</p>`;
+      if (!dimensions.length || !measures.length) {
+        this._root.innerHTML = `<p>Ensure dimensions and measures are configured.</p>`;
         return;
       }
 
-      // Get metadata names
-      const dimensionHeaders = dimensions.map(
-        (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
-      );
-      const measureHeaders = measures.map(
-        (measure) =>
-          this._myDataSource.metadata.mainStructureMembers[measure]?.description ||
-          measure
-      );
-
-      console.log("Dimension Headers:", dimensionHeaders);
-      console.log("Measure Headers:", measureHeaders);
-
-      // Map data to table rows
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
         dimensions.forEach((dim) => {
@@ -96,41 +85,65 @@ var getScriptPromisify = (src) => {
         return rowData;
       });
 
-      console.log("Mapped Table Data:", tableData);
-
       if (tableData.length === 0) {
         this._root.innerHTML = `<p>No data available to display.</p>`;
         return;
       }
 
-      // Create table
       const table = document.createElement("table");
 
-      // Create header
-      const headerRow = `<tr>${dimensionHeaders
-        .map((header) => `<th>${header}</th>`)
-        .join("")}${measureHeaders
-        .map((header) => `<th>${header}</th>`)
-        .join("")}</tr>`;
+      // Create headers
       table.innerHTML = `
-        <thead>${headerRow}</thead>
-        <tbody>
-          ${tableData
-            .map(
-              (row) =>
-                `<tr>${dimensions
-                  .map((dim) => `<td>${row[dim]}</td>`)
-                  .join("")}${measures
-                  .map((measure) => `<td>${row[measure]}</td>`)
-                  .join("")}</tr>`
-            )
-            .join("")}
-        </tbody>
+          <thead>
+              <tr>
+                  ${dimensions.map((dim) => `<th>${dim}</th>`).join("")}
+                  ${measures.map((measure) => `<th>${measure}</th>`).join("")}
+              </tr>
+          </thead>
       `;
 
-      // Clear existing content and add the table
+      // Create rows
+      const tbody = document.createElement("tbody");
+      tableData.forEach((row, rowIndex) => {
+        const tr = document.createElement("tr");
+
+        dimensions.forEach((dim) => {
+          const td = document.createElement("td");
+          td.textContent = row[dim];
+          tr.appendChild(td);
+        });
+
+        measures.forEach((measure) => {
+          const td = document.createElement("td");
+          const input = document.createElement("input");
+          input.type = "number";
+          input.value = row[measure];
+          input.addEventListener("change", () => this.updateModel(rowIndex, measure, input.value));
+          td.appendChild(input);
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+
       this._root.innerHTML = "";
       this._root.appendChild(table);
+    }
+
+    updateModel(rowIndex, measure, newValue) {
+      const newMeasureValue = parseFloat(newValue);
+      if (isNaN(newMeasureValue)) {
+        alert("Invalid number!");
+        return;
+      }
+
+      this._myDataSource.data[rowIndex][measure].raw = newMeasureValue;
+      this._myDataSource.data[rowIndex][measure].label = newMeasureValue.toString();
+
+      this._myDataSource.update(this._myDataSource.data);
+      console.log(`Updated model: Row ${rowIndex}, Measure ${measure}, New Value ${newMeasureValue}`);
     }
   }
 

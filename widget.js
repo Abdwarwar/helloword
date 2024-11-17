@@ -71,6 +71,19 @@ var getScriptPromisify = (src) => {
         return;
       }
 
+      // Get metadata names
+      const dimensionHeaders = dimensions.map(
+        (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
+      );
+      const measureHeaders = measures.map(
+        (measure) =>
+          this._myDataSource.metadata.mainStructureMembers[measure]?.description ||
+          measure
+      );
+
+      console.log("Dimension Headers:", dimensionHeaders);
+      console.log("Measure Headers:", measureHeaders);
+
       // Map data to table rows
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
@@ -94,10 +107,10 @@ var getScriptPromisify = (src) => {
       const table = document.createElement("table");
 
       // Create header
-      const headerRow = `<tr>${dimensions
-        .map((dim) => `<th>${this._myDataSource.metadata.dimensions[dim]?.description || dim}</th>`)
-        .join("")}${measures
-        .map((measure) => `<th>${this._myDataSource.metadata.mainStructureMembers[measure]?.description || measure}</th>`)
+      const headerRow = `<tr>${dimensionHeaders
+        .map((header) => `<th>${header}</th>`)
+        .join("")}${measureHeaders
+        .map((header) => `<th>${header}</th>`)
         .join("")}</tr>`;
       table.innerHTML = `
         <thead>${headerRow}</thead>

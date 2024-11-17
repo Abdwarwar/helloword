@@ -1,3 +1,9 @@
+var getScriptPromisify = (src) => {
+  return new Promise((resolve) => {
+    $.getScript(src, resolve);
+  });
+};
+
 (function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `
@@ -17,12 +23,6 @@
           tr:nth-child(even) {
             background-color: #f9f9f9;
           }
-          input[type="number"] {
-            width: 100%;
-            border: none;
-            background-color: transparent;
-            text-align: left;
-          }
         </style>
         <div id="root" style="width: 100%; height: 100%; overflow: auto;">
         </div>
@@ -31,9 +31,12 @@
   class CustomTableWidget extends HTMLElement {
     constructor() {
       super();
+
       this._shadowRoot = this.attachShadow({ mode: "open" });
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
+
       this._root = this._shadowRoot.getElementById("root");
+
       this._props = {};
     }
 
@@ -52,6 +55,9 @@
         return;
       }
 
+      console.log("Data Source Metadata:", this._myDataSource.metadata);
+      console.log("Data Source Data:", this._myDataSource.data);
+
       if (this._myDataSource.state !== "success") {
         this._root.innerHTML = `<p>Loading data...</p>`;
         return;
@@ -61,10 +67,24 @@
       const measures = this._myDataSource.metadata.feeds.measures.values;
 
       if (dimensions.length === 0 || measures.length === 0) {
-        this._root.innerHTML = `<p>Ensure dimensions and measures are configured.</p>`;
+        this._root.innerHTML = `<p>Ensure dimensions and measures are configured in the model.</p>`;
         return;
       }
 
+      // Get metadata names
+      const dimensionHeaders = dimensions.map(
+        (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
+      );
+      const measureHeaders = measures.map(
+        (measure) =>
+          this._myDataSource.metadata.mainStructureMembers[measure]?.description ||
+          measure
+      );
+
+      console.log("Dimension Headers:", dimensionHeaders);
+      console.log("Measure Headers:", measureHeaders);
+
+      // Map data to table rows
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
         dimensions.forEach((dim) => {
@@ -76,88 +96,41 @@
         return rowData;
       });
 
+      console.log("Mapped Table Data:", tableData);
+
       if (tableData.length === 0) {
         this._root.innerHTML = `<p>No data available to display.</p>`;
         return;
       }
 
+      // Create table
       const table = document.createElement("table");
+
+      // Create header
+      const headerRow = `<tr>${dimensionHeaders
+        .map((header) => `<th>${header}</th>`)
+        .join("")}${measureHeaders
+        .map((header) => `<th>${header}</th>`)
+        .join("")}</tr>`;
       table.innerHTML = `
-          <thead>
-              <tr>
-                  ${dimensions.map((dim) => `<th>${dim}</th>`).join("")}
-                  ${measures.map((measure) => `<th>${measure}</th>`).join("")}
-              </tr>
-          </thead>
-          <tbody>
-              ${tableData
-                .map(
-                  (row, rowIndex) => `
-                  <tr>
-                      ${dimensions
-                        .map((dim) => `<td>${row[dim]}</td>`)
-                        .join("")}
-                      ${measures
-                        .map(
-                          (measure) => `
-                          <td>
-                              <input 
-                                  type="number" 
-                                  value="${row[measure]}" 
-                                  data-row-index="${rowIndex}" 
-                                  data-measure="${measure}" 
-                                  class="editable-measure" />
-                          </td>
-                      `
-                        )
-                        .join("")}
-                  </tr>
-              `
-                )
-                .join("")}
-          </tbody>
+        <thead>${headerRow}</thead>
+        <tbody>
+          ${tableData
+            .map(
+              (row) =>
+                `<tr>${dimensions
+                  .map((dim) => `<td>${row[dim]}</td>`)
+                  .join("")}${measures
+                  .map((measure) => `<td>${row[measure]}</td>`)
+                  .join("")}</tr>`
+            )
+            .join("")}
+        </tbody>
       `;
 
+      // Clear existing content and add the table
       this._root.innerHTML = "";
       this._root.appendChild(table);
-
-      // Attach event listener for editable cells
-      this._root.querySelectorAll(".editable-measure").forEach((input) => {
-        input.addEventListener("change", (event) => this.handleInputChange(event));
-      });
-    }
-
-    async handleInputChange(event) {
-      const input = event.target;
-      const rowIndex = parseInt(input.dataset.rowIndex, 10);
-      const measure = input.dataset.measure;
-      const newValue = parseFloat(input.value);
-
-      console.log(`Updating value for row ${rowIndex}, measure ${measure}: ${newValue}`);
-
-      if (this._myDataSource && this._myDataSource.data[rowIndex]) {
-        try {
-          // Step 1: Update in memory
-          this._myDataSource.data[rowIndex][measure].raw = newValue;
-
-          // Step 2: Trigger Data Action to commit the changes to SAC model
-          const planningAPI = sap.fpa.ui.widgets.api;
-          
-          // This is where you would invoke the data action that updates the model
-          await planningAPI.runDataAction({
-            dataSource: this._myDataSource,
-            actionName: "YourDataActionName", // Specify the data action defined in SAC
-            data: this._myDataSource.data,
-          });
-
-          console.log("Model updated successfully!");
-
-          // Refresh the table after update
-          this.render();
-        } catch (error) {
-          console.error("Error updating model:", error);
-        }
-      }
     }
   }
 

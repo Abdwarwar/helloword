@@ -29,8 +29,8 @@
       console.log("Measures: ", dataSource.getMeasures());
       console.log("Data: ", dataSource.getData());
 
-      const dimensions = dataSource.getDimensions();
-      const measures = dataSource.getMeasures();
+      const dimensions = this._myDataSource.metadata.feeds.dimensions.values[0];
+      const measures = this._myDataSource.metadata.feeds.measures.values[0];
 
       const headerRow = this.shadowRoot.querySelector("#header-row");
       headerRow.innerHTML = ''; // Clear previous headers
@@ -53,7 +53,7 @@
       bodyRow.innerHTML = ''; // Clear previous rows
 
       // Loop through data and create rows for the table
-      const data = dataSource.getData();
+      const data = this._myDataSource.data.map((data);
       if (data && data.length > 0) {
         data.forEach(row => {
           const rowElement = document.createElement('tr');

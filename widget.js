@@ -70,7 +70,7 @@
       // Fetch measure names from metadata
       const measureHeaders = measures.map((measure) => {
         const measureObj = this._myDataSource.metadata.mainStructureMembers[measure];
-        return measureObj ? measureObj.description : measure; // Use description if available
+        return measureObj ? measureObj.id : measure; // Use description if available
       });
 
       console.log("Dimension Headers:", dimensionHeaders);

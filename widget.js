@@ -1,8 +1,33 @@
 (function () {
   const template = document.createElement("template");
   template.innerHTML = `
+    <style>
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f4f4f4;
+      }
+    </style>
     <div>
-      <table id="table"></table>
+      <table id="dataTable">
+        <thead>
+          <tr>
+            <th>Dimension 1</th>
+            <th>Dimension 2</th>
+            <th>Measure</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Dynamic rows will be inserted here -->
+        </tbody>
+      </table>
     </div>
   `;
 
@@ -14,53 +39,63 @@
     }
 
     connectedCallback() {
-      // Get the selected dimensions and measures from the properties
-      const dimension1 = this.getAttribute("dimension1");
-      const dimension2 = this.getAttribute("dimension2");
-      const measure = this.getAttribute("measure");
-
-      console.log(`Dimension 1: ${dimension1}, Dimension 2: ${dimension2}, Measure: ${measure}`);
-      this.fetchData(dimension1, dimension2, measure);
+      console.log("Table Widget added to the page.");
+      this.fetchData();
     }
 
-    async fetchData(dimension1, dimension2, measure) {
+    async fetchData() {
       try {
-        // Here, you would query the SAC model using these properties
-        // In this example, we'll just log them, but you can use SAC APIs to fetch data
-        console.log(`Fetching data for ${dimension1}, ${dimension2}, ${measure}`);
-
-        // Simulate fetched data for demonstration
-        const data = [
-          [dimension1, dimension2, measure],
-          ["Row 1 Value 1", "Row 1 Value 2", "Row 1 Measure"],
-          ["Row 2 Value 1", "Row 2 Value 2", "Row 2 Measure"]
-        ];
-
+        const data = await this.getDataFromSACModel();
         this.populateTable(data);
       } catch (error) {
         console.error("Error fetching data:", error);
       }
     }
 
-    populateTable(data) {
-      const table = this.shadowRoot.querySelector("#table");
-      table.innerHTML = "";  // Clear any existing content
-      const headerRow = table.insertRow();
-      
-      // Create headers based on the dimensions and measure
-      data[0].forEach(text => {
-        const cell = headerRow.insertCell();
-        cell.textContent = text;
+    // Here, the getDataFromSACModel method should be dynamically fetching data from SAC Model
+    async getDataFromSACModel() {
+      return new Promise((resolve, reject) => {
+        try {
+          // Use SAC SDK to interact with SAC model and get data dynamically
+          const model = this.getSACModel(); // Replace with SAC API call to fetch model data
+          const rows = [];
+          
+          // Simulate getting rows from the model, you need to replace this with actual model data fetching
+          model.getData().forEach((row) => {
+            rows.push([row.Dimension1, row.Dimension2, row.Measure]);
+          });
+          
+          resolve(rows);
+        } catch (error) {
+          reject(error);
+        }
       });
+    }
 
-      // Populate table rows
-      for (let i = 1; i < data.length; i++) {
-        const row = table.insertRow();
-        data[i].forEach(cellData => {
-          const cell = row.insertCell();
-          cell.textContent = cellData;
+    // Simulate getting model data; you need to replace this with the SAC model binding or API
+    getSACModel() {
+      return {
+        getData: () => [
+          { Dimension1: "Abd", Dimension2: "warwar", Measure: 100 },
+          { Dimension1: "nasser", Dimension2: "itani", Measure: 200 },
+          { Dimension1: "mohamed", Dimension2: "wehbe", Measure: 300 }
+        ]
+      };
+    }
+
+    populateTable(data) {
+      const tableBody = this.shadowRoot.querySelector("#dataTable tbody");
+      tableBody.innerHTML = ""; // Clear existing rows
+
+      data.forEach((row) => {
+        const tr = document.createElement("tr");
+        row.forEach((cell) => {
+          const td = document.createElement("td");
+          td.textContent = cell;
+          tr.appendChild(td);
         });
-      }
+        tableBody.appendChild(tr);
+      });
     }
   }
 

@@ -62,20 +62,15 @@
         return;
       }
 
-      // Get metadata names for dimensions
+      // Get metadata names
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
 
-      // Debugging: Log the measures object to check its structure
-      console.log("Measures Metadata:", this._myDataSource.metadata.mainStructureMembers);
-
       // Fetch measure names from metadata
       const measureHeaders = measures.map((measure) => {
-        // Log the measure metadata to understand its structure
         const measureObj = this._myDataSource.metadata.mainStructureMembers[measure];
-        console.log("Measure Metadata:", measureObj);
-        return measureObj ? measureObj.description || measure : measure; // Fallback to measure name
+        return measureObj ? measureObj.description : measure; // Use description if available
       });
 
       console.log("Dimension Headers:", dimensionHeaders);

@@ -79,8 +79,8 @@ var getScriptPromisify = (src) => {
 
       // Generate table headers dynamically based on dimension and measure names from the model
       const headers = [
-        ...dimensions.map(dimension => dimension.name || `Dimension ${dimension.id}`), // Use the 'name' of the dimension
-        ...measures.map(measure => measure.name || `Measure ${measure.id}`)       // Use the 'name' of the measure
+        ...dimensions.map(dimension => dimension.name), // Use the 'name' of the dimension
+        ...measures.map(measure => measure.name)       // Use the 'name' of the measure
       ];
 
       console.log("Table Headers:", headers);
@@ -92,13 +92,13 @@ var getScriptPromisify = (src) => {
         // Extracting dimension values for the row
         dimensions.forEach(dimension => {
           const dimensionValue = row[dimension.id]?.label || "N/A"; // Check if the dimension value exists
-          rowData[dimension.name || `Dimension ${dimension.id}`] = dimensionValue;
+          rowData[dimension.name] = dimensionValue;
         });
 
         // Extracting measure values for the row
         measures.forEach(measure => {
           const measureValue = row[measure.id]?.raw || "N/A"; // Check if the measure value exists
-          rowData[measure.name || `Measure ${measure.id}`] = measureValue;
+          rowData[measure.name] = measureValue;
         });
 
         return rowData;

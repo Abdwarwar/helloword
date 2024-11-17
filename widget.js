@@ -49,11 +49,7 @@
 
     async fetchData() {
       try {
-        // Placeholder for SAC data fetching logic
-        // Example: Using the SAC scripting API to get data
         const data = await this.getDataFromSACModel();
-
-        // Populate table with the data
         this.populateTable(data);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -61,14 +57,36 @@
     }
 
     getDataFromSACModel() {
-      // SAC-specific logic to retrieve data from the model
-      // Example: Use the data binding APIs to connect to the SAC model
-      return new Promise((resolve) => {
-        resolve([
-          ["Row 1, Col 1", "Row 1, Col 2", "Row 1, Col 3"],
-          ["Row 2, Col 1", "Row 2, Col 2", "Row 2, Col 3"],
-        ]);
+      return new Promise((resolve, reject) => {
+        try {
+          // Example: Accessing data from a specific SAC model
+          const model = this.getModel(); // SAC model reference
+
+          // Assuming the model has a dimension 'Column1', 'Column2', etc.
+          const rows = [];
+
+          // Retrieve the data from the model
+          model.getData().forEach((row) => {
+            rows.push([row.Column1, row.Column2, row.Column3]); // Mapping columns to table cells
+          });
+
+          resolve(rows);
+        } catch (error) {
+          reject(error);
+        }
       });
+    }
+
+    getModel() {
+      // SAC-specific logic to get a model bound to the widget
+      // You would need to use SAC's binding API to get the model you're interested in.
+      // Replace this with the actual SAC API call to get the data model
+      return {
+        getData: () => [
+          { Column1: "Row 1, Col 1", Column2: "Row 1, Col 2", Column3: "Row 1, Col 3" },
+          { Column1: "Row 2, Col 1", Column2: "Row 2, Col 2", Column3: "Row 2, Col 3" },
+        ],
+      };
     }
 
     populateTable(data) {

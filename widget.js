@@ -31,12 +31,9 @@
   class CustomTableWidget extends HTMLElement {
     constructor() {
       super();
-
       this._shadowRoot = this.attachShadow({ mode: "open" });
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
-
       this._root = this._shadowRoot.getElementById("root");
-
       this._props = {};
     }
 
@@ -143,10 +140,13 @@
           // Step 1: Update in memory
           this._myDataSource.data[rowIndex][measure].raw = newValue;
 
-          // Step 2: Call SAC's commit API for planning models
+          // Step 2: Trigger Data Action to commit the changes to SAC model
           const planningAPI = sap.fpa.ui.widgets.api;
-          await planningAPI.update({
+          
+          // This is where you would invoke the data action that updates the model
+          await planningAPI.runDataAction({
             dataSource: this._myDataSource,
+            actionName: "YourDataActionName", // Specify the data action defined in SAC
             data: this._myDataSource.data,
           });
 

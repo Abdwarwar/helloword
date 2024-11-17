@@ -76,9 +76,9 @@
     getSACModel() {
       return {
         getData: () => [
-          { Dimension1: "A", Dimension2: "X", Measure: 100 },
-          { Dimension1: "B", Dimension2: "Y", Measure: 200 },
-          { Dimension1: "C", Dimension2: "Z", Measure: 300 }
+          { Dimension1: "Abd", Dimension2: "warwar", Measure: 100 },
+          { Dimension1: "nasser", Dimension2: "itani", Measure: 200 },
+          { Dimension1: "mohamed", Dimension2: "wehbe", Measure: 300 }
         ]
       };
     }

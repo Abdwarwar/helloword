@@ -1,3 +1,9 @@
+var getScriptPromisify = (src) => {
+  return new Promise((resolve) => {
+    $.getScript(src, resolve);
+  });
+};
+
 (function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `
@@ -25,9 +31,12 @@
   class CustomTableWidget extends HTMLElement {
     constructor() {
       super();
+
       this._shadowRoot = this.attachShadow({ mode: "open" });
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
+
       this._root = this._shadowRoot.getElementById("root");
+
       this._props = {};
     }
 
@@ -66,12 +75,11 @@
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
-
-      // Fetch measure names from metadata
-      const measureHeaders = measures.map((measure) => {
-        const measureObj = this._myDataSource.metadata.mainStructureMembers[measure];
-        return measureObj ? measureObj.description : measure; // Use description if available
-      });
+      const measureHeaders = measures.map(
+        (measure) =>
+          this._myDataSource.metadata.mainStructureMembers[measure]?.description ||
+          measure
+      );
 
       console.log("Dimension Headers:", dimensionHeaders);
       console.log("Measure Headers:", measureHeaders);
@@ -98,28 +106,29 @@
       // Create table
       const table = document.createElement("table");
 
-      // Create header row with the correct names
-      const headerRow = `
-        <tr>
-          ${dimensionHeaders.map((header) => `<th>${header}</th>`).join("")}
-          ${measureHeaders.map((header) => `<th>${header}</th>`).join("")}
-        </tr>
-      `;
-
-      // Create table body with data rows
+      // Create header
+      const headerRow = `<tr>${dimensionHeaders
+        .map((header) => `<th>${header}</th>`)
+        .join("")}${measureHeaders
+        .map((header) => `<th>${header}</th>`)
+        .join("")}</tr>`;
       table.innerHTML = `
         <thead>${headerRow}</thead>
         <tbody>
-          ${tableData.map((row) => `
-            <tr>
-              ${dimensions.map((dim) => `<td>${row[dim]}</td>`).join("")}
-              ${measures.map((measure) => `<td>${row[measure]}</td>`).join("")}
-            </tr>
-          `).join("")}
+          ${tableData
+            .map(
+              (row) =>
+                `<tr>${dimensions
+                  .map((dim) => `<td>${row[dim]}</td>`)
+                  .join("")}${measures
+                  .map((measure) => `<td>${row[measure]}</td>`)
+                  .join("")}</tr>`
+            )
+            .join("")}
         </tbody>
       `;
 
-      // Clear existing content and add the new table
+      // Clear existing content and add the table
       this._root.innerHTML = "";
       this._root.appendChild(table);
     }

@@ -55,52 +55,31 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      console.log("Data Source State:", this._myDataSource.state);
-      console.log("Metadata Feeds:", this._myDataSource.metadata?.feeds);
-      console.log("Data Source Content:", this._myDataSource.data);
+      console.log("Data Source Metadata:", this._myDataSource.metadata);
+      console.log("Data Source Data:", this._myDataSource.data);
 
       if (this._myDataSource.state !== "success") {
         this._root.innerHTML = `<p>Loading data...</p>`;
         return;
       }
 
-      // Extract dimensions and measures from metadata
       const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
       const measures = this._myDataSource.metadata.feeds.measures.values;
 
-      // Debug: log the dimensions and measures to make sure we're getting the right data
-      console.log("Dimensions:", dimensions);
-      console.log("Measures:", measures);
-
-      if (!dimensions.length || !measures.length) {
-        this._root.innerHTML = `<p>Ensure dimensions and measures are configured correctly.</p>`;
+      if (dimensions.length === 0 || measures.length === 0) {
+        this._root.innerHTML = `<p>Ensure dimensions and measures are configured in the model.</p>`;
         return;
       }
-
-      // Generate table headers dynamically based on dimensions and measures
-      const headers = [
-        ...dimensions.map(dimension => dimension.name),
-        ...measures.map(measure => measure.name)
-      ];
-
-      console.log("Table Headers:", headers);
 
       // Map data to table rows
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
-
-        // Extracting dimension values for the row
-        dimensions.forEach(dimension => {
-          const dimensionValue = row[dimension.id]?.label || "N/A"; // Check if the dimension value exists
-          rowData[dimension.name] = dimensionValue;
+        dimensions.forEach((dim) => {
+          rowData[dim] = row[dim]?.label || "N/A";
         });
-
-        // Extracting measure values for the row
-        measures.forEach(measure => {
-          const measureValue = row[measure.id]?.raw || "N/A"; // Check if the measure value exists
-          rowData[measure.name] = measureValue;
+        measures.forEach((measure) => {
+          rowData[measure] = row[measure]?.raw || "N/A";
         });
-
         return rowData;
       });
 
@@ -114,24 +93,26 @@ var getScriptPromisify = (src) => {
       // Create table
       const table = document.createElement("table");
 
-      // Create the table header dynamically
+      // Create header
+      const headerRow = `<tr>${dimensions
+        .map((dim) => `<th>${this._myDataSource.metadata.dimensions[dim]?.description || dim}</th>`)
+        .join("")}${measures
+        .map((measure) => `<th>${this._myDataSource.metadata.mainStructureMembers[measure]?.description || measure}</th>`)
+        .join("")}</tr>`;
       table.innerHTML = `
-          <thead>
-              <tr>
-                  ${headers.map(header => `<th>${header}</th>`).join("")}
-              </tr>
-          </thead>
-          <tbody>
-              ${tableData
-                .map(
-                  (row) => `
-                  <tr>
-                      ${headers.map(header => `<td>${row[header] || "N/A"}</td>`).join("")}
-                  </tr>
-              `
-                )
-                .join("")}
-          </tbody>
+        <thead>${headerRow}</thead>
+        <tbody>
+          ${tableData
+            .map(
+              (row) =>
+                `<tr>${dimensions
+                  .map((dim) => `<td>${row[dim]}</td>`)
+                  .join("")}${measures
+                  .map((measure) => `<td>${row[measure]}</td>`)
+                  .join("")}</tr>`
+            )
+            .join("")}
+        </tbody>
       `;
 
       // Clear existing content and add the table

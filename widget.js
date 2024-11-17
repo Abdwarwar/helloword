@@ -77,10 +77,10 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      // Generate table headers dynamically based on dimension and measure names from the model
+      // Generate table headers dynamically based on dimensions and measures
       const headers = [
-        ...dimensions.map(dimension => dimension.name), // Use the 'name' of the dimension
-        ...measures.map(measure => measure.name)       // Use the 'name' of the measure
+        ...dimensions.map(dimension => dimension.name),
+        ...measures.map(measure => measure.name)
       ];
 
       console.log("Table Headers:", headers);
@@ -114,7 +114,7 @@ var getScriptPromisify = (src) => {
       // Create table
       const table = document.createElement("table");
 
-      // Create the table header dynamically based on the 'name' of dimensions and measures
+      // Create the table header dynamically
       table.innerHTML = `
           <thead>
               <tr>

@@ -54,12 +54,18 @@ var getScriptPromisify = (src) => {
 
     async render() {
       if (!this._myDataSource || this._myDataSource.state !== "success") {
+        console.error('Data source not available or not successful');
         return;
       }
 
       const dimensionNames = this._myDataSource.metadata.feeds.dimensions.values;
       const measureNames = this._myDataSource.metadata.feeds.measures.values;
       const data = this._myDataSource.data;
+
+      // Log data to ensure it's being passed correctly
+      console.log('Data Source:', this._myDataSource);
+      console.log('Dimensions:', dimensionNames);
+      console.log('Measures:', measureNames);
 
       // Clear the table content first
       this._tableHeader.innerHTML = '';
@@ -79,20 +85,20 @@ var getScriptPromisify = (src) => {
       });
 
       // Populate table body with data
-      data.forEach(row => {
+      data.forEach((row, index) => {
         const tr = document.createElement("tr");
 
         // Add dimension values
         dimensionNames.forEach(dim => {
           const td = document.createElement("td");
-          td.textContent = row[dim.id] ? row[dim.id].label : '';
+          td.textContent = row[dim.id] ? row[dim.id].label : 'N/A';  // Check for missing values
           tr.appendChild(td);
         });
 
         // Add measure values
         measureNames.forEach(measure => {
           const td = document.createElement("td");
-          td.textContent = row[measure.id] ? row[measure.id].raw : '';
+          td.textContent = row[measure.id] ? row[measure.id].raw : 'N/A';  // Check for missing values
           tr.appendChild(td);
         });
 

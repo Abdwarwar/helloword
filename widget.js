@@ -68,24 +68,32 @@ var getScriptPromisify = (src) => {
         return;
       }
 
+      // Inspect the data structure and check the field for filtering
+      console.log("Inspecting data rows:");
+      this._myDataSource.data.forEach((row, index) => {
+        console.log(`Row ${index + 1}:`, row);
+      });
+
+      // Filter data to include only booking records
+      const filteredData = this._myDataSource.data.filter((row) => {
+        // Replace 'status' with the correct field name (e.g., 'type', 'category', etc.)
+        // Make sure the value to filter by is correct, such as 'Booking'
+        return row.status && row.status.label === "Booking"; // Modify condition as needed
+      });
+
+      console.log("Filtered Data:", filteredData);
+
+      if (filteredData.length === 0) {
+        this._root.innerHTML = `<p>No booking data available to display.</p>`;
+        return;
+      }
+
       // Extract dimensions and measures
       const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
       const measures = this._myDataSource.metadata.feeds.measures.values;
 
       if (!dimensions || !measures) {
         this._root.innerHTML = `<p>Ensure dimensions and measures are configured.</p>`;
-        return;
-      }
-
-      // Filter data to include only booking records
-      const filteredData = this._myDataSource.data.filter((row) => {
-        // Assuming the "status" dimension or measure is available to filter the "booking" records.
-        // Update 'status' with the correct field name that identifies "booking" data.
-        return row.status && row.status.label === "Booking"; // Modify condition as needed
-      });
-
-      if (filteredData.length === 0) {
-        this._root.innerHTML = `<p>No booking data available to display.</p>`;
         return;
       }
 

@@ -65,19 +65,30 @@ var getScriptPromisify = (src) => {
       }
 
       // Extract dimensions and measures
-      const dimension = this._myDataSource.metadata.feeds.dimensions.values[0];
-      const measure = this._myDataSource.metadata.feeds.measures.values[0];
+      const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
+      const measures = this._myDataSource.metadata.feeds.measures.values;
 
-      if (!dimension || !measure) {
+      if (dimensions.length === 0 || measures.length === 0) {
         this._root.innerHTML = `<p>Ensure dimensions and measures are configured.</p>`;
         return;
       }
 
-      // Map data to table rows
-      const tableData = this._myDataSource.data.map((row) => ({
-        dimension: row[dimension]?.label || "N/A",
-        measure: row[measure]?.raw || "N/A",
-      }));
+      // Map data to table rows with multiple dimensions and measures
+      const tableData = this._myDataSource.data.map((row) => {
+        const rowData = {};
+
+        // Add all dimension data
+        dimensions.forEach((dimension) => {
+          rowData[dimension] = row[dimension]?.label || "N/A";
+        });
+
+        // Add all measure data
+        measures.forEach((measure) => {
+          rowData[measure] = row[measure]?.raw || "N/A";
+        });
+
+        return rowData;
+      });
 
       console.log("Mapped Table Data:", tableData);
 
@@ -86,26 +97,33 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      // Create table
+      // Create table headers dynamically based on the dimensions and measures
+      const headers = [
+        ...dimensions.map((dimension) => `<th>${dimension}</th>`),
+        ...measures.map((measure) => `<th>${measure}</th>`),
+      ].join("");
+
+      // Create table rows dynamically for each row of data
+      const rows = tableData
+        .map((row) => {
+          const rowHtml = [
+            ...dimensions.map((dimension) => `<td>${row[dimension]}</td>`),
+            ...measures.map((measure) => `<td>${row[measure]}</td>`),
+          ].join("");
+          return `<tr>${rowHtml}</tr>`;
+        })
+        .join("");
+
+      // Create table with headers and rows
       const table = document.createElement("table");
       table.innerHTML = `
           <thead>
               <tr>
-                  <th>Dimension</th>
-                  <th>Measure</th>
+                  ${headers}
               </tr>
           </thead>
           <tbody>
-              ${tableData
-                .map(
-                  (row) => `
-                  <tr>
-                      <td>${row.dimension}</td>
-                      <td>${row.measure}</td>
-                  </tr>
-              `
-                )
-                .join("")}
+              ${rows}
           </tbody>
       `;
 

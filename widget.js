@@ -31,38 +31,38 @@
 
     async fetchData() {
       try {
-        const data = await this.getDataFromSAC();
+        // Get the dimension and measure values from the widget's properties
+        const dimension1 = this.getAttribute("dimension1");
+        const dimension2 = this.getAttribute("dimension2");
+        const measure = this.getAttribute("measure");
+
+        // Get data from the SAC model (replace this with your actual SAC API call)
+        const data = await this.getDataFromSAC(dimension1, dimension2, measure);
         this.populateTable(data);
       } catch (error) {
         console.error("Error fetching data:", error);
       }
     }
 
-    async getDataFromSAC() {
-      // Here, we'll use the widget properties to fetch the selected dimensions and measures
-      const dimension1 = this.getAttribute("dimension1");  // Dimension 1 from the property
-      const dimension2 = this.getAttribute("dimension2");  // Dimension 2 from the property
-      const measure = this.getAttribute("measure");        // Measure from the property
-
-      // Fetch data based on the selected dimensions and measure from SAC
-      const data = await this.fetchFromModel(dimension1, dimension2, measure);
-      return data;
-    }
-
-    async fetchFromModel(dimension1, dimension2, measure) {
-      // Here, fetch actual data from SAC model using the given dimensions and measures
-      // For now, we simulate data fetching:
-      return [
-        { dimension1: 'North', dimension2: 'Product A', measure: 1500 },
-        { dimension1: 'South', dimension2: 'Product B', measure: 2000 },
-        { dimension1: 'East', dimension2: 'Product C', measure: 1200 }
-      ];
+    async getDataFromSAC(dimension1, dimension2, measure) {
+      // Simulate a call to the SAC model (replace with real data fetch logic)
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          const data = [
+            { dimension1: "North", dimension2: "Product A", measure: 1500 },
+            { dimension1: "South", dimension2: "Product B", measure: 2000 },
+            { dimension1: "East", dimension2: "Product C", measure: 1200 }
+          ];
+          resolve(data);
+        }, 1000);
+      });
     }
 
     populateTable(data) {
       const tableBody = this.shadowRoot.querySelector("#dataTable tbody");
       tableBody.innerHTML = ""; // Clear existing rows
 
+      // Create a row for each piece of data
       data.forEach(row => {
         const tr = document.createElement("tr");
         Object.values(row).forEach(cell => {

@@ -76,12 +76,17 @@ var getScriptPromisify = (src) => {
       // Map data to table rows
       const tableData = this._myDataSource.data.map((row) => {
         let rowData = {};
+
+        // Add dimensions to the rowData object
         dimensions.forEach((dimension) => {
           rowData[dimension] = row[dimension]?.label || "N/A";
         });
+
+        // Add measures to the rowData object
         measures.forEach((measure) => {
           rowData[measure] = row[measure]?.raw || "N/A";
         });
+
         return rowData;
       });
 

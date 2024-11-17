@@ -77,7 +77,7 @@ var getScriptPromisify = (src) => {
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
 
-        // Add all dimension data (each dimension in a separate column)
+        // Add all dimension data
         dimensions.forEach((dimension) => {
           rowData[dimension] = row[dimension]?.label || "N/A";
         });
@@ -99,16 +99,16 @@ var getScriptPromisify = (src) => {
 
       // Create table headers dynamically based on the dimensions and measures
       const headers = [
-        ...dimensions.map((dimension) => `<th>${dimension}</th>`), // Separate column for each dimension
-        ...measures.map((measure) => `<th>${measure}</th>`), // Separate column for each measure
+        ...dimensions.map((dimension) => `<th>${dimension}</th>`),
+        ...measures.map((measure) => `<th>${measure}</th>`),
       ].join("");
 
       // Create table rows dynamically for each row of data
       const rows = tableData
         .map((row) => {
           const rowHtml = [
-            ...dimensions.map((dimension) => `<td>${row[dimension]}</td>`), // Add data for each dimension
-            ...measures.map((measure) => `<td>${row[measure]}</td>`), // Add data for each measure
+            ...dimensions.map((dimension) => `<td>${row[dimension]}</td>`),
+            ...measures.map((measure) => `<td>${row[measure]}</td>`),
           ].join("");
           return `<tr>${rowHtml}</tr>`;
         })

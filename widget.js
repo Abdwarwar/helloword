@@ -52,18 +52,19 @@
       }
     }
 
-    getDataFromSACModel() {
+    // Simulated method to retrieve data from SAC model, replace with actual API call
+    async getDataFromSACModel() {
       return new Promise((resolve, reject) => {
         try {
-          // Fetch data from the SAC model using SAC's data binding APIs
-          const model = this.getSACModel(); // Function to retrieve the SAC model
+          // Access the SAC model using data binding API (example)
+          const model = this.getSACModel(); // Replace with SAC model API call
           const rows = [];
-
-          // Retrieve data (dimensions and measures) dynamically from the model
+          
+          // Get data dynamically from the SAC model
           model.getData().forEach((row) => {
-            rows.push([row.Dimension1, row.Dimension2, row.Measure]); // Adjust according to your model's structure
+            rows.push([row.Dimension1, row.Dimension2, row.Measure]);
           });
-
+          
           resolve(rows);
         } catch (error) {
           reject(error);
@@ -71,11 +72,9 @@
       });
     }
 
+    // Example model method, replace this with actual API for data binding
     getSACModel() {
-      // Replace this with the actual logic to fetch data from your SAC model
-      // The following is a simulation of how you might fetch data
-
-      // Placeholder SAC model data example:
+      // Use SAC API to get data from the selected model and dimension
       return {
         getData: () => [
           { Dimension1: "A", Dimension2: "X", Measure: 100 },

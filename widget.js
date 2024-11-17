@@ -31,7 +31,7 @@
 
     async fetchData() {
       try {
-        // Get the dimension and measure values from the widget's properties
+        // Get the selected values from input controls
         const dimension1 = this.getAttribute("dimension1");
         const dimension2 = this.getAttribute("dimension2");
         const measure = this.getAttribute("measure");
@@ -48,6 +48,7 @@
       // Simulate a call to the SAC model (replace with real data fetch logic)
       return new Promise((resolve, reject) => {
         setTimeout(() => {
+          // Example data (replace with actual SAC model data)
           const data = [
             { dimension1: "North", dimension2: "Product A", measure: 1500 },
             { dimension1: "South", dimension2: "Product B", measure: 2000 },

@@ -2,22 +2,11 @@
   const template = document.createElement("template");
   template.innerHTML = `
     <div>
-      <table id="dataTable">
-        <thead>
-          <tr>
-            <th>Dimension 1</th>
-            <th>Dimension 2</th>
-            <th>Measure</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Dynamic rows will be inserted here -->
-        </tbody>
-      </table>
+      <table id="table"></table>
     </div>
   `;
 
-  class DataTableWidget extends HTMLElement {
+  class TableWidget extends HTMLElement {
     constructor() {
       super();
       this.attachShadow({ mode: "open" });
@@ -25,56 +14,55 @@
     }
 
     connectedCallback() {
-      console.log("Data Table widget added to the page.");
-      this.fetchData();
+      // Get the selected dimensions and measures from the properties
+      const dimension1 = this.getAttribute("dimension1");
+      const dimension2 = this.getAttribute("dimension2");
+      const measure = this.getAttribute("measure");
+
+      console.log(`Dimension 1: ${dimension1}, Dimension 2: ${dimension2}, Measure: ${measure}`);
+      this.fetchData(dimension1, dimension2, measure);
     }
 
-    async fetchData() {
+    async fetchData(dimension1, dimension2, measure) {
       try {
-        // Get the selected values from input controls
-        const dimension1 = this.getAttribute("dimension1");
-        const dimension2 = this.getAttribute("dimension2");
-        const measure = this.getAttribute("measure");
+        // Here, you would query the SAC model using these properties
+        // In this example, we'll just log them, but you can use SAC APIs to fetch data
+        console.log(`Fetching data for ${dimension1}, ${dimension2}, ${measure}`);
 
-        // Get data from the SAC model (replace this with your actual SAC API call)
-        const data = await this.getDataFromSAC(dimension1, dimension2, measure);
+        // Simulate fetched data for demonstration
+        const data = [
+          [dimension1, dimension2, measure],
+          ["Row 1 Value 1", "Row 1 Value 2", "Row 1 Measure"],
+          ["Row 2 Value 1", "Row 2 Value 2", "Row 2 Measure"]
+        ];
+
         this.populateTable(data);
       } catch (error) {
         console.error("Error fetching data:", error);
       }
     }
 
-    async getDataFromSAC(dimension1, dimension2, measure) {
-      // Simulate a call to the SAC model (replace with real data fetch logic)
-      return new Promise((resolve, reject) => {
-        setTimeout(() => {
-          // Example data (replace with actual SAC model data)
-          const data = [
-            { dimension1: "North", dimension2: "Product A", measure: 1500 },
-            { dimension1: "South", dimension2: "Product B", measure: 2000 },
-            { dimension1: "East", dimension2: "Product C", measure: 1200 }
-          ];
-          resolve(data);
-        }, 1000);
-      });
-    }
-
     populateTable(data) {
-      const tableBody = this.shadowRoot.querySelector("#dataTable tbody");
-      tableBody.innerHTML = ""; // Clear existing rows
-
-      // Create a row for each piece of data
-      data.forEach(row => {
-        const tr = document.createElement("tr");
-        Object.values(row).forEach(cell => {
-          const td = document.createElement("td");
-          td.textContent = cell;
-          tr.appendChild(td);
-        });
-        tableBody.appendChild(tr);
+      const table = this.shadowRoot.querySelector("#table");
+      table.innerHTML = "";  // Clear any existing content
+      const headerRow = table.insertRow();
+      
+      // Create headers based on the dimensions and measure
+      data[0].forEach(text => {
+        const cell = headerRow.insertCell();
+        cell.textContent = text;
       });
+
+      // Populate table rows
+      for (let i = 1; i < data.length; i++) {
+        const row = table.insertRow();
+        data[i].forEach(cellData => {
+          const cell = row.insertCell();
+          cell.textContent = cellData;
+        });
+      }
     }
   }
 
-  customElements.define("com-sap-custom-datatable", DataTableWidget);
+  customElements.define("com-sap-custom-tablewidget", TableWidget);
 })();

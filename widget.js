@@ -1,9 +1,3 @@
-var getScriptPromisify = (src) => {
-  return new Promise(resolve => {
-    $.getScript(src, resolve);
-  });
-}
-
 (function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `
@@ -52,9 +46,13 @@ var getScriptPromisify = (src) => {
       this.render();
     }
 
-    async render() {
+    render() {
+      // Log to debug and check if data is available
+      console.log('Rendering table widget');
+      
+      // Check if the data source is valid and has been successfully loaded
       if (!this._myDataSource || this._myDataSource.state !== "success") {
-        console.error('Data source not available or not successful');
+        console.error('Data source is not available or not successful');
         return;
       }
 
@@ -62,10 +60,10 @@ var getScriptPromisify = (src) => {
       const measureNames = this._myDataSource.metadata.feeds.measures.values;
       const data = this._myDataSource.data;
 
-      // Log data to ensure it's being passed correctly
-      console.log('Data Source:', this._myDataSource);
+      // Log the dimensions, measures, and data to the console
       console.log('Dimensions:', dimensionNames);
       console.log('Measures:', measureNames);
+      console.log('Data:', data);
 
       // Clear the table content first
       this._tableHeader.innerHTML = '';

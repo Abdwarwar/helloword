@@ -70,4 +70,68 @@ var getScriptPromisify = (src) => {
 
       // Check if dimensions and measures are present
       if (!dimensions.length || !measures.length) {
-        this._root.innerHTML = `<p>Ensure dimensions and measures are configured cor
+        this._root.innerHTML = `<p>Ensure dimensions and measures are configured correctly.</p>`;
+        return;
+      }
+
+      // Prepare headers (just use dimension and measure names)
+      const headers = [
+        ...dimensions.map(dimension => dimension.name || `Dimension ${dimension.id}`),
+        ...measures.map(measure => measure.name || `Measure ${measure.id}`)
+      ];
+
+      // Map data to rows
+      const tableData = this._myDataSource.data.map((row) => {
+        const rowData = {};
+
+        // Loop through the dimensions and populate the rowData object
+        dimensions.forEach(dimension => {
+          const dimensionValue = row[dimension.id]?.label || "N/A";
+          rowData[dimension.name || `Dimension ${dimension.id}`] = dimensionValue;
+        });
+
+        // Loop through the measures and populate the rowData object
+        measures.forEach(measure => {
+          const measureValue = row[measure.id]?.raw || "N/A";
+          rowData[measure.name || `Measure ${measure.id}`] = measureValue;
+        });
+
+        return rowData;
+      });
+
+      // If no data is found, display a message
+      if (tableData.length === 0) {
+        this._root.innerHTML = `<p>No data available to display.</p>`;
+        return;
+      }
+
+      // Create table and populate it with data
+      const table = document.createElement("table");
+
+      table.innerHTML = `
+          <thead>
+              <tr>
+                  ${headers.map(header => `<th>${header}</th>`).join("")}
+              </tr>
+          </thead>
+          <tbody>
+              ${tableData
+                .map(
+                  (row) => `
+                  <tr>
+                      ${headers.map(header => `<td>${row[header] || "N/A"}</td>`).join("")}
+                  </tr>
+              `
+                )
+                .join("")}
+          </tbody>
+      `;
+
+      // Clear existing content and add the table
+      this._root.innerHTML = "";
+      this._root.appendChild(table);
+    }
+  }
+
+  customElements.define("com-sap-custom-tablewidget", CustomTableWidget);
+})();

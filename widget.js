@@ -50,7 +50,16 @@ var getScriptPromisify = (src) => {
     }
 
     async render() {
-      if (!this._myDataSource || this._myDataSource.state !== "success") {
+      if (!this._myDataSource) {
+        this._root.innerHTML = `<p>No data source bound.</p>`;
+        return;
+      }
+
+      console.log("Data Source State:", this._myDataSource.state);
+      console.log("Metadata Feeds:", this._myDataSource.metadata?.feeds);
+      console.log("Data Source Content:", this._myDataSource.data);
+
+      if (this._myDataSource.state !== "success") {
         this._root.innerHTML = `<p>Loading data...</p>`;
         return;
       }
@@ -60,7 +69,7 @@ var getScriptPromisify = (src) => {
       const measure = this._myDataSource.metadata.feeds.measures.values[0];
 
       if (!dimension || !measure) {
-        this._root.innerHTML = `<p>No dimension or measure found in the data source.</p>`;
+        this._root.innerHTML = `<p>Ensure dimensions and measures are configured.</p>`;
         return;
       }
 
@@ -69,6 +78,13 @@ var getScriptPromisify = (src) => {
         dimension: row[dimension]?.label || "N/A",
         measure: row[measure]?.raw || "N/A",
       }));
+
+      console.log("Mapped Table Data:", tableData);
+
+      if (tableData.length === 0) {
+        this._root.innerHTML = `<p>No data available to display.</p>`;
+        return;
+      }
 
       // Create table
       const table = document.createElement("table");

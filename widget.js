@@ -73,17 +73,26 @@ var getScriptPromisify = (src) => {
         return;
       }
 
+      // Generate table headers dynamically based on dimensions and measures
+      const headers = [
+        ...dimensions.map(dimension => dimension.name),
+        ...measures.map(measure => measure.name)
+      ];
+
       // Map data to table rows, dynamically creating columns based on dimensions and measures
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
-        dimensions.forEach((dimension) => {
-          // Ensure we access the correct dimension value
-          rowData[dimension.id] = row[dimension.id]?.label || "N/A";  // Using dimension ID for correct mapping
+
+        // Extracting dimension values for the row
+        dimensions.forEach(dimension => {
+          rowData[dimension.name] = row[dimension.id]?.label || "N/A";  // Ensure we use dimension name for header matching
         });
-        measures.forEach((measure) => {
-          // Ensure we access the correct measure value
-          rowData[measure.id] = row[measure.id]?.raw || "N/A";  // Using measure ID for correct mapping
+
+        // Extracting measure values for the row
+        measures.forEach(measure => {
+          rowData[measure.name] = row[measure.id]?.raw || "N/A";  // Ensure we use measure name for header matching
         });
+
         return rowData;
       });
 
@@ -97,9 +106,7 @@ var getScriptPromisify = (src) => {
       // Create table
       const table = document.createElement("table");
 
-      // Create table header dynamically based on dimensions and measures
-      const headers = [...dimensions.map(d => d.name), ...measures.map(m => m.name)];
-
+      // Create the table header dynamically
       table.innerHTML = `
           <thead>
               <tr>

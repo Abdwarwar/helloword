@@ -68,25 +68,20 @@ var getScriptPromisify = (src) => {
       const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
       const measures = this._myDataSource.metadata.feeds.measures.values;
 
-      if (dimensions.length === 0 || measures.length === 0) {
+      if (!dimensions.length || !measures.length) {
         this._root.innerHTML = `<p>Ensure dimensions and measures are configured.</p>`;
         return;
       }
 
-      // Map data to table rows
+      // Map data to table rows, dynamically creating columns based on dimensions and measures
       const tableData = this._myDataSource.data.map((row) => {
-        let rowData = {};
-
-        // Add dimensions to the rowData object
+        const rowData = {};
         dimensions.forEach((dimension) => {
           rowData[dimension] = row[dimension]?.label || "N/A";
         });
-
-        // Add measures to the rowData object
         measures.forEach((measure) => {
           rowData[measure] = row[measure]?.raw || "N/A";
         });
-
         return rowData;
       });
 
@@ -97,34 +92,28 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      // Create table header with dynamic columns for dimensions and measures
-      const tableHeader = [
-        ...dimensions.map((dimension) => `<th>${dimension}</th>`),
-        ...measures.map((measure) => `<th>${measure}</th>`),
-      ].join("");
-
-      // Create table rows for each data entry
-      const tableRows = tableData
-        .map(
-          (row) => `
-          <tr>
-            ${dimensions.map((dimension) => `<td>${row[dimension]}</td>`).join("")}
-            ${measures.map((measure) => `<td>${row[measure]}</td>`).join("")}
-          </tr>
-        `
-        )
-        .join("");
-
-      // Create the complete table
+      // Create table
       const table = document.createElement("table");
+
+      // Create table header dynamically
+      const headers = [...dimensions.map(d => d.name), ...measures.map(m => m.name)];
+
       table.innerHTML = `
           <thead>
               <tr>
-                  ${tableHeader}
+                  ${headers.map(header => `<th>${header}</th>`).join("")}
               </tr>
           </thead>
           <tbody>
-              ${tableRows}
+              ${tableData
+                .map(
+                  (row) => `
+                  <tr>
+                      ${headers.map(header => `<td>${row[header] || "N/A"}</td>`).join("")}
+                  </tr>
+              `
+                )
+                .join("")}
           </tbody>
       `;
 

@@ -1,89 +1,74 @@
 (function () {
-  const prepared = document.createElement("template");
-  prepared.innerHTML = `
-        <style>
-          table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-          th, td {
-            padding: 8px;
-            text-align: left;
-            border: 1px solid #ddd;
-          }
-          th {
-            background-color: #f2f2f2;
-          }
-        </style>
-        <div id="root" style="width: 100%; height: 100%; overflow: auto;">
-          <table id="custom-table">
-            <thead>
-              <tr id="table-header"></tr>
-            </thead>
-            <tbody id="table-body"></tbody>
-          </table>
-        </div>
-      `;
-  
-  class CustomTableSample extends HTMLElement {
+  const template = document.createElement("template");
+  template.innerHTML = `
+    <div>
+      <h1>Table Widget</h1>
+      <table id="data-table">
+        <thead>
+          <tr id="header-row"></tr>
+        </thead>
+        <tbody id="body-row"></tbody>
+      </table>
+    </div>
+  `;
+
+  class TableWidget extends HTMLElement {
     constructor() {
       super();
-      this._shadowRoot = this.attachShadow({ mode: "open" });
-      this._shadowRoot.appendChild(prepared.content.cloneNode(true));
-      this._root = this._shadowRoot.getElementById("root");
-      this._tableHeader = this._shadowRoot.getElementById("table-header");
-      this._tableBody = this._shadowRoot.getElementById("table-body");
-      this._props = {};
-      this.render();
+      this.attachShadow({ mode: "open" });
+      this.shadowRoot.appendChild(template.content.cloneNode(true));
     }
 
-    onCustomWidgetResize(width, height) {
-      this.render();
+    connectedCallback() {
+      this.updateTable();
     }
 
-    set myDataSource(dataBinding) {
-      this._myDataSource = dataBinding;
-      this.render();
-    }
+    updateTable() {
+      // Get the data binding for dimensions and measures
+      const dimensions = this.dataBindings.getDataBinding('myDataSource').getDataSource().getDimensions();
+      const measures = this.dataBindings.getDataBinding('myDataSource').getDataSource().getMeasures();
 
-    render() {
-      // Check if the data source is available
-      if (!this._myDataSource || this._myDataSource.state !== "success") {
-        console.error('Data source not available');
-        return;
-      }
+      // Update the table header with the dimensions and measures
+      const headerRow = this.shadowRoot.querySelector("#header-row");
+      headerRow.innerHTML = '';
 
-      // Example static data (for testing)
-      const headers = ['Dimension 1', 'Dimension 2', 'Measure 1'];
-      const rows = [
-        ['Value 1', 'Value A', 100],
-        ['Value 2', 'Value B', 200],
-        ['Value 3', 'Value C', 300]
-      ];
-
-      // Clear existing table content
-      this._tableHeader.innerHTML = '';
-      this._tableBody.innerHTML = '';
-
-      // Create header row
-      headers.forEach(header => {
-        const th = document.createElement("th");
-        th.textContent = header;
-        this._tableHeader.appendChild(th);
+      dimensions.forEach(dimension => {
+        const headerCell = document.createElement('th');
+        headerCell.textContent = dimension.name; // Dimension name
+        headerRow.appendChild(headerCell);
       });
 
-      // Create table rows with sample data
-      rows.forEach(row => {
-        const tr = document.createElement("tr");
-        row.forEach(cell => {
-          const td = document.createElement("td");
-          td.textContent = cell;
-          tr.appendChild(td);
+      measures.forEach(measure => {
+        const headerCell = document.createElement('th');
+        headerCell.textContent = measure.name; // Measure name
+        headerRow.appendChild(headerCell);
+      });
+
+      // Get the data rows (e.g., the members of the dimensions and measures)
+      const bodyRow = this.shadowRoot.querySelector("#body-row");
+      bodyRow.innerHTML = '';
+
+      const data = this.dataBindings.getDataBinding('myDataSource').getDataSource().getData();
+
+      data.forEach(row => {
+        const rowElement = document.createElement('tr');
+
+        dimensions.forEach(dimension => {
+          const cell = document.createElement('td');
+          cell.textContent = row[dimension.name]; // Populate dimension values
+          rowElement.appendChild(cell);
         });
-        this._tableBody.appendChild(tr);
+
+        measures.forEach(measure => {
+          const cell = document.createElement('td');
+          cell.textContent = row[measure.name]; // Populate measure values
+          rowElement.appendChild(cell);
+        });
+
+        bodyRow.appendChild(rowElement);
       });
     }
   }
 
-  customElements.define("com-sap-sample-custom_table_widget", CustomTableSample);
+  customElements.define("com-sap-custom-tablewidget", TableWidget);
 })();

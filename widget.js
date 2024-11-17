@@ -23,6 +23,10 @@ var getScriptPromisify = (src) => {
           tr:nth-child(even) {
             background-color: #f9f9f9;
           }
+          input {
+            width: 100%;
+            box-sizing: border-box;
+          }
         </style>
         <div id="root" style="width: 100%; height: 100%; overflow: auto;">
         </div>
@@ -68,25 +72,20 @@ var getScriptPromisify = (src) => {
       const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
       const measures = this._myDataSource.metadata.feeds.measures.values;
 
-      if (dimensions.length === 0 || measures.length === 0) {
+      if (!dimensions || !measures) {
         this._root.innerHTML = `<p>Ensure dimensions and measures are configured.</p>`;
         return;
       }
 
-      // Map data to table rows with multiple dimensions and measures
+      // Map data to table rows
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
-
-        // Add all dimension data
         dimensions.forEach((dimension) => {
           rowData[dimension] = row[dimension]?.label || "N/A";
         });
-
-        // Add all measure data
         measures.forEach((measure) => {
           rowData[measure] = row[measure]?.raw || "N/A";
         });
-
         return rowData;
       });
 
@@ -97,35 +96,57 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      // Create table headers dynamically based on the dimensions and measures
-      const headers = [
-        ...dimensions.map((dimension) => `<th>${dimension}</th>`),
+      // Create table headers dynamically based on dimensions and measures
+      const tableHeaders = [
+        ...dimensions.map((dim) => `<th>${dim}</th>`),
         ...measures.map((measure) => `<th>${measure}</th>`),
       ].join("");
 
-      // Create table rows dynamically for each row of data
-      const rows = tableData
+      // Create table body with editable cells for measures
+      const tableRows = tableData
         .map((row) => {
-          const rowHtml = [
-            ...dimensions.map((dimension) => `<td>${row[dimension]}</td>`),
-            ...measures.map((measure) => `<td>${row[measure]}</td>`),
+          const rowCells = [
+            ...dimensions.map(
+              (dim) => `<td>${row[dim] || "N/A"}</td>`
+            ),
+            ...measures.map(
+              (measure) => `<td><input type="text" value="${row[measure]}" data-measure="${measure}" data-row-id="${row.rowId}" /></td>`
+            ),
           ].join("");
-          return `<tr>${rowHtml}</tr>`;
+          return `<tr>${rowCells}</tr>`;
         })
         .join("");
 
-      // Create table with headers and rows
+      // Create table
       const table = document.createElement("table");
       table.innerHTML = `
           <thead>
               <tr>
-                  ${headers}
+                  ${tableHeaders}
               </tr>
           </thead>
           <tbody>
-              ${rows}
+              ${tableRows}
           </tbody>
       `;
+
+      // Event listener to handle cell edit
+      table.querySelectorAll("input").forEach((input) => {
+        input.addEventListener("change", (e) => {
+          const measure = e.target.getAttribute("data-measure");
+          const rowId = e.target.getAttribute("data-row-id");
+          const newValue = e.target.value;
+
+          console.log(`Updated value for measure ${measure} in row ${rowId}: ${newValue}`);
+          
+          // Here, we should update the internal data structure accordingly
+          // Assuming we have a way to find the row by rowId and update the data
+          const updatedRow = this._myDataSource.data.find((row) => row.rowId === rowId);
+          if (updatedRow) {
+            updatedRow[measure].raw = newValue;
+          }
+        });
+      });
 
       // Clear existing content and add the table
       this._root.innerHTML = "";

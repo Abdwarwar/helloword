@@ -1,9 +1,3 @@
-var getScriptPromisify = (src) => {
-  return new Promise((resolve) => {
-    $.getScript(src, resolve);
-  });
-};
-
 (function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `
@@ -23,11 +17,11 @@ var getScriptPromisify = (src) => {
           tr:nth-child(even) {
             background-color: #f9f9f9;
           }
-          input {
+          input[type="number"] {
             width: 100%;
             border: none;
-            text-align: right;
             background-color: transparent;
+            text-align: left;
           }
         </style>
         <div id="root" style="width: 100%; height: 100%; overflow: auto;">
@@ -69,7 +63,7 @@ var getScriptPromisify = (src) => {
       const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
       const measures = this._myDataSource.metadata.feeds.measures.values;
 
-      if (!dimensions.length || !measures.length) {
+      if (dimensions.length === 0 || measures.length === 0) {
         this._root.innerHTML = `<p>Ensure dimensions and measures are configured.</p>`;
         return;
       }
@@ -91,8 +85,6 @@ var getScriptPromisify = (src) => {
       }
 
       const table = document.createElement("table");
-
-      // Create headers
       table.innerHTML = `
           <thead>
               <tr>
@@ -100,50 +92,61 @@ var getScriptPromisify = (src) => {
                   ${measures.map((measure) => `<th>${measure}</th>`).join("")}
               </tr>
           </thead>
+          <tbody>
+              ${tableData
+                .map(
+                  (row, rowIndex) => `
+                  <tr>
+                      ${dimensions
+                        .map((dim) => `<td>${row[dim]}</td>`)
+                        .join("")}
+                      ${measures
+                        .map(
+                          (measure) => `
+                          <td>
+                              <input 
+                                  type="number" 
+                                  value="${row[measure]}" 
+                                  data-row-index="${rowIndex}" 
+                                  data-measure="${measure}" 
+                                  class="editable-measure" />
+                          </td>
+                      `
+                        )
+                        .join("")}
+                  </tr>
+              `
+                )
+                .join("")}
+          </tbody>
       `;
-
-      // Create rows
-      const tbody = document.createElement("tbody");
-      tableData.forEach((row, rowIndex) => {
-        const tr = document.createElement("tr");
-
-        dimensions.forEach((dim) => {
-          const td = document.createElement("td");
-          td.textContent = row[dim];
-          tr.appendChild(td);
-        });
-
-        measures.forEach((measure) => {
-          const td = document.createElement("td");
-          const input = document.createElement("input");
-          input.type = "number";
-          input.value = row[measure];
-          input.addEventListener("change", () => this.updateModel(rowIndex, measure, input.value));
-          td.appendChild(input);
-          tr.appendChild(td);
-        });
-
-        tbody.appendChild(tr);
-      });
-
-      table.appendChild(tbody);
 
       this._root.innerHTML = "";
       this._root.appendChild(table);
+
+      // Attach event listener for editable cells
+      this._root.querySelectorAll(".editable-measure").forEach((input) => {
+        input.addEventListener("change", (event) => this.handleInputChange(event));
+      });
     }
 
-    updateModel(rowIndex, measure, newValue) {
-      const newMeasureValue = parseFloat(newValue);
-      if (isNaN(newMeasureValue)) {
-        alert("Invalid number!");
-        return;
+    handleInputChange(event) {
+      const input = event.target;
+      const rowIndex = parseInt(input.dataset.rowIndex, 10);
+      const measure = input.dataset.measure;
+      const newValue = parseFloat(input.value);
+
+      console.log(`Updated value for row ${rowIndex}, measure ${measure}: ${newValue}`);
+
+      // Update the data in the model
+      if (this._myDataSource) {
+        const row = this._myDataSource.data[rowIndex];
+        if (row && measure in row) {
+          row[measure].raw = newValue; // Update raw value
+          this._myDataSource.data[rowIndex] = row; // Save back to the data source
+          console.log("Updated row in data source:", row);
+        }
       }
-
-      this._myDataSource.data[rowIndex][measure].raw = newMeasureValue;
-      this._myDataSource.data[rowIndex][measure].label = newMeasureValue.toString();
-
-      this._myDataSource.update(this._myDataSource.data);
-      console.log(`Updated model: Row ${rowIndex}, Measure ${measure}, New Value ${newMeasureValue}`);
     }
   }
 

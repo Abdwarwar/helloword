@@ -130,21 +130,21 @@
       });
     }
 
-    handleInputChange(event) {
+    async handleInputChange(event) {
       const input = event.target;
       const rowIndex = parseInt(input.dataset.rowIndex, 10);
       const measure = input.dataset.measure;
       const newValue = parseFloat(input.value);
 
-      console.log(`Updated value for row ${rowIndex}, measure ${measure}: ${newValue}`);
+      console.log(`Updating value for row ${rowIndex}, measure ${measure}: ${newValue}`);
 
-      // Update the data in the model
-      if (this._myDataSource) {
-        const row = this._myDataSource.data[rowIndex];
-        if (row && measure in row) {
-          row[measure].raw = newValue; // Update raw value
-          this._myDataSource.data[rowIndex] = row; // Save back to the data source
-          console.log("Updated row in data source:", row);
+      if (this._myDataSource && this._myDataSource.data[rowIndex]) {
+        // Update the model using DataBinding API
+        try {
+          await this._myDataSource.updateCell(rowIndex, measure, newValue);
+          console.log("Model updated successfully!");
+        } catch (error) {
+          console.error("Error updating model:", error);
         }
       }
     }

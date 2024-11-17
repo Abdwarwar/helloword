@@ -47,59 +47,39 @@
     }
 
     render() {
-      // Log to debug and check if data is available
-      console.log('Rendering table widget');
-      
-      // Check if the data source is valid and has been successfully loaded
+      // Check if the data source is available
       if (!this._myDataSource || this._myDataSource.state !== "success") {
-        console.error('Data source is not available or not successful');
+        console.error('Data source not available');
         return;
       }
 
-      const dimensionNames = this._myDataSource.metadata.feeds.dimensions.values;
-      const measureNames = this._myDataSource.metadata.feeds.measures.values;
-      const data = this._myDataSource.data;
+      // Example static data (for testing)
+      const headers = ['Dimension 1', 'Dimension 2', 'Measure 1'];
+      const rows = [
+        ['Value 1', 'Value A', 100],
+        ['Value 2', 'Value B', 200],
+        ['Value 3', 'Value C', 300]
+      ];
 
-      // Log the dimensions, measures, and data to the console
-      console.log('Dimensions:', dimensionNames);
-      console.log('Measures:', measureNames);
-      console.log('Data:', data);
-
-      // Clear the table content first
+      // Clear existing table content
       this._tableHeader.innerHTML = '';
       this._tableBody.innerHTML = '';
 
-      // Create header row for dimensions and measures
-      dimensionNames.forEach(dim => {
+      // Create header row
+      headers.forEach(header => {
         const th = document.createElement("th");
-        th.textContent = dim.name;
+        th.textContent = header;
         this._tableHeader.appendChild(th);
       });
 
-      measureNames.forEach(measure => {
-        const th = document.createElement("th");
-        th.textContent = measure.name;
-        this._tableHeader.appendChild(th);
-      });
-
-      // Populate table body with data
-      data.forEach((row, index) => {
+      // Create table rows with sample data
+      rows.forEach(row => {
         const tr = document.createElement("tr");
-
-        // Add dimension values
-        dimensionNames.forEach(dim => {
+        row.forEach(cell => {
           const td = document.createElement("td");
-          td.textContent = row[dim.id] ? row[dim.id].label : 'N/A';  // Check for missing values
+          td.textContent = cell;
           tr.appendChild(td);
         });
-
-        // Add measure values
-        measureNames.forEach(measure => {
-          const td = document.createElement("td");
-          td.textContent = row[measure.id] ? row[measure.id].raw : 'N/A';  // Check for missing values
-          tr.appendChild(td);
-        });
-
         this._tableBody.appendChild(tr);
       });
     }

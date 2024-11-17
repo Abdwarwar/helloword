@@ -1,95 +1,99 @@
+// Promisify the script loading function to ensure dependencies load before execution.
+var getScriptPromisify = (src) => {
+  const __define = define;
+  define = undefined;
+  return new Promise((resolve) => {
+    $.getScript(src, () => {
+      define = __define;
+      resolve();
+    });
+  });
+};
+
 (function () {
-  const prepared = document.createElement("template");
-  prepared.innerHTML = `
-        <style>
-          table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-          th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-          }
-          th {
-            background-color: #f4f4f4;
-          }
-        </style>
-        <div id="root" style="width: 100%; height: 100%; overflow:auto;">
-          <table id="custom-table">
-            <thead>
-              <tr id="header-row"></tr>
-            </thead>
-            <tbody id="data-rows"></tbody>
-          </table>
-        </div>
-      `;
-  class CustomTableWidget extends HTMLElement {
+  // Create the widget's template
+  const template = document.createElement("template");
+  template.innerHTML = `
+    <style>
+      #root {
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+    <div id="root"></div>
+  `;
+
+  // Define the custom widget class
+  class CustomPieChart extends HTMLElement {
     constructor() {
       super();
 
+      // Attach shadow DOM and set up the widget structure
       this._shadowRoot = this.attachShadow({ mode: "open" });
-      this._shadowRoot.appendChild(prepared.content.cloneNode(true));
+      this._shadowRoot.appendChild(template.content.cloneNode(true));
+      this._root = this._shadowRoot.getElementById("root");
 
-      this._tableHeader = this._shadowRoot.getElementById("header-row");
-      this._tableBody = this._shadowRoot.getElementById("data-rows");
-
+      // Initialize widget properties
       this._props = {};
+      this._myDataSource = null;
     }
 
+    // Handle resizing the widget
     onCustomWidgetResize(width, height) {
       this.render();
     }
 
+    // Data binding setter
     set myDataSource(dataBinding) {
       this._myDataSource = dataBinding;
       this.render();
     }
 
-    render() {
+    // Main render function
+    async render() {
+      // Ensure dependencies are loaded
+      await getScriptPromisify("https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js");
+
+      // If data source is unavailable, display a message
       if (!this._myDataSource || this._myDataSource.state !== "success") {
+        this._root.innerHTML = `<p>Loading data...</p>`;
         return;
       }
 
-      const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
-      const measures = this._myDataSource.metadata.feeds.measures.values;
+      // Extract dimensions and measures from the data source
+      const dimension = this._myDataSource.metadata.feeds.dimensions.values[0];
+      const measure = this._myDataSource.metadata.feeds.measures.values[0];
+      const data = this._myDataSource.data.map((item) => ({
+        name: item[dimension].label,
+        value: item[measure].raw,
+      })).sort((a, b) => a.value - b.value);
 
-      // Clear existing table content
-      this._tableHeader.innerHTML = "";
-      this._tableBody.innerHTML = "";
+      // Initialize the chart with ECharts
+      const myChart = echarts.init(this._root, "light");
+      const option = {
+        backgroundColor: '#FFFFFF',
+        tooltip: { trigger: 'item' },
+        series: [
+          {
+            type: 'pie',
+            radius: '55%',
+            data,
+            label: { color: '#1D2D3E' },
+            labelLine: { lineStyle: { color: '#1D2D3E' } },
+            itemStyle: {
+              color: '#0070F2',
+              shadowBlur: 15,
+              shadowColor: 'rgba(0, 0, 0, 0.3)',
+            },
+          },
+        ],
+      };
 
-      // Create table headers
-      dimensions.forEach((dim) => {
-        const th = document.createElement("th");
-        th.textContent = dim;
-        this._tableHeader.appendChild(th);
-      });
-      measures.forEach((measure) => {
-        const th = document.createElement("th");
-        th.textContent = measure;
-        this._tableHeader.appendChild(th);
-      });
-
-      // Populate table rows
-      this._myDataSource.data.forEach((dataRow) => {
-        const tr = document.createElement("tr");
-
-        dimensions.forEach((dim) => {
-          const td = document.createElement("td");
-          td.textContent = dataRow[dim]?.label || "";
-          tr.appendChild(td);
-        });
-
-        measures.forEach((measure) => {
-          const td = document.createElement("td");
-          td.textContent = dataRow[measure]?.raw || "";
-          tr.appendChild(td);
-        });
-
-        this._tableBody.appendChild(tr);
-      });
+      // Apply the chart options
+      myChart.setOption(option);
     }
   }
 
-  customElements.define("com-sap-sample-echarts-custom_table", CustomTableWidget);
+  // Define the custom element for the widget
+  customElements.define("com-sap-sample-echarts-pie", CustomPieChart);
 })();

@@ -19,17 +19,13 @@
       <table id="dataTable">
         <thead>
           <tr>
-            <th>Column 1</th>
-            <th>Column 2</th>
-            <th>Column 3</th>
+            <th>Dimension 1</th>
+            <th>Dimension 2</th>
+            <th>Measure</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>Row 1, Col 1</td>
-            <td>Row 1, Col 2</td>
-            <td>Row 1, Col 3</td>
-          </tr>
+          <!-- Dynamic rows will be inserted here -->
         </tbody>
       </table>
     </div>
@@ -59,15 +55,13 @@
     getDataFromSACModel() {
       return new Promise((resolve, reject) => {
         try {
-          // Example: Accessing data from a specific SAC model
-          const model = this.getModel(); // SAC model reference
-
-          // Assuming the model has a dimension 'Column1', 'Column2', etc.
+          // Fetch data from the SAC model using SAC's data binding APIs
+          const model = this.getSACModel(); // Function to retrieve the SAC model
           const rows = [];
 
-          // Retrieve the data from the model
+          // Retrieve data (dimensions and measures) dynamically from the model
           model.getData().forEach((row) => {
-            rows.push([row.Column1, row.Column2, row.Column3]); // Mapping columns to table cells
+            rows.push([row.Dimension1, row.Dimension2, row.Measure]); // Adjust according to your model's structure
           });
 
           resolve(rows);
@@ -77,15 +71,17 @@
       });
     }
 
-    getModel() {
-      // SAC-specific logic to get a model bound to the widget
-      // You would need to use SAC's binding API to get the model you're interested in.
-      // Replace this with the actual SAC API call to get the data model
+    getSACModel() {
+      // Replace this with the actual logic to fetch data from your SAC model
+      // The following is a simulation of how you might fetch data
+
+      // Placeholder SAC model data example:
       return {
         getData: () => [
-          { Column1: "Row 1, Col 1", Column2: "Row 1, Col 2", Column3: "Row 1, Col 3" },
-          { Column1: "Row 2, Col 1", Column2: "Row 2, Col 2", Column3: "Row 2, Col 3" },
-        ],
+          { Dimension1: "A", Dimension2: "X", Measure: 100 },
+          { Dimension1: "B", Dimension2: "Y", Measure: 200 },
+          { Dimension1: "C", Dimension2: "Z", Measure: 300 }
+        ]
       };
     }
 

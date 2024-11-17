@@ -73,20 +73,15 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      // Map data to table rows with multiple dimensions and measures
+      // Map data to table rows
       const tableData = this._myDataSource.data.map((row) => {
-        const rowData = {};
-
-        // Add all dimension data
+        let rowData = {};
         dimensions.forEach((dimension) => {
           rowData[dimension] = row[dimension]?.label || "N/A";
         });
-
-        // Add all measure data
         measures.forEach((measure) => {
           rowData[measure] = row[measure]?.raw || "N/A";
         });
-
         return rowData;
       });
 
@@ -97,33 +92,34 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      // Create table headers dynamically based on the dimensions and measures
-      const headers = [
+      // Create table header with dynamic columns for dimensions and measures
+      const tableHeader = [
         ...dimensions.map((dimension) => `<th>${dimension}</th>`),
         ...measures.map((measure) => `<th>${measure}</th>`),
       ].join("");
 
-      // Create table rows dynamically for each row of data
-      const rows = tableData
-        .map((row) => {
-          const rowHtml = [
-            ...dimensions.map((dimension) => `<td>${row[dimension]}</td>`),
-            ...measures.map((measure) => `<td>${row[measure]}</td>`),
-          ].join("");
-          return `<tr>${rowHtml}</tr>`;
-        })
+      // Create table rows for each data entry
+      const tableRows = tableData
+        .map(
+          (row) => `
+          <tr>
+            ${dimensions.map((dimension) => `<td>${row[dimension]}</td>`).join("")}
+            ${measures.map((measure) => `<td>${row[measure]}</td>`).join("")}
+          </tr>
+        `
+        )
         .join("");
 
-      // Create table with headers and rows
+      // Create the complete table
       const table = document.createElement("table");
       table.innerHTML = `
           <thead>
               <tr>
-                  ${headers}
+                  ${tableHeader}
               </tr>
           </thead>
           <tbody>
-              ${rows}
+              ${tableRows}
           </tbody>
       `;
 

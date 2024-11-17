@@ -2,15 +2,7 @@
   const template = document.createElement("template");
   template.innerHTML = `
     <style>
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      th, td {
-        padding: 8px;
-        text-align: left;
-        border: 1px solid #ddd;
-      }
+      /* Add any custom styles here */
     </style>
     <div>
       <table>
@@ -25,76 +17,88 @@
       super();
       this.attachShadow({ mode: "open" });
       this.shadowRoot.appendChild(template.content.cloneNode(true));
+
+      // Bind the table to the DOM elements
+      this.headerRow = this.shadowRoot.querySelector("#header-row");
+      this.bodyRow = this.shadowRoot.querySelector("#body-row");
     }
 
-    connectedCallback() {
-      this.updateTable();
+    // Setter for data binding
+    set myDataSource(dataBinding) {
+      this._myDataSource = dataBinding;
+      this.render(); // Trigger render when dataBinding is set
     }
 
-    updateTable() {
+    // Ensure table is updated when resized or when data changes
+    onCustomWidgetResize(width, height) {
+      this.render();
+    }
+
+    // Function to render the table with the data
+    async render() {
+      // If no dataBinding or invalid state, stop rendering
       if (!this._myDataSource || this._myDataSource.state !== "success") {
+        console.log("Invalid data binding or data source");
         return;
       }
 
-      const dimensions = this._myDataSource.metadata.feeds.dimensions.values[0];
-      const measures = this._myDataSource.metadata.feeds.measures.values[0];
-      const data = this._myDataSource.data;
+      // Retrieve dimensions and measures from the data source
+      const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
+      const measures = this._myDataSource.metadata.feeds.measures.values;
 
-      const headerRow = this.shadowRoot.querySelector("#header-row");
-      headerRow.innerHTML = ''; // Clear previous headers
+      // Log the data for debugging purposes
+      console.log("Dimensions: ", dimensions);
+      console.log("Measures: ", measures);
+
+      // Clear any previous data in the table
+      this.headerRow.innerHTML = ''; // Clear previous headers
+      this.bodyRow.innerHTML = ''; // Clear previous rows
 
       // Create header cells for each dimension
       dimensions.forEach(dimension => {
         const headerCell = document.createElement('th');
-        headerCell.textContent = dimension.label;
-        headerRow.appendChild(headerCell);
+        headerCell.textContent = dimension.label || dimension.name;
+        this.headerRow.appendChild(headerCell);
       });
 
       // Create header cells for each measure
       measures.forEach(measure => {
         const headerCell = document.createElement('th');
-        headerCell.textContent = measure.label;
-        headerRow.appendChild(headerCell);
+        headerCell.textContent = measure.label || measure.name;
+        this.headerRow.appendChild(headerCell);
       });
 
-      const bodyRow = this.shadowRoot.querySelector("#body-row");
-      bodyRow.innerHTML = ''; // Clear previous rows
-
-      // Loop through data and create rows for the table
+      // Get the actual data from the data source
+      const data = this._myDataSource.data;
       if (data && data.length > 0) {
         data.forEach(row => {
           const rowElement = document.createElement('tr');
 
-          // Add cells for dimensions
+          // Add cells for each dimension
           dimensions.forEach(dimension => {
             const cell = document.createElement('td');
-            cell.textContent = row[dimension.id] || 'N/A'; // Default to 'N/A' if no data
+            cell.textContent = row[dimension.name] || 'N/A'; // Default if no data available
             rowElement.appendChild(cell);
           });
 
-          // Add cells for measures
+          // Add cells for each measure
           measures.forEach(measure => {
             const cell = document.createElement('td');
-            cell.textContent = row[measure.id] || 'N/A'; // Default to 'N/A' if no data
+            cell.textContent = row[measure.name] || 'N/A'; // Default if no data available
             rowElement.appendChild(cell);
           });
 
-          bodyRow.appendChild(rowElement);
+          this.bodyRow.appendChild(rowElement);
         });
       } else {
-        // Handle the case where no data is available
+        // If no data available, display a message in the table
         const noDataRow = document.createElement('tr');
         const noDataCell = document.createElement('td');
         noDataCell.colSpan = dimensions.length + measures.length;
         noDataCell.textContent = 'No data available';
         noDataRow.appendChild(noDataCell);
-        bodyRow.appendChild(noDataRow);
+        this.bodyRow.appendChild(noDataRow);
       }
-    }
-
-    set myDataSource(dataBinding) {
-      this._myDataSource = dataBinding;
-      this.updateTable(); // Update the table when data is bound
     }
   }
 

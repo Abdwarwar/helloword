@@ -68,46 +68,53 @@ var getScriptPromisify = (src) => {
       const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
       const measures = this._myDataSource.metadata.feeds.measures.values;
 
-      // Check if dimensions and measures are present
+      // Debug: log the dimensions and measures to make sure we're getting the right data
+      console.log("Dimensions:", dimensions);
+      console.log("Measures:", measures);
+
       if (!dimensions.length || !measures.length) {
         this._root.innerHTML = `<p>Ensure dimensions and measures are configured correctly.</p>`;
         return;
       }
 
-      // Prepare headers (just use dimension and measure names)
+      // Generate table headers dynamically based on dimensions and measures
       const headers = [
-        ...dimensions.map(dimension => dimension.name || `Dimension ${dimension.id}`),
-        ...measures.map(measure => measure.name || `Measure ${measure.id}`)
+        ...dimensions.map(dimension => dimension.name),
+        ...measures.map(measure => measure.name)
       ];
 
-      // Map data to rows
+      console.log("Table Headers:", headers);
+
+      // Map data to table rows
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
 
-        // Loop through the dimensions and populate the rowData object
+        // Extracting dimension values for the row
         dimensions.forEach(dimension => {
-          const dimensionValue = row[dimension.id]?.label || "N/A";
-          rowData[dimension.name || `Dimension ${dimension.id}`] = dimensionValue;
+          const dimensionValue = row[dimension.id]?.label || "N/A"; // Check if the dimension value exists
+          rowData[dimension.name] = dimensionValue;
         });
 
-        // Loop through the measures and populate the rowData object
+        // Extracting measure values for the row
         measures.forEach(measure => {
-          const measureValue = row[measure.id]?.raw || "N/A";
-          rowData[measure.name || `Measure ${measure.id}`] = measureValue;
+          const measureValue = row[measure.id]?.raw || "N/A"; // Check if the measure value exists
+          rowData[measure.name] = measureValue;
         });
 
         return rowData;
       });
 
-      // If no data is found, display a message
+      console.log("Mapped Table Data:", tableData);
+
       if (tableData.length === 0) {
         this._root.innerHTML = `<p>No data available to display.</p>`;
         return;
       }
 
-      // Create table and populate it with data
+      // Create table
       const table = document.createElement("table");
 
+      // Create the table header dynamically
       table.innerHTML = `
           <thead>
               <tr>

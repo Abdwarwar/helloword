@@ -1,9 +1,3 @@
-var getScriptPromisify = (src) => {
-  return new Promise((resolve) => {
-    $.getScript(src, resolve);
-  });
-};
-
 (function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `
@@ -31,12 +25,10 @@ var getScriptPromisify = (src) => {
   class CustomTableWidget extends HTMLElement {
     constructor() {
       super();
-
       this._shadowRoot = this.attachShadow({ mode: "open" });
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
 
       this._root = this._shadowRoot.getElementById("root");
-
       this._props = {};
     }
 
@@ -71,7 +63,6 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      // Get metadata names
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
@@ -82,7 +73,6 @@ var getScriptPromisify = (src) => {
       console.log("Dimension Headers:", dimensionHeaders);
       console.log("Measure Headers:", measureHeaders);
 
-      // Map data to table rows
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
         dimensions.forEach((dim) => {
@@ -101,10 +91,7 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      // Create table
       const table = document.createElement("table");
-
-      // Create header
       const headerRow = `<tr>${dimensionHeaders
         .map((header) => `<th>${header}</th>`)
         .join("")}${measureHeaders
@@ -126,11 +113,9 @@ var getScriptPromisify = (src) => {
         </tbody>
       `;
 
-      // Clear existing content and add the table
       this._root.innerHTML = "";
       this._root.appendChild(table);
 
-      // Add event listener for cell editing
       this._root.querySelectorAll("td[contenteditable]").forEach((cell) => {
         cell.addEventListener("input", this.handleCellEdit.bind(this));
       });
@@ -141,19 +126,16 @@ var getScriptPromisify = (src) => {
       const measure = cell.getAttribute("data-measure");
       const newValue = cell.innerText;
 
-      // Find row and measure in the data source
       const rowIndex = Array.from(cell.parentNode.parentNode.children).indexOf(cell.parentNode);
       const measureIndex = this._myDataSource.metadata.feeds.measures.values.indexOf(measure);
 
       if (measureIndex === -1) return;
 
-      // Update the measure value
       const row = this._myDataSource.data[rowIndex];
       row[measure] = newValue;
 
       console.log(`Updated ${measure} in row ${rowIndex} to ${newValue}`);
 
-      // Update backend and push data to the model (use SAC API for planning)
       try {
         await this.updatePlanningModel(rowIndex, measure, newValue);
       } catch (error) {
@@ -166,38 +148,36 @@ var getScriptPromisify = (src) => {
       const dimensionKeys = Object.keys(this._myDataSource.metadata.dimensions);
       const dimensionValues = this._myDataSource.metadata.feeds.dimensions.values;
 
-      // Prepare payload for updating the model
       const payload = {
         cellData: [
           {
-            dimensionKey: dimensionValues[0], // Adjust based on your actual model
+            dimensionKey: dimensionValues[0],
             measureKey: measure,
             value: value,
-            rowKey: rowIndex, // Adjust based on your actual model
+            rowKey: rowIndex,
           },
         ],
       };
 
       try {
-        // Call SAC API to update planning model
-        const action = await this.triggerPlanningAction(payload);
+        const action = await this.triggerPlanningWriteBack(payload);
         console.log("Planning model updated successfully", action);
       } catch (error) {
         console.error("Error while updating planning model:", error);
       }
     }
 
-    async triggerPlanningAction(payload) {
-      // Use the Planning API to trigger data action
+    async triggerPlanningWriteBack(payload) {
+      // Use the correct SAP API for planning write-back.
       try {
-        const response = await this._myDataSource.triggerPlanningDataAction({
-          actionName: "UpdateDataAction", // Ensure this matches the action name
+        const response = await this._myDataSource.writeBack({
+          dataActionName: "UpdateDataAction", // Ensure this matches the name of your action
           inputData: payload,
         });
-        console.log("Data action triggered:", response);
+        console.log("Write-back response:", response);
         return response;
       } catch (error) {
-        throw new Error("Failed to trigger planning action:", error);
+        throw new Error("Failed to trigger write-back API:", error);
       }
     }
   }

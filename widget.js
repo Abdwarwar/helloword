@@ -180,7 +180,7 @@ var getScriptPromisify = (src) => {
 
       try {
         // Call SAC API to update planning model
-        await this._myDataSource.writeCellData(payload);
+        await this._myDataSource.writeCellData(payload); // Ensure this is the correct SAC API for write-back
         console.log("Planning model updated successfully");
       } catch (error) {
         console.error("Error while updating planning model:", error);

@@ -78,9 +78,9 @@
       const measureHeaders = measures.map((measureId) => {
         const measureMeta = this._myDataSource.metadata.mainStructureMembers[measureId];
         console.log("Measure Metadata:", measureMeta); // Debugging output for measure details
-        return measureMeta && measureMeta.label // Use 'label' to get the proper measure name
-          ? measureMeta.label // Use label if available (e.g., 'Commitment', 'Cash')
-          : measureId; // Fallback to the ID if label is missing
+        return measureMeta && measureMeta.id // Use 'id' to get the proper measure name
+          ? measureMeta.id // Use id (e.g., 'Commitment', 'Cash')
+          : measureId; // Fallback to the ID if id is missing
       });
 
       console.log("Dimension Headers:", dimensionHeaders);

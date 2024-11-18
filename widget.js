@@ -85,7 +85,7 @@
         <tbody>
           ${tableData.map(
             (row) => `
-              <tr>${dimensions
+              <tr data-row-id="${row['ID']}">${dimensions
                 .map((dim) => `<td>${row[dim]}</td>`)
                 .join("")}
                 ${measures
@@ -116,41 +116,50 @@
       const rowId = event.target.getAttribute('data-row-id');
       const measure = event.target.getAttribute('data-measure');
 
-      console.log("Updated value for row:", rowId, "Measure:", measure, "New Value:", editedValue);
+      console.log("Selected Row ID:", rowId);
+      console.log("Updated Measure:", measure);
+      console.log("Edited Value:", editedValue);
+
+      // Ensure rowId is present
+      if (!rowId) {
+        console.error("Row ID is missing!");
+        return;
+      }
 
       const rowData = this._myDataSource.data.find(row => row['ID'] === rowId);
+      if (!rowData) {
+        console.error("Row data not found for ID:", rowId);
+        return;
+      }
 
-      if (rowData) {
-        console.log("Row Data:", rowData);
+      console.log("Row Data:", rowData);
 
-        const selectedRowData = {};
-        selectedRowData[measure] = editedValue;
+      // Update the measure with the edited value
+      rowData[measure] = editedValue;
 
-        await this.writeBackToModel(rowId, measure, selectedRowData[measure]);
+      // Attempt to write back to the model
+      try {
+        const response = await this.writeBackToModel(rowId, measure, rowData[measure]);
+        console.log("Write-back successful:", response);
+        alert("Data updated successfully in the model!");
+      } catch (error) {
+        console.error("Write-back failed:", error);
+        alert("Failed to update the model.");
       }
     }
 
     async writeBackToModel(rowId, measure, value) {
       try {
-        const rowData = this._myDataSource.data.find(row => row['ID'] === rowId);
-        if (rowData) {
-          rowData[measure] = value;
-          console.log("Updated Row Data:", rowData);
-
-          const response = await this._myDataSource.writeBack({
-            data: {
-              rowId: rowId,
-              measure: measure,
-              value: value
-            }
-          });
-
-          console.log("SAC Planning API Response:", response);
-          alert("Data updated successfully in the model!");
-        }
+        const response = await this._myDataSource.writeBack({
+          data: {
+            rowId: rowId,
+            measure: measure,
+            value: value
+          }
+        });
+        return response;
       } catch (error) {
-        console.error("Write-back failed:", error);
-        alert("Failed to update the model.");
+        throw new Error("Error writing back to the model.");
       }
     }
   }

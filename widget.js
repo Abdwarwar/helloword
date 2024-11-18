@@ -62,14 +62,17 @@
         return;
       }
 
-      // Get actual measure names (not measure_0, measure_1)
+      // Ensure measure headers are obtained from mainStructureMembers and use their actual names
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
 
-      // Get the actual names of measures from the metadata
+      // Get actual measure names (not the default measure_0)
       const measureHeaders = measures.map(
-        (measure) => this._myDataSource.metadata.mainStructureMembers[measure]?.description || measure
+        (measureId) => {
+          const measureMeta = this._myDataSource.metadata.mainStructureMembers[measureId];
+          return measureMeta ? measureMeta.description : measureId;
+        }
       );
 
       console.log("Dimension Headers:", dimensionHeaders);
@@ -81,8 +84,8 @@
         dimensions.forEach((dim) => {
           rowData[dim] = row[dim]?.label || "N/A";
         });
-        measures.forEach((measure) => {
-          rowData[measure] = row[measure]?.raw || "N/A";
+        measures.forEach((measureId) => {
+          rowData[measureId] = row[measureId]?.raw || "N/A";
         });
         return rowData;
       });
@@ -97,7 +100,7 @@
       // Create table
       const table = document.createElement("table");
 
-      // Create header with actual measure names (from mainStructureMembers)
+      // Create header row with correct measure names
       const headerRow = `<tr>${dimensionHeaders
         .map((header) => `<th>${header}</th>`)
         .join("")}${measureHeaders
@@ -114,8 +117,8 @@
                   .map((dim) => `<td>${row[dim]}</td>`)
                   .join("")}${measures
                   .map(
-                    (measure) =>
-                      `<td contenteditable="true" data-measure="${measure}" data-row-id="${row['ID']}">${row[measure]}</td>`
+                    (measureId) =>
+                      `<td contenteditable="true" data-measure="${measureId}" data-row-id="${row['ID']}">${row[measureId]}</td>`
                   )
                   .join("")}</tr>`
             )
@@ -123,7 +126,7 @@
         </tbody>
       `;
 
-      // Clear existing content and add the table
+      // Clear existing content and append the new table
       this._root.innerHTML = "";
       this._root.appendChild(table);
 
@@ -158,7 +161,6 @@
         console.log("Write-back successful: ", dataRow);
 
         // Call the SAC planning API to update the data.
-        // In SAC, you would typically trigger a write-back here.
         // Make sure to replace this with your actual API for planning write-back.
         this._myDataSource.writeBack({
           rowId: rowId,

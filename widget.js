@@ -7,8 +7,7 @@
       th { background-color: #f4f4f4; }
       tr:nth-child(even) { background-color: #f9f9f9; }
       tr.selected { background-color: #ffeb3b; }
-      button { padding: 5px 10px; background-color: #007bff; color: #fff; border: none; cursor: pointer; }
-      button:hover { background-color: #0056b3; }
+      button { padding: 5px 10px; cursor: pointer; }
     </style>
     <div id="root" style="width: 100%; height: 100%; overflow: auto;"></div>
   `;
@@ -58,8 +57,8 @@
         return measureMeta && measureMeta.id ? measureMeta.id : measureId;
       });
 
-      const tableData = this._myDataSource.data.map((row, index) => {
-        const rowData = { ID: index }; // Assign an ID for row identification
+      const tableData = this._myDataSource.data.map((row) => {
+        const rowData = {};
         dimensions.forEach((dim) => {
           rowData[dim] = row[dim]?.label || "N/A";
         });
@@ -79,48 +78,40 @@
         <tr>
           ${dimensionHeaders.map((header) => `<th>${header}</th>`).join("")}
           ${measureHeaders.map((header) => `<th>${header}</th>`).join("")}
-          <th>Action</th>
+          <th>Actions</th>
         </tr>
       `;
 
       table.innerHTML = `
         <thead>${headerRow}</thead>
         <tbody>
-          ${tableData
-            .map(
-              (row) => `
-              <tr data-row-id="${row['ID']}">
+          ${tableData.map(
+            (row, index) => `
+              <tr data-row-id="${index}">
                 ${dimensions.map((dim) => `<td>${row[dim]}</td>`).join("")}
                 ${measures.map((measureId) => `<td>${row[measureId]}</td>`).join("")}
-                <td><button class="action-button" data-row-id="${row['ID']}">Click Me</button></td>
+                <td><button class="action-btn" data-row-id="${index}">Click Me</button></td>
               </tr>
             `
-            )
-            .join("")}
+          ).join("")}
         </tbody>
       `;
 
       this._root.innerHTML = "";
       this._root.appendChild(table);
-      this.addButtonClickListeners();
+      this.addEventListenersToButtons();
     }
 
-    addButtonClickListeners() {
-      const buttons = this._root.querySelectorAll(".action-button");
-      buttons.forEach((button) => {
+    addEventListenersToButtons() {
+      const buttons = this._root.querySelectorAll(".action-btn");
+      buttons.forEach(button => {
         button.addEventListener("click", (event) => this.handleButtonClick(event));
       });
     }
 
     handleButtonClick(event) {
       const rowId = event.target.getAttribute("data-row-id");
-      const rowData = this._myDataSource.data[rowId];
-      if (!rowData) {
-        console.error("Row data not found for ID:", rowId);
-        return;
-      }
-      console.log("Button clicked for row ID:", rowId);
-      console.log("Row Data:", rowData);
+      console.log(`Button clicked for row ID: ${rowId}`);
     }
   }
 

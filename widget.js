@@ -180,10 +180,24 @@ var getScriptPromisify = (src) => {
 
       try {
         // Call SAC API to update planning model
-        await this._myDataSource.writeCellData(payload); // Ensure this is the correct SAC API for write-back
-        console.log("Planning model updated successfully");
+        const action = await this.triggerPlanningAction(payload);
+        console.log("Planning model updated successfully", action);
       } catch (error) {
         console.error("Error while updating planning model:", error);
+      }
+    }
+
+    async triggerPlanningAction(payload) {
+      // Use the Planning API to trigger data action
+      try {
+        const response = await this._myDataSource.triggerPlanningDataAction({
+          actionName: "UpdateDataAction", // Ensure this matches the action name
+          inputData: payload,
+        });
+        console.log("Data action triggered:", response);
+        return response;
+      } catch (error) {
+        throw new Error("Failed to trigger planning action:", error);
       }
     }
   }

@@ -101,28 +101,22 @@
 
       this._root.innerHTML = "";
       this._root.appendChild(table);
-      this.addEventListenersToEditableCells();
+      this.addEventListenersToRows();
     }
 
-    addEventListenersToEditableCells() {
-      const editableCells = this._root.querySelectorAll("td[contenteditable='true']");
-      editableCells.forEach(cell => {
-        cell.addEventListener("blur", (event) => this.handleCellEdit(event));
+    addEventListenersToRows() {
+      const rows = this._root.querySelectorAll("tr[data-row-id]");
+      rows.forEach(row => {
+        row.addEventListener("click", (event) => this.handleRowSelection(event));
       });
     }
 
-    async handleCellEdit(event) {
-      const editedValue = event.target.innerText;
-      const rowId = event.target.getAttribute('data-row-id');
-      const measure = event.target.getAttribute('data-measure');
-
-      console.log("Selected Row ID:", rowId);
-      console.log("Updated Measure:", measure);
-      console.log("Edited Value:", editedValue);
-
-      // Ensure rowId is present
+    handleRowSelection(event) {
+      const row = event.target.closest("tr");
+      const rowId = row.getAttribute('data-row-id');
+      
       if (!rowId) {
-        console.error("Row ID is missing!");
+        console.error("Row ID not found.");
         return;
       }
 
@@ -132,35 +126,15 @@
         return;
       }
 
-      console.log("Row Data:", rowData);
+      const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
+      const measures = this._myDataSource.metadata.feeds.measures.values;
 
-      // Update the measure with the edited value
-      rowData[measure] = editedValue;
+      const selectedDimensions = dimensions.map((dim) => rowData[dim]?.label || "N/A");
+      const selectedMeasure = measures.map((measureId) => rowData[measureId]?.raw || "N/A");
 
-      // Attempt to write back to the model
-      try {
-        const response = await this.writeBackToModel(rowId, measure, rowData[measure]);
-        console.log("Write-back successful:", response);
-        alert("Data updated successfully in the model!");
-      } catch (error) {
-        console.error("Write-back failed:", error);
-        alert("Failed to update the model.");
-      }
-    }
-
-    async writeBackToModel(rowId, measure, value) {
-      try {
-        const response = await this._myDataSource.writeBack({
-          data: {
-            rowId: rowId,
-            measure: measure,
-            value: value
-          }
-        });
-        return response;
-      } catch (error) {
-        throw new Error("Error writing back to the model.");
-      }
+      console.log("Selected Row ID:", rowId);
+      console.log("Selected Dimensions:", selectedDimensions);
+      console.log("Selected Measure:", selectedMeasure);
     }
   }
 

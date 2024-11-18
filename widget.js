@@ -155,11 +155,17 @@ var getScriptPromisify = (src) => {
           return;
         }
 
-        // Update the cell value in the model
-        await this._myDataSource.setCellValue(
-          { row: rowIndex, column: measureId },
-          newValue
-        );
+        // Update the value in the model using Data Actions API (assuming planning enabled)
+        const modelId = this._myDataSource.getModelId();
+        const planningService = this._myDataSource.getPlanningService();
+        
+        // Apply the updated value using Data Actions API
+        await planningService.setDataValue({
+          model: modelId,
+          measure: measureId,
+          row: rowIndex,
+          value: newValue
+        });
 
         // Provide feedback
         alert("Value successfully updated in the model!");

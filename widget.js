@@ -135,16 +135,18 @@
         dataRow[measure] = value;
         console.log("Write-back successful: ", dataRow);
 
-        // Call the SAC planning API to update the data
+        // Now we call the planning API to write-back to SAC model
+        const planningModel = this._myDataSource.model; // Assuming the model is correctly attached
+        const context = {
+          rowId: rowId,
+          measure: measure,
+          value: value
+        };
+
         try {
-          const response = await this._myDataSource.writeBack({
-            data: {
-              rowId: rowId,
-              measure: measure,
-              value: value
-            }
-          });
-          console.log("SAC Planning API response:", response);
+          // Call the Planning API's write-back functionality
+          const response = await planningModel.writeBack(context);
+          console.log("Planning API response:", response);
           alert("Data updated successfully in the model!");
         } catch (error) {
           console.error("Write-back failed:", error);

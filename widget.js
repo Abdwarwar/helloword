@@ -33,17 +33,35 @@
         this._root.innerHTML = `<p>No data source bound.</p>`;
         return;
       }
+      console.log("Data Source Metadata:", this._myDataSource.metadata);
+      console.log("Data Source Data:", this._myDataSource.data);
+
+      if (this._myDataSource.state !== "success") {
+        this._root.innerHTML = `<p>Loading data...</p>`;
+        return;
+      }
 
       const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
       const measures = this._myDataSource.metadata.feeds.measures.values;
 
+      if (dimensions.length === 0 || measures.length === 0) {
+        this._root.innerHTML = `<p>Ensure dimensions and measures are configured in the model.</p>`;
+        return;
+      }
+
+      console.log("mainStructureMembers:", this._myDataSource.metadata.mainStructureMembers);
+      
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
       const measureHeaders = measures.map((measureId) => {
         const measureMeta = this._myDataSource.metadata.mainStructureMembers[measureId];
+        console.log("Measure Metadata:", measureMeta);
         return measureMeta && measureMeta.id ? measureMeta.id : measureId;
       });
+
+      console.log("Dimension Headers:", dimensionHeaders);
+      console.log("Measure Headers:", measureHeaders);
 
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
@@ -55,6 +73,13 @@
         });
         return rowData;
       });
+
+      console.log("Mapped Table Data:", tableData);
+
+      if (tableData.length === 0) {
+        this._root.innerHTML = `<p>No data available to display.</p>`;
+        return;
+      }
 
       const table = document.createElement("table");
       const headerRow = `
@@ -100,37 +125,39 @@
       console.log("Selected Row ID:", rowId);
       console.log("Updated Measure:", measure);
       console.log("Edited Value:", editedValue);
-      
-      // Find the row data from the source
+
+      // Check for rowId in the data
       const rowData = this._myDataSource.data.find(row => row['ID'] === rowId);
       console.log("Row Data:", rowData);
-
-      // Check the row data
       if (rowData) {
         const writeBackPayload = {
           rowId: rowId,
           measure: measure,
           value: parseFloat(editedValue),
         };
-
+        console.log("Write-back payload:", writeBackPayload);
         try {
-          // Log the write-back payload to check the structure
-          console.log("Write-back payload:", writeBackPayload);
           await this.writeBackToModel(writeBackPayload);
         } catch (error) {
           console.error("Write-back failed:", error);
           alert("Failed to update the model.");
         }
+      } else {
+        console.error("Row data not found for ID:", rowId);
       }
     }
 
     async writeBackToModel(writeBackPayload) {
       try {
-        // Attempt to call the SAC API (update based on actual API)
         const response = await this._myDataSource.writeBack({
-          data: writeBackPayload,
+          data: {
+            rowId: writeBackPayload.rowId,
+            measure: writeBackPayload.measure,
+            value: writeBackPayload.value
+          }
         });
-        console.log("Write-back successful:", response);
+        console.log("SAC Planning API response:", response);
+        alert("Data updated successfully in the model!");
       } catch (error) {
         console.error("Write-back failed:", error);
         alert("Failed to update the model.");

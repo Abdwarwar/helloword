@@ -62,21 +62,27 @@
         return;
       }
 
+      // Logging for debugging purposes
+      console.log("Dimensions:", dimensions);
+      console.log("Measures:", measures);
+
+      // Now directly log the structure of mainStructureMembers for clarity
+      console.log("mainStructureMembers:", this._myDataSource.metadata.mainStructureMembers);
+
       // Ensure measure headers are obtained from mainStructureMembers and use their actual names
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
 
       // Get actual measure names from mainStructureMembers
-      const measureHeaders = measures.map(
-        (measureId) => {
-          const measureMeta = this._myDataSource.metadata.mainStructureMembers[measureId];
-          // Check for a proper mapping and handle potential issues
-          return measureMeta && measureMeta.description
-            ? measureMeta.description
-            : measureId; // fall back to measureId if description is missing
-        }
-      );
+      const measureHeaders = measures.map((measureId) => {
+        const measureMeta = this._myDataSource.metadata.mainStructureMembers[measureId];
+        console.log("Measure Metadata:", measureMeta); // Debugging output for measure details
+        // Check for proper mapping and handle missing descriptions
+        return measureMeta && measureMeta.description
+          ? measureMeta.description
+          : measureId; // Fall back to measureId if description is missing
+      });
 
       console.log("Dimension Headers:", dimensionHeaders);
       console.log("Measure Headers:", measureHeaders);

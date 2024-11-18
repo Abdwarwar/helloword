@@ -67,7 +67,7 @@
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
 
-      // Correctly map measures to their label from the metadata
+      // Correctly map measures to their label from the metadata (Reverting to the working version)
       const measureHeaders = measures.map((measure) => {
         const measureMetadata = this._myDataSource.metadata.mainStructureMembers[measure];
         return measureMetadata ? measureMetadata.label : measure; // Use label instead of default measure name

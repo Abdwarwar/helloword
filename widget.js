@@ -78,7 +78,7 @@
         return;
       }
 
-      const buttonLabel = this._buttonLabel || "Click Me"; // Use the property or default value
+      const buttonLabel = this._buttonLabel || "Update Plan"; // Use the property or default value
 
       const table = document.createElement("table");
       const headerRow = `
@@ -172,15 +172,34 @@
           const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
           const measures = this._myDataSource.metadata.feeds.measures.values;
 
-          const selectedDimensions = dimensions.map((dim) => rowData[dim]?.label || "N/A");
-          const selectedMeasures = measures.map((measureId) => rowData[measureId]?.raw || "N/A");
+          const updatedRow = {};
+          dimensions.forEach((dim) => {
+            updatedRow[dim] = rowData[dim]?.label || "N/A";
+          });
+          
+          measures.forEach((measureId) => {
+            // Get the updated value from the editable cell
+            const cell = row.querySelector(`[data-measure="${measureId}"]`);
+            const updatedValue = cell ? parseFloat(cell.textContent.trim()) : null;
 
-          console.log("Selected Dimensions:", selectedDimensions);
-          console.log("Selected Measures:", selectedMeasures);
+            updatedRow[measureId] = updatedValue || rowData[measureId]?.raw;
+          });
+
+          console.log("Updated Row Data:", updatedRow);
+          
+          // Send updated data back to the model for planning
+          this.updateModelWithData(rowId, updatedRow);
         } else {
           console.error("Row data not found for ID:", rowId);
         }
       }
+    }
+
+    // Function to send the updated data to the model
+    updateModelWithData(rowId, updatedRow) {
+      console.log("Sending updated data for row", rowId, ":", updatedRow);
+      // Here, you should send the updated data back to the model for planning.
+      // This might involve calling an API or updating a data structure in the SAP Analytics Cloud model.
     }
   }
 

@@ -1,45 +1,33 @@
-var getScriptPromisify = (src) => {
-  return new Promise((resolve) => {
-    $.getScript(src, resolve);
-  });
-};
-
 (function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `
-        <style>
-          table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-          th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-          }
-          th {
-            background-color: #f4f4f4;
-          }
-          tr:nth-child(even) {
-            background-color: #f9f9f9;
-          }
-          td[contenteditable="true"] {
-            background-color: #e8f0fe;
-          }
-        </style>
-        <div id="root" style="width: 100%; height: 100%; overflow: auto;">
-        </div>
-      `;
+    <style>
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f4f4f4;
+      }
+      tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+    </style>
+    <div id="root" style="width: 100%; height: 100%; overflow: auto;">
+    </div>
+  `;
 
   class CustomTableWidget extends HTMLElement {
     constructor() {
       super();
-
       this._shadowRoot = this.attachShadow({ mode: "open" });
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
-
       this._root = this._shadowRoot.getElementById("root");
-
       this._props = {};
     }
 
@@ -71,7 +59,6 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      // Get metadata names
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
@@ -81,9 +68,8 @@ var getScriptPromisify = (src) => {
           measure
       );
 
-      // Map data to table rows
-      const tableData = this._myDataSource.data.map((row, rowIndex) => {
-        const rowData = { index: rowIndex };
+      const tableData = this._myDataSource.data.map((row) => {
+        const rowData = {};
         dimensions.forEach((dim) => {
           rowData[dim] = row[dim]?.label || "N/A";
         });
@@ -98,81 +84,62 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      // Create table
       const table = document.createElement("table");
 
-      // Create header
       const headerRow = `<tr>${dimensionHeaders
         .map((header) => `<th>${header}</th>`)
         .join("")}${measureHeaders
         .map((header) => `<th>${header}</th>`)
         .join("")}</tr>`;
-      table.innerHTML = `<thead>${headerRow}</thead>`;
+      table.innerHTML = `
+        <thead>${headerRow}</thead>
+        <tbody>
+          ${tableData
+            .map(
+              (row) =>
+                `<tr>${dimensions
+                  .map((dim) => `<td>${row[dim]}</td>`)
+                  .join("")}${measures
+                  .map((measure) => `<td contenteditable="true">${row[measure]}</td>`)
+                  .join("")}</tr>`
+            )
+            .join("")}
+        </tbody>
+      `;
 
-      // Create body
-      const tbody = document.createElement("tbody");
-      tableData.forEach((row) => {
-        const tableRow = document.createElement("tr");
-        dimensions.forEach((dim) => {
-          const cell = document.createElement("td");
-          cell.textContent = row[dim];
-          tableRow.appendChild(cell);
-        });
-        measures.forEach((measure) => {
-          const cell = document.createElement("td");
-          cell.textContent = row[measure];
-          cell.setAttribute("contenteditable", "true");
-          cell.setAttribute("data-measure", measure);
-          cell.setAttribute("data-row", row.index);
-
-          cell.addEventListener("blur", () => this.handleEdit(cell, measures));
-          tableRow.appendChild(cell);
-        });
-        tbody.appendChild(tableRow);
-      });
-
-      table.appendChild(tbody);
-
-      // Clear existing content and add the table
       this._root.innerHTML = "";
       this._root.appendChild(table);
+
+      // Handle click or edit on table cells
+      table.querySelectorAll("td[contenteditable]").forEach((cell) => {
+        cell.addEventListener("blur", (e) => {
+          const newValue = e.target.textContent;
+          const measureId = e.target.dataset.measureId;
+          const rowIndex = e.target.dataset.rowIndex;
+
+          if (newValue && measureId && rowIndex) {
+            this.updateModelValue(measureId, rowIndex, newValue);
+          }
+        });
+      });
     }
 
-    async handleEdit(cell) {
-      const newValue = parseFloat(cell.textContent.trim());
-      const measureId = cell.getAttribute("data-measure");
-      const rowIndex = parseInt(cell.getAttribute("data-row"), 10);
-
-      if (isNaN(newValue)) {
-        alert("Please enter a valid number.");
-        return;
-      }
-
+    async updateModelValue(measureId, rowIndex, newValue) {
       try {
-        // Ensure planning is enabled
-        if (!this._myDataSource.isPlanningEnabled()) {
-          alert("Planning is not enabled for the data source.");
-          return;
-        }
-
-        // Update the value in the model using Data Actions API (assuming planning enabled)
-        const modelId = this._myDataSource.getModelId();
-        const planningService = this._myDataSource.getPlanningService();
-        
-        // Apply the updated value using Data Actions API
-        await planningService.setDataValue({
-          model: modelId,
-          measure: measureId,
-          row: rowIndex,
+        // Assuming SAC planning model write-back function
+        const result = await this._myDataSource.writeBack({
+          measureId: measureId,
+          rowIndex: rowIndex,
           value: newValue
         });
 
-        // Provide feedback
-        alert("Value successfully updated in the model!");
+        if (result.success) {
+          console.log("Value updated successfully!");
+        } else {
+          console.error("Failed to update value:", result.error);
+        }
       } catch (error) {
-        alert("Failed to update the value: " + error.message);
-      } finally {
-        cell.removeAttribute("contenteditable");
+        console.error("Error updating value:", error);
       }
     }
   }

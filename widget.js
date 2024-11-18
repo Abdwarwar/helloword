@@ -63,6 +63,7 @@
       });
 
       const tableData = this._myDataSource.data.map((row) => {
+        console.log("Row data:", row); // Debugging to check if 'ID' exists
         const rowData = {};
         dimensions.forEach((dim) => {
           rowData[dim] = row[dim]?.label || "N/A";
@@ -91,22 +92,18 @@
         <thead>${headerRow}</thead>
         <tbody>
           ${tableData.map(
-            (row) => {
-              const rowId = row['ID']; // Ensure ID is defined here
-              console.log("Row ID:", rowId); // Debugging to check row ID
-              return `
-                <tr data-row-id="${rowId}">${dimensions
-                  .map((dim) => `<td>${row[dim]}</td>`)
+            (row) => `
+              <tr data-row-id="${row['ID']}">${dimensions
+                .map((dim) => `<td>${row[dim]}</td>`)
+                .join("")}
+                ${measures
+                  .map(
+                    (measureId) =>
+                      `<td contenteditable="true" data-measure="${measureId}" data-row-id="${row['ID']}">${row[measureId]}</td>`
+                  )
                   .join("")}
-                  ${measures
-                    .map(
-                      (measureId) =>
-                        `<td contenteditable="true" data-measure="${measureId}" data-row-id="${rowId}">${row[measureId]}</td>`
-                    )
-                    .join("")}
-                  <td class="button-cell"><button>${buttonLabel}</button></td>
-                </tr>`;
-            }
+                <td class="button-cell"><button>${buttonLabel}</button></td>
+              </tr>`
           ).join("")}
         </tbody>
       `;
@@ -134,7 +131,7 @@
 
       const rowId = row.getAttribute('data-row-id');
       if (!rowId) {
-        console.error("Row ID not found.");
+        console.error("Row ID not found:", row);
         return;
       }
 
@@ -168,6 +165,8 @@
       const rowId = row ? row.getAttribute("data-row-id") : null;
       if (rowId) {
         console.log("Button clicked for Row ID:", rowId);
+      } else {
+        console.error("Row ID is missing for the button click.");
       }
     }
   }

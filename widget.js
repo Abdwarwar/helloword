@@ -1,3 +1,9 @@
+var getScriptPromisify = (src) => {
+  return new Promise((resolve) => {
+    $.getScript(src, resolve);
+  });
+};
+
 (function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `
@@ -17,11 +23,8 @@
           tr:nth-child(even) {
             background-color: #f9f9f9;
           }
-          td {
-            cursor: pointer;
-          }
-          td.editable {
-            background-color: #eaffea;
+          td[contenteditable="true"] {
+            background-color: #e8f0fe;
           }
         </style>
         <div id="root" style="width: 100%; height: 100%; overflow: auto;">
@@ -36,6 +39,7 @@
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
 
       this._root = this._shadowRoot.getElementById("root");
+
       this._props = {};
     }
 
@@ -67,16 +71,19 @@
         return;
       }
 
+      // Get metadata names
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
       const measureHeaders = measures.map(
         (measure) =>
-          this._myDataSource.metadata.mainStructureMembers[measure]?.description || measure
+          this._myDataSource.metadata.mainStructureMembers[measure]?.description ||
+          measure
       );
 
-      const tableData = this._myDataSource.data.map((row) => {
-        const rowData = {};
+      // Map data to table rows
+      const tableData = this._myDataSource.data.map((row, rowIndex) => {
+        const rowData = { index: rowIndex };
         dimensions.forEach((dim) => {
           rowData[dim] = row[dim]?.label || "N/A";
         });
@@ -91,64 +98,47 @@
         return;
       }
 
+      // Create table
       const table = document.createElement("table");
 
+      // Create header
       const headerRow = `<tr>${dimensionHeaders
         .map((header) => `<th>${header}</th>`)
         .join("")}${measureHeaders
         .map((header) => `<th>${header}</th>`)
         .join("")}</tr>`;
-      table.innerHTML = `
-        <thead>${headerRow}</thead>
-        <tbody>
-          ${tableData
-            .map(
-              (row, rowIndex) =>
-                `<tr>${dimensions
-                  .map((dim) => `<td>${row[dim]}</td>`)
-                  .join("")}${measures
-                  .map(
-                    (measure) =>
-                      `<td class="editable" data-measure="${measure}" data-row="${rowIndex}">${row[measure]}</td>`
-                  )
-                  .join("")}</tr>`
-            )
-            .join("")}
-        </tbody>
-      `;
+      table.innerHTML = `<thead>${headerRow}</thead>`;
 
+      // Create body
+      const tbody = document.createElement("tbody");
+      tableData.forEach((row) => {
+        const tableRow = document.createElement("tr");
+        dimensions.forEach((dim) => {
+          const cell = document.createElement("td");
+          cell.textContent = row[dim];
+          tableRow.appendChild(cell);
+        });
+        measures.forEach((measure) => {
+          const cell = document.createElement("td");
+          cell.textContent = row[measure];
+          cell.setAttribute("contenteditable", "true");
+          cell.setAttribute("data-measure", measure);
+          cell.setAttribute("data-row", row.index);
+
+          cell.addEventListener("blur", () => this.handleEdit(cell, measures));
+          tableRow.appendChild(cell);
+        });
+        tbody.appendChild(tableRow);
+      });
+
+      table.appendChild(tbody);
+
+      // Clear existing content and add the table
       this._root.innerHTML = "";
       this._root.appendChild(table);
-
-      this.addEventListeners(measures);
     }
 
-    addEventListeners(measures) {
-      const editableCells = this._root.querySelectorAll("td.editable");
-      editableCells.forEach((cell) => {
-        cell.addEventListener("click", () => this.makeCellEditable(cell));
-        cell.addEventListener("blur", (event) =>
-          this.handleEdit(event.target, measures)
-        );
-      });
-    }
-
-    makeCellEditable(cell) {
-      const oldValue = cell.textContent;
-      cell.setAttribute("contenteditable", "true");
-      cell.focus();
-      cell.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          cell.blur();
-        } else if (event.key === "Escape") {
-          cell.textContent = oldValue;
-          cell.blur();
-        }
-      });
-    }
-
-    async handleEdit(cell, measures) {
+    async handleEdit(cell) {
       const newValue = parseFloat(cell.textContent.trim());
       const measureId = cell.getAttribute("data-measure");
       const rowIndex = parseInt(cell.getAttribute("data-row"), 10);
@@ -159,11 +149,20 @@
       }
 
       try {
+        // Ensure planning is enabled
+        if (!this._myDataSource.isPlanningEnabled()) {
+          alert("Planning is not enabled for the data source.");
+          return;
+        }
+
+        // Update the cell value in the model
         await this._myDataSource.setCellValue(
           { row: rowIndex, column: measureId },
           newValue
         );
-        alert("Value successfully updated!");
+
+        // Provide feedback
+        alert("Value successfully updated in the model!");
       } catch (error) {
         alert("Failed to update the value: " + error.message);
       } finally {

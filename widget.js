@@ -62,10 +62,12 @@
         return;
       }
 
-      // Get metadata names
+      // Get metadata names for dimensions and measures
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
+
+      // Ensure correct measure names from the metadata
       const measureHeaders = measures.map(
         (measure) =>
           this._myDataSource.metadata.mainStructureMembers[measure]?.description ||
@@ -97,12 +99,13 @@
       // Create table
       const table = document.createElement("table");
 
-      // Create header
+      // Create header with actual measure names from the model
       const headerRow = `<tr>${dimensionHeaders
         .map((header) => `<th>${header}</th>`)
         .join("")}${measureHeaders
         .map((header) => `<th>${header}</th>`)
         .join("")}</tr>`;
+
       table.innerHTML = `
         <thead>${headerRow}</thead>
         <tbody>
@@ -113,8 +116,8 @@
                   .map((dim) => `<td>${row[dim]}</td>`)
                   .join("")}${measures
                   .map(
-                    (measure) => 
-                    `<td contenteditable="true" data-measure="${measure}" data-row-id="${row[measure]}">${row[measure]}</td>`
+                    (measure) =>
+                    `<td contenteditable="true" data-measure="${measure}" data-row-id="${row['ID']}">${row[measure]}</td>`
                   )
                   .join("")}</tr>`
             )
@@ -158,7 +161,6 @@
         // Call the SAC planning API to update the data.
         // In SAC, you would typically trigger a write-back here.
         // Make sure to replace this with your actual API for planning write-back.
-        // Assuming you have a method to commit the changes back to SAC's model.
         this._myDataSource.writeBack({
           rowId: rowId,
           measure: measure,

@@ -1,33 +1,42 @@
+var getScriptPromisify = (src) => {
+  return new Promise((resolve) => {
+    $.getScript(src, resolve);
+  });
+};
+
 (function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `
-    <style>
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      th, td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: left;
-      }
-      th {
-        background-color: #f4f4f4;
-      }
-      tr:nth-child(even) {
-        background-color: #f9f9f9;
-      }
-    </style>
-    <div id="root" style="width: 100%; height: 100%; overflow: auto;">
-    </div>
-  `;
+        <style>
+          table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+          }
+          th {
+            background-color: #f4f4f4;
+          }
+          tr:nth-child(even) {
+            background-color: #f9f9f9;
+          }
+        </style>
+        <div id="root" style="width: 100%; height: 100%; overflow: auto;">
+        </div>
+      `;
 
   class CustomTableWidget extends HTMLElement {
     constructor() {
       super();
+
       this._shadowRoot = this.attachShadow({ mode: "open" });
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
+
       this._root = this._shadowRoot.getElementById("root");
+
       this._props = {};
     }
 
@@ -62,26 +71,13 @@
         return;
       }
 
-      // Logging for debugging purposes
-      console.log("Dimensions:", dimensions);
-      console.log("Measures:", measures);
-
-      // Log the structure of mainStructureMembers for clarity
-      console.log("mainStructureMembers:", this._myDataSource.metadata.mainStructureMembers);
-
-      // Ensure measure headers are obtained from mainStructureMembers and use their actual names
+      // Get metadata names
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
-
-      // Map the measure headers to the correct names using the mainStructureMembers metadata
-      const measureHeaders = measures.map((measureId) => {
-        const measureMeta = this._myDataSource.metadata.mainStructureMembers[measureId];
-        console.log("Measure Metadata:", measureMeta); // Debugging output for measure details
-        return measureMeta && measureMeta.id // Use 'id' to get the proper measure name
-          ? measureMeta.id // Use id (e.g., 'Commitment', 'Cash')
-          : measureId; // Fallback to the ID if id is missing
-      });
+      const measureHeaders = measures.map(
+        (measure) => this._myDataSource.metadata.mainStructureMembers[measure]?.id || measure
+      );
 
       console.log("Dimension Headers:", dimensionHeaders);
       console.log("Measure Headers:", measureHeaders);
@@ -92,8 +88,8 @@
         dimensions.forEach((dim) => {
           rowData[dim] = row[dim]?.label || "N/A";
         });
-        measures.forEach((measureId) => {
-          rowData[measureId] = row[measureId]?.raw || "N/A";
+        measures.forEach((measure) => {
+          rowData[measure] = row[measure]?.raw || "N/A";
         });
         return rowData;
       });
@@ -108,13 +104,12 @@
       // Create table
       const table = document.createElement("table");
 
-      // Create header row with correct measure names
+      // Create header
       const headerRow = `<tr>${dimensionHeaders
         .map((header) => `<th>${header}</th>`)
         .join("")}${measureHeaders
         .map((header) => `<th>${header}</th>`)
         .join("")}</tr>`;
-
       table.innerHTML = `
         <thead>${headerRow}</thead>
         <tbody>
@@ -124,65 +119,71 @@
                 `<tr>${dimensions
                   .map((dim) => `<td>${row[dim]}</td>`)
                   .join("")}${measures
-                  .map(
-                    (measureId) =>
-                      `<td contenteditable="true" data-measure="${measureId}" data-row-id="${row['ID']}">${row[measureId]}</td>`
-                  )
+                  .map((measure) => `<td contenteditable="true" data-measure="${measure}">${row[measure]}</td>`)
                   .join("")}</tr>`
             )
             .join("")}
         </tbody>
       `;
 
-      // Clear existing content and append the new table
+      // Clear existing content and add the table
       this._root.innerHTML = "";
       this._root.appendChild(table);
 
-      // Make the table cells editable
-      this.addEventListenersToEditableCells();
-    }
-
-    addEventListenersToEditableCells() {
-      const editableCells = this._root.querySelectorAll("td[contenteditable='true']");
-      editableCells.forEach(cell => {
-        cell.addEventListener("blur", (event) => this.handleCellEdit(event));
+      // Add event listener for cell editing
+      this._root.querySelectorAll("td[contenteditable]").forEach((cell) => {
+        cell.addEventListener("input", this.handleCellEdit.bind(this));
       });
     }
 
-    handleCellEdit(event) {
-      const editedValue = event.target.innerText;
-      const rowId = event.target.getAttribute('data-row-id');
-      const measure = event.target.getAttribute('data-measure');
+    async handleCellEdit(event) {
+      const cell = event.target;
+      const measure = cell.getAttribute("data-measure");
+      const newValue = cell.innerText;
 
-      console.log("Updated value for row:", rowId, "Measure:", measure, "New Value:", editedValue);
+      // Find row and measure in the data source
+      const rowIndex = Array.from(cell.parentNode.parentNode.children).indexOf(cell.parentNode);
+      const measureIndex = this._myDataSource.metadata.feeds.measures.values.indexOf(measure);
 
-      // Update the model with the new value
-      this.writeBackToModel(rowId, measure, editedValue);
+      if (measureIndex === -1) return;
+
+      // Update the measure value
+      const row = this._myDataSource.data[rowIndex];
+      row[measure] = newValue;
+
+      console.log(`Updated ${measure} in row ${rowIndex} to ${newValue}`);
+
+      // Update backend and push data to the model (use SAC API for planning)
+      try {
+        await this.updatePlanningModel(rowIndex, measure, newValue);
+      } catch (error) {
+        console.error("Failed to update model:", error);
+      }
     }
 
-    writeBackToModel(rowId, measure, value) {
-      // Find the row in your data source and update it
-      const dataRow = this._myDataSource.data.find(row => row['ID'] === rowId);
-      if (dataRow) {
-        // Update the value in the row for the corresponding measure
-        dataRow[measure] = value;
-        console.log("Write-back successful: ", dataRow);
+    async updatePlanningModel(rowIndex, measure, value) {
+      const dataSourceId = this._myDataSource.id;
+      const dimensionKeys = Object.keys(this._myDataSource.metadata.dimensions);
+      const dimensionValues = this._myDataSource.metadata.feeds.dimensions.values;
 
-        // Call the SAC planning API to update the data.
-        // Make sure to replace this with your actual API for planning write-back.
-        try {
-          this._myDataSource.writeBack({
-            rowId: rowId,
-            measure: measure,
-            value: value
-          }).then(() => {
-            console.log("Write-back to SAC model successful.");
-          }).catch((error) => {
-            console.error("Write-back failed:", error);
-          });
-        } catch (error) {
-          console.error("Write-back failed: ", error);
-        }
+      // Prepare payload for updating the model
+      const payload = {
+        cellData: [
+          {
+            dimensionKey: dimensionValues[0], // Adjust based on your actual model
+            measureKey: measure,
+            value: value,
+            rowKey: rowIndex, // Adjust based on your actual model
+          },
+        ],
+      };
+
+      try {
+        // Call SAC API to update planning model
+        await this._myDataSource.writeCellData(payload);
+        console.log("Planning model updated successfully");
+      } catch (error) {
+        console.error("Error while updating planning model:", error);
       }
     }
   }

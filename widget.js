@@ -19,6 +19,7 @@
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
       this._root = this._shadowRoot.getElementById("root");
       this._props = {};
+      this._buttonLabel = "Click Me"; // Default button label
     }
 
     onCustomWidgetResize(width, height) {
@@ -27,6 +28,15 @@
 
     set myDataSource(dataBinding) {
       this._myDataSource = dataBinding;
+      this.render();
+    }
+
+    get buttonLabel() {
+      return this._buttonLabel;
+    }
+
+    set buttonLabel(value) {
+      this._buttonLabel = value || "Click Me"; // Fallback to default if value is empty
       this.render();
     }
 
@@ -90,7 +100,7 @@
               <tr data-row-id="${index}">
                 ${dimensions.map((dim) => `<td>${row[dim]}</td>`).join("")}
                 ${measures.map((measureId) => `<td>${row[measureId]}</td>`).join("")}
-                <td><button class="action-btn" data-row-id="${index}">Click Me</button></td>
+                <td><button class="action-btn" data-row-id="${index}">${this._buttonLabel}</button></td>
               </tr>
             `
           ).join("")}

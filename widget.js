@@ -47,14 +47,6 @@
         return;
       }
 
-      const dimensionHeaders = dimensions.map(
-        (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
-      );
-      const measureHeaders = measures.map((measureId) => {
-        const measureMeta = this._myDataSource.metadata.mainStructureMembers[measureId];
-        return measureMeta && measureMeta.id ? measureMeta.id : measureId;
-      });
-
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
         dimensions.forEach((dim) => {
@@ -73,8 +65,8 @@
 
       const table = document.createElement("table");
       const headerRow = `
-        <tr>${dimensionHeaders.map((header) => `<th>${header}</th>`).join("")}
-        ${measureHeaders.map((header) => `<th>${header}</th>`).join("")}</tr>
+        <tr>${dimensions.map((header) => `<th>${header}</th>`).join("")}
+        ${measures.map((header) => `<th>${header}</th>`).join("")}</tr>
       `;
 
       table.innerHTML = `
@@ -111,35 +103,37 @@
     }
 
     async handleCellEdit(event) {
-      const editedValue = parseFloat(event.target.innerText);
-      const measure = event.target.getAttribute("data-measure");
+      const editedValue = event.target.innerText;
       const row = JSON.parse(event.target.getAttribute("data-row"));
-      const dimensionValues = Object.entries(row)
-        .filter(([key]) => key !== measure)
-        .map(([key, value]) => ({
-          dimension: key,
-          value: value,
-        }));
+      const measure = event.target.getAttribute("data-measure");
+      console.log("Updated value:", editedValue, "Row:", row, "Measure:", measure);
 
       try {
-        await this.writeBackToModel(dimensionValues, measure, editedValue);
-        alert("Data successfully updated in the model!");
+        const writeBackPayload = {
+          dimensions: row,
+          measure: measure,
+          value: parseFloat(editedValue),
+        };
+
+        await this.writeBackToModel(writeBackPayload);
       } catch (error) {
         console.error("Write-back failed:", error);
-        alert("Failed to update the model.");
       }
     }
 
-    async writeBackToModel(dimensionValues, measure, value) {
+    async writeBackToModel(payload) {
       try {
-        const response = await this._myDataSource.writeData([{
-          dimensionValues: dimensionValues,
-          measure: measure,
-          value: value,
-        }]);
+        const response = await this._myDataSource.writeBack({
+          dimensions: payload.dimensions,
+          measure: payload.measure,
+          value: payload.value,
+        });
+
         console.log("Write-back response:", response);
+        alert("Data updated successfully in the model!");
       } catch (error) {
-        throw new Error("Write-back API error: " + error.message);
+        console.error("Failed to write data to the model:", error);
+        alert("Failed to update the model. Check the logs for more details.");
       }
     }
   }

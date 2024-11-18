@@ -155,9 +155,19 @@
         dataRow[measure] = value;
         console.log("Write-back successful: ", dataRow);
 
-        // Ideally, you'd call the SAC planning API here for write-back.
-        // You'd need to replace this with the actual API call to write-back the data to the SAC model.
-        this._myDataSource.writeBackToModel(dataRow);
+        // Call the SAC planning API to update the data.
+        // In SAC, you would typically trigger a write-back here.
+        // Make sure to replace this with your actual API for planning write-back.
+        // Assuming you have a method to commit the changes back to SAC's model.
+        this._myDataSource.writeBack({
+          rowId: rowId,
+          measure: measure,
+          value: value
+        }).then(() => {
+          console.log("Write-back to SAC model successful.");
+        }).catch((error) => {
+          console.error("Write-back failed:", error);
+        });
       }
     }
   }

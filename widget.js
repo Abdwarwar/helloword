@@ -74,14 +74,13 @@
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
 
-      // Get actual measure names from mainStructureMembers using the measure IDs
+      // Map the measure headers to the correct names using the mainStructureMembers metadata
       const measureHeaders = measures.map((measureId) => {
-        // Access the mainStructureMembers for the given measureId
         const measureMeta = this._myDataSource.metadata.mainStructureMembers[measureId];
         console.log("Measure Metadata:", measureMeta); // Debugging output for measure details
-        return measureMeta && measureMeta.description
-          ? measureMeta.description // Use description if available
-          : measureId; // Fallback to the ID if description is missing
+        return measureMeta && measureMeta.label // Use 'label' to get the proper measure name
+          ? measureMeta.label // Use label if available (e.g., 'Commitment', 'Cash')
+          : measureId; // Fallback to the ID if label is missing
       });
 
       console.log("Dimension Headers:", dimensionHeaders);

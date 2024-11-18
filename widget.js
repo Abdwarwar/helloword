@@ -47,6 +47,14 @@
         return;
       }
 
+      const dimensionHeaders = dimensions.map(
+        (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
+      );
+      const measureHeaders = measures.map((measureId) => {
+        const measureMeta = this._myDataSource.metadata.mainStructureMembers[measureId];
+        return measureMeta && measureMeta.id ? measureMeta.id : measureId;
+      });
+
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
         dimensions.forEach((dim) => {
@@ -65,8 +73,8 @@
 
       const table = document.createElement("table");
       const headerRow = `
-        <tr>${dimensions.map((dim) => `<th>${dim}</th>`).join("")}
-        ${measures.map((measure) => `<th>${measure}</th>`).join("")}</tr>
+        <tr>${dimensionHeaders.map((header) => `<th>${header}</th>`).join("")}
+        ${measureHeaders.map((header) => `<th>${header}</th>`).join("")}</tr>
       `;
 
       table.innerHTML = `
@@ -74,11 +82,17 @@
         <tbody>
           ${tableData.map(
             (row) => `
-              <tr>${dimensions.map((dim) => `<td>${row[dim]}</td>`).join("")}
-                ${measures.map(
-                  (measure) =>
-                    `<td contenteditable="true" data-dimension="${dimensions[0]}" data-measure="${measure}">${row[measure]}</td>`
-                ).join("")}
+              <tr>${dimensions
+                .map((dim) => `<td>${row[dim]}</td>`)
+                .join("")}
+                ${measures
+                  .map(
+                    (measureId) =>
+                      `<td contenteditable="true" data-measure="${measureId}" data-row='${JSON.stringify(
+                        row
+                      )}'>${row[measureId]}</td>`
+                  )
+                  .join("")}
               </tr>`
           ).join("")}
         </tbody>
@@ -97,27 +111,35 @@
     }
 
     async handleCellEdit(event) {
-      const editedValue = event.target.innerText;
-      const dimension = event.target.getAttribute("data-dimension");
+      const editedValue = parseFloat(event.target.innerText);
       const measure = event.target.getAttribute("data-measure");
-      const rowIndex = Array.from(event.target.parentElement.parentNode.children).indexOf(
-        event.target.parentElement
-      );
+      const row = JSON.parse(event.target.getAttribute("data-row"));
+      const dimensionValues = Object.entries(row)
+        .filter(([key]) => key !== measure)
+        .map(([key, value]) => ({
+          dimension: key,
+          value: value,
+        }));
 
       try {
-        const payload = {
-          dimension: dimension,
-          measure: measure,
-          row: rowIndex,
-          value: editedValue,
-        };
-
-        const response = await this._myDataSource.writeBack(payload);
-        console.log("Planning API Response:", response);
-        alert("Data updated successfully!");
+        await this.writeBackToModel(dimensionValues, measure, editedValue);
+        alert("Data successfully updated in the model!");
       } catch (error) {
         console.error("Write-back failed:", error);
         alert("Failed to update the model.");
+      }
+    }
+
+    async writeBackToModel(dimensionValues, measure, value) {
+      try {
+        const response = await this._myDataSource.writeData([{
+          dimensionValues: dimensionValues,
+          measure: measure,
+          value: value,
+        }]);
+        console.log("Write-back response:", response);
+      } catch (error) {
+        throw new Error("Write-back API error: " + error.message);
       }
     }
   }

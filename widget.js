@@ -33,6 +33,7 @@
         this._root.innerHTML = `<p>No data source bound.</p>`;
         return;
       }
+
       console.log("Data Source Metadata:", this._myDataSource.metadata);
       console.log("Data Source Data:", this._myDataSource.data);
 
@@ -49,19 +50,13 @@
         return;
       }
 
-      console.log("mainStructureMembers:", this._myDataSource.metadata.mainStructureMembers);
-      
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
       const measureHeaders = measures.map((measureId) => {
         const measureMeta = this._myDataSource.metadata.mainStructureMembers[measureId];
-        console.log("Measure Metadata:", measureMeta);
         return measureMeta && measureMeta.id ? measureMeta.id : measureId;
       });
-
-      console.log("Dimension Headers:", dimensionHeaders);
-      console.log("Measure Headers:", measureHeaders);
 
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
@@ -73,8 +68,6 @@
         });
         return rowData;
       });
-
-      console.log("Mapped Table Data:", tableData);
 
       if (tableData.length === 0) {
         this._root.innerHTML = `<p>No data available to display.</p>`;
@@ -122,42 +115,39 @@
       const editedValue = event.target.innerText;
       const rowId = event.target.getAttribute('data-row-id');
       const measure = event.target.getAttribute('data-measure');
-      console.log("Selected Row ID:", rowId);
-      console.log("Updated Measure:", measure);
-      console.log("Edited Value:", editedValue);
 
-      // Check for rowId in the data
+      console.log("Updated value for row:", rowId, "Measure:", measure, "New Value:", editedValue);
+
       const rowData = this._myDataSource.data.find(row => row['ID'] === rowId);
-      console.log("Row Data:", rowData);
+
       if (rowData) {
-        const writeBackPayload = {
-          rowId: rowId,
-          measure: measure,
-          value: parseFloat(editedValue),
-        };
-        console.log("Write-back payload:", writeBackPayload);
-        try {
-          await this.writeBackToModel(writeBackPayload);
-        } catch (error) {
-          console.error("Write-back failed:", error);
-          alert("Failed to update the model.");
-        }
-      } else {
-        console.error("Row data not found for ID:", rowId);
+        console.log("Row Data:", rowData);
+
+        const selectedRowData = {};
+        selectedRowData[measure] = editedValue;
+
+        await this.writeBackToModel(rowId, measure, selectedRowData[measure]);
       }
     }
 
-    async writeBackToModel(writeBackPayload) {
+    async writeBackToModel(rowId, measure, value) {
       try {
-        const response = await this._myDataSource.writeBack({
-          data: {
-            rowId: writeBackPayload.rowId,
-            measure: writeBackPayload.measure,
-            value: writeBackPayload.value
-          }
-        });
-        console.log("SAC Planning API response:", response);
-        alert("Data updated successfully in the model!");
+        const rowData = this._myDataSource.data.find(row => row['ID'] === rowId);
+        if (rowData) {
+          rowData[measure] = value;
+          console.log("Updated Row Data:", rowData);
+
+          const response = await this._myDataSource.writeBack({
+            data: {
+              rowId: rowId,
+              measure: measure,
+              value: value
+            }
+          });
+
+          console.log("SAC Planning API Response:", response);
+          alert("Data updated successfully in the model!");
+        }
       } catch (error) {
         console.error("Write-back failed:", error);
         alert("Failed to update the model.");

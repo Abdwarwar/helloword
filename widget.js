@@ -7,7 +7,7 @@
       th { background-color: #f4f4f4; }
       tr:nth-child(even) { background-color: #f9f9f9; }
       tr.selected { background-color: #ffeb3b; }
-      button { padding: 5px 10px; cursor: pointer; }
+      .action-button { padding: 5px 10px; cursor: pointer; }
     </style>
     <div id="root" style="width: 100%; height: 100%; overflow: auto;"></div>
   `;
@@ -19,7 +19,6 @@
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
       this._root = this._shadowRoot.getElementById("root");
       this._props = {};
-      this._buttonLabel = "Click Me"; // Default button label
     }
 
     onCustomWidgetResize(width, height) {
@@ -28,15 +27,6 @@
 
     set myDataSource(dataBinding) {
       this._myDataSource = dataBinding;
-      this.render();
-    }
-
-    get buttonLabel() {
-      return this._buttonLabel;
-    }
-
-    set buttonLabel(value) {
-      this._buttonLabel = value || "Click Me"; // Fallback to default if value is empty
       this.render();
     }
 
@@ -83,45 +73,94 @@
         return;
       }
 
+      const buttonLabel = this._props.buttonLabel || "Click Me";  // Use the button label from properties
+
       const table = document.createElement("table");
       const headerRow = `
-        <tr>
-          ${dimensionHeaders.map((header) => `<th>${header}</th>`).join("")}
-          ${measureHeaders.map((header) => `<th>${header}</th>`).join("")}
-          <th>Actions</th>
-        </tr>
+        <tr>${dimensionHeaders.map((header) => `<th>${header}</th>`).join("")}
+        ${measureHeaders.map((header) => `<th>${header}</th>`).join("")}
+        <th>Action</th></tr>
       `;
 
       table.innerHTML = `
         <thead>${headerRow}</thead>
         <tbody>
           ${tableData.map(
-            (row, index) => `
-              <tr data-row-id="${index}">
-                ${dimensions.map((dim) => `<td>${row[dim]}</td>`).join("")}
-                ${measures.map((measureId) => `<td>${row[measureId]}</td>`).join("")}
-                <td><button class="action-btn" data-row-id="${index}">${this._buttonLabel}</button></td>
-              </tr>
-            `
+            (row) => `
+              <tr data-row-id="${row['ID']}">${dimensions
+                .map((dim) => `<td>${row[dim]}</td>`)
+                .join("")}
+                ${measures
+                  .map(
+                    (measureId) =>
+                      `<td contenteditable="true" data-measure="${measureId}" data-row-id="${row['ID']}">${row[measureId]}</td>`
+                  )
+                  .join("")}
+                <td><button class="action-button">${buttonLabel}</button></td>
+              </tr>`
           ).join("")}
         </tbody>
       `;
 
       this._root.innerHTML = "";
       this._root.appendChild(table);
-      this.addEventListenersToButtons();
+      this.addEventListenersToRows();
     }
 
-    addEventListenersToButtons() {
-      const buttons = this._root.querySelectorAll(".action-btn");
+    addEventListenersToRows() {
+      const rows = this._root.querySelectorAll("tr[data-row-id]");
+      rows.forEach(row => {
+        row.addEventListener("click", (event) => this.handleRowSelection(event, row));
+      });
+
+      // Button click event
+      const buttons = this._root.querySelectorAll(".action-button");
       buttons.forEach(button => {
         button.addEventListener("click", (event) => this.handleButtonClick(event));
       });
     }
 
+    handleRowSelection(event, row) {
+      // Remove the highlight from the previously selected row
+      const previouslySelected = this._root.querySelector(".selected");
+      if (previouslySelected) {
+        previouslySelected.classList.remove("selected");
+      }
+
+      // Highlight the clicked row
+      row.classList.add("selected");
+
+      const rowId = row.getAttribute('data-row-id');
+      if (!rowId) {
+        console.error("Row ID not found.");
+        return;
+      }
+
+      const rowData = this._myDataSource.data.find(row => row['ID'] === rowId);
+      if (!rowData) {
+        console.error("Row data not found for ID:", rowId);
+        return;
+      }
+
+      const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
+      const measures = this._myDataSource.metadata.feeds.measures.values;
+
+      const selectedDimensions = dimensions.map((dim) => rowData[dim]?.label || "N/A");
+      const selectedMeasure = measures.map((measureId) => rowData[measureId]?.raw || "N/A");
+
+      console.log("Selected Row ID:", rowId);
+      console.log("Selected Dimensions:", selectedDimensions);
+      console.log("Selected Measure:", selectedMeasure);
+    }
+
     handleButtonClick(event) {
-      const rowId = event.target.getAttribute("data-row-id");
-      console.log(`Button clicked for row ID: ${rowId}`);
+      event.stopPropagation();  // Prevent row selection on button click
+      const button = event.target;
+      const row = button.closest("tr");
+      const rowId = row.getAttribute("data-row-id");
+
+      console.log("Button clicked for row ID:", rowId);
+      // Add your custom logic for button click here
     }
   }
 

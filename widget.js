@@ -1,9 +1,3 @@
-var getScriptPromisify = (src) => {
-  return new Promise((resolve) => {
-    $.getScript(src, resolve);
-  });
-};
-
 (function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `
@@ -23,6 +17,12 @@ var getScriptPromisify = (src) => {
           tr:nth-child(even) {
             background-color: #f9f9f9;
           }
+          td {
+            cursor: pointer;
+          }
+          td.editable {
+            background-color: #eaffea;
+          }
         </style>
         <div id="root" style="width: 100%; height: 100%; overflow: auto;">
         </div>
@@ -36,7 +36,6 @@ var getScriptPromisify = (src) => {
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
 
       this._root = this._shadowRoot.getElementById("root");
-
       this._props = {};
     }
 
@@ -55,9 +54,6 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      console.log("Data Source Metadata:", this._myDataSource.metadata);
-      console.log("Data Source Data:", this._myDataSource.data);
-
       if (this._myDataSource.state !== "success") {
         this._root.innerHTML = `<p>Loading data...</p>`;
         return;
@@ -71,20 +67,14 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      // Get metadata names
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
       const measureHeaders = measures.map(
         (measure) =>
-          this._myDataSource.metadata.mainStructureMembers[measure]?.description ||
-          measure
+          this._myDataSource.metadata.mainStructureMembers[measure]?.description || measure
       );
 
-      console.log("Dimension Headers:", dimensionHeaders);
-      console.log("Measure Headers:", measureHeaders);
-
-      // Map data to table rows
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
         dimensions.forEach((dim) => {
@@ -96,17 +86,13 @@ var getScriptPromisify = (src) => {
         return rowData;
       });
 
-      console.log("Mapped Table Data:", tableData);
-
       if (tableData.length === 0) {
         this._root.innerHTML = `<p>No data available to display.</p>`;
         return;
       }
 
-      // Create table
       const table = document.createElement("table");
 
-      // Create header
       const headerRow = `<tr>${dimensionHeaders
         .map((header) => `<th>${header}</th>`)
         .join("")}${measureHeaders
@@ -117,20 +103,72 @@ var getScriptPromisify = (src) => {
         <tbody>
           ${tableData
             .map(
-              (row) =>
+              (row, rowIndex) =>
                 `<tr>${dimensions
                   .map((dim) => `<td>${row[dim]}</td>`)
                   .join("")}${measures
-                  .map((measure) => `<td>${row[measure]}</td>`)
+                  .map(
+                    (measure) =>
+                      `<td class="editable" data-measure="${measure}" data-row="${rowIndex}">${row[measure]}</td>`
+                  )
                   .join("")}</tr>`
             )
             .join("")}
         </tbody>
       `;
 
-      // Clear existing content and add the table
       this._root.innerHTML = "";
       this._root.appendChild(table);
+
+      this.addEventListeners(measures);
+    }
+
+    addEventListeners(measures) {
+      const editableCells = this._root.querySelectorAll("td.editable");
+      editableCells.forEach((cell) => {
+        cell.addEventListener("click", () => this.makeCellEditable(cell));
+        cell.addEventListener("blur", (event) =>
+          this.handleEdit(event.target, measures)
+        );
+      });
+    }
+
+    makeCellEditable(cell) {
+      const oldValue = cell.textContent;
+      cell.setAttribute("contenteditable", "true");
+      cell.focus();
+      cell.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          cell.blur();
+        } else if (event.key === "Escape") {
+          cell.textContent = oldValue;
+          cell.blur();
+        }
+      });
+    }
+
+    async handleEdit(cell, measures) {
+      const newValue = parseFloat(cell.textContent.trim());
+      const measureId = cell.getAttribute("data-measure");
+      const rowIndex = parseInt(cell.getAttribute("data-row"), 10);
+
+      if (isNaN(newValue)) {
+        alert("Please enter a valid number.");
+        return;
+      }
+
+      try {
+        await this._myDataSource.setCellValue(
+          { row: rowIndex, column: measureId },
+          newValue
+        );
+        alert("Value successfully updated!");
+      } catch (error) {
+        alert("Failed to update the value: " + error.message);
+      } finally {
+        cell.removeAttribute("contenteditable");
+      }
     }
   }
 

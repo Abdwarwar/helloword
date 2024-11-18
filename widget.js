@@ -130,17 +130,17 @@
             });
         }
 
-        handleCellEdit(event) {
+        async handleCellEdit(event) {
             const editedValue = event.target.innerText;
             const rowId = event.target.getAttribute('data-row-id');
             const measure = event.target.getAttribute('data-measure');
             console.log("Updated value for row:", rowId, "Measure:", measure, "New Value:", editedValue);
 
             // Update the model with the new value
-            this.writeBackToModel(rowId, measure, editedValue);
+            await this.writeBackToModel(rowId, measure, editedValue);
         }
 
-        writeBackToModel(rowId, measure, value) {
+        async writeBackToModel(rowId, measure, value) {
             const dataRow = this._myDataSource.data.find(row => row['ID'] === rowId);
             if (dataRow) {
                 // Update the value in the row for the corresponding measure
@@ -149,17 +149,20 @@
 
                 // Call the SAC planning API to update the data
                 try {
-                    this._myDataSource.writeBack({
-                        rowId: rowId,
-                        measure: measure,
-                        value: value
-                    }).then(() => {
-                        console.log("Write-back to SAC model successful.");
-                    }).catch((error) => {
-                        console.error("Write-back failed:", error);
+                    // Assuming writeBack function here is a valid SAC API for the data model
+                    const response = await this._myDataSource.writeBack({
+                        data: {
+                            rowId: rowId,
+                            measure: measure,
+                            value: value
+                        }
                     });
+
+                    console.log("SAC Planning API response:", response);
+                    alert("Data updated successfully in the model!");
                 } catch (error) {
-                    console.error("Write-back failed: ", error);
+                    console.error("Write-back failed:", error);
+                    alert("Failed to update the model.");
                 }
             }
         }

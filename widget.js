@@ -71,7 +71,10 @@
       const measureHeaders = measures.map(
         (measureId) => {
           const measureMeta = this._myDataSource.metadata.mainStructureMembers[measureId];
-          return measureMeta ? measureMeta.description : measureId; // fall back to measureId if description is missing
+          // Check for a proper mapping and handle potential issues
+          return measureMeta && measureMeta.description
+            ? measureMeta.description
+            : measureId; // fall back to measureId if description is missing
         }
       );
 

@@ -91,18 +91,22 @@
         <thead>${headerRow}</thead>
         <tbody>
           ${tableData.map(
-            (row) => `
-              <tr data-row-id="${row['ID']}">${dimensions
-                .map((dim) => `<td>${row[dim]}</td>`)
-                .join("")}
-                ${measures
-                  .map(
-                    (measureId) =>
-                      `<td contenteditable="true" data-measure="${measureId}" data-row-id="${row['ID']}">${row[measureId]}</td>`
-                  )
+            (row) => {
+              const rowId = row['ID']; // Ensure ID is defined here
+              console.log("Row ID:", rowId); // Debugging to check row ID
+              return `
+                <tr data-row-id="${rowId}">${dimensions
+                  .map((dim) => `<td>${row[dim]}</td>`)
                   .join("")}
-                <td class="button-cell"><button>${buttonLabel}</button></td>
-              </tr>`
+                  ${measures
+                    .map(
+                      (measureId) =>
+                        `<td contenteditable="true" data-measure="${measureId}" data-row-id="${rowId}">${row[measureId]}</td>`
+                    )
+                    .join("")}
+                  <td class="button-cell"><button>${buttonLabel}</button></td>
+                </tr>`;
+            }
           ).join("")}
         </tbody>
       `;
@@ -162,28 +166,11 @@
       const button = event.target;
       const row = button.closest("tr");
       const rowId = row ? row.getAttribute("data-row-id") : null;
-      
       if (rowId) {
-        const rowData = this._myDataSource.data.find(row => row['ID'] === rowId);
-        
-        if (!rowData) {
-          console.error("Row data not found for ID:", rowId);
-          return;
-        }
-
-        const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
-        const measures = this._myDataSource.metadata.feeds.measures.values;
-
-        const selectedDimensions = dimensions.map((dim) => rowData[dim]?.label || "N/A");
-        const selectedMeasures = measures.map((measureId) => rowData[measureId]?.raw || "N/A");
-
         console.log("Button clicked for Row ID:", rowId);
-        console.log("Selected Dimensions:", selectedDimensions);
-        console.log("Selected Measures:", selectedMeasures);
       }
     }
   }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);
 })();
-

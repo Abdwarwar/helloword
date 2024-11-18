@@ -67,11 +67,11 @@
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
 
-      // Get actual measure names (not the default measure_0)
+      // Get actual measure names from mainStructureMembers
       const measureHeaders = measures.map(
         (measureId) => {
           const measureMeta = this._myDataSource.metadata.mainStructureMembers[measureId];
-          return measureMeta ? measureMeta.description : measureId;
+          return measureMeta ? measureMeta.description : measureId; // fall back to measureId if description is missing
         }
       );
 
@@ -162,15 +162,19 @@
 
         // Call the SAC planning API to update the data.
         // Make sure to replace this with your actual API for planning write-back.
-        this._myDataSource.writeBack({
-          rowId: rowId,
-          measure: measure,
-          value: value
-        }).then(() => {
-          console.log("Write-back to SAC model successful.");
-        }).catch((error) => {
-          console.error("Write-back failed:", error);
-        });
+        try {
+          this._myDataSource.writeBack({
+            rowId: rowId,
+            measure: measure,
+            value: value
+          }).then(() => {
+            console.log("Write-back to SAC model successful.");
+          }).catch((error) => {
+            console.error("Write-back failed:", error);
+          });
+        } catch (error) {
+          console.error("Write-back failed: ", error);
+        }
       }
     }
   }

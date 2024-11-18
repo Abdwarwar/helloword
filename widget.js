@@ -62,14 +62,14 @@
         return;
       }
 
-      // Get actual measure names from the metadata
+      // Get actual measure names (not measure_0, measure_1)
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
 
-      // Use actual measure names for measures, not descriptions
+      // Get the actual names of measures from the metadata
       const measureHeaders = measures.map(
-        (measure) => measure // Using the actual measure name, not description
+        (measure) => this._myDataSource.metadata.mainStructureMembers[measure]?.description || measure
       );
 
       console.log("Dimension Headers:", dimensionHeaders);
@@ -97,7 +97,7 @@
       // Create table
       const table = document.createElement("table");
 
-      // Create header with actual measure names from the model
+      // Create header with actual measure names (from mainStructureMembers)
       const headerRow = `<tr>${dimensionHeaders
         .map((header) => `<th>${header}</th>`)
         .join("")}${measureHeaders
@@ -115,7 +115,7 @@
                   .join("")}${measures
                   .map(
                     (measure) =>
-                    `<td contenteditable="true" data-measure="${measure}" data-row-id="${row['ID']}">${row[measure]}</td>`
+                      `<td contenteditable="true" data-measure="${measure}" data-row-id="${row['ID']}">${row[measure]}</td>`
                   )
                   .join("")}</tr>`
             )

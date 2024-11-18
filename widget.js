@@ -162,11 +162,28 @@
       const button = event.target;
       const row = button.closest("tr");
       const rowId = row ? row.getAttribute("data-row-id") : null;
+      
       if (rowId) {
+        const rowData = this._myDataSource.data.find(row => row['ID'] === rowId);
+        
+        if (!rowData) {
+          console.error("Row data not found for ID:", rowId);
+          return;
+        }
+
+        const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
+        const measures = this._myDataSource.metadata.feeds.measures.values;
+
+        const selectedDimensions = dimensions.map((dim) => rowData[dim]?.label || "N/A");
+        const selectedMeasures = measures.map((measureId) => rowData[measureId]?.raw || "N/A");
+
         console.log("Button clicked for Row ID:", rowId);
+        console.log("Selected Dimensions:", selectedDimensions);
+        console.log("Selected Measures:", selectedMeasures);
       }
     }
   }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);
 })();
+

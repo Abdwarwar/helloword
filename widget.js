@@ -1,4 +1,3 @@
-
 (function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `

@@ -66,11 +66,12 @@
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
-      const measureHeaders = measures.map(
-        (measure) =>
-          this._myDataSource.metadata.mainStructureMembers[measure]?.description ||
-          measure
-      );
+
+      // Correctly map measures to their label from the metadata
+      const measureHeaders = measures.map((measure) => {
+        const measureMetadata = this._myDataSource.metadata.mainStructureMembers[measure];
+        return measureMetadata ? measureMetadata.label : measure; // Use label instead of default measure name
+      });
 
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};

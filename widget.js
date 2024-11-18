@@ -77,13 +77,13 @@
         <tbody>
           ${tableData.map(
             (row) => `
-              <tr>${dimensions
+              <tr data-row-id="${row['ID']}">${dimensions
                 .map((dim) => `<td>${row[dim]}</td>`)
                 .join("")}
                 ${measures
                   .map(
                     (measureId) =>
-                      `<td contenteditable="true" data-measure="${measureId}" data-row="${JSON.stringify(row)}">${row[measureId]}</td>`
+                      `<td contenteditable="true" data-measure="${measureId}" data-row-id="${row['ID']}">${row[measureId]}</td>`
                   )
                   .join("")}
               </tr>`
@@ -105,31 +105,37 @@
 
     async handleCellEdit(event) {
       const editedValue = event.target.innerText;
-      const row = JSON.parse(event.target.getAttribute("data-row"));
-      const measure = event.target.getAttribute("data-measure");
+      const rowId = event.target.getAttribute('data-row-id');
+      const measure = event.target.getAttribute('data-measure');
 
-      console.log("Selected Row Data:", row); // Log the selected row's data
+      console.log("Selected Row ID:", rowId); // Log the selected row ID
       console.log("Updated Measure:", measure);
       console.log("Edited Value:", editedValue);
 
-      const writeBackPayload = {
-        dimensions: row,
-        measure: measure,
-        value: parseFloat(editedValue),
-      };
+      // You can fetch the row data based on the row ID if needed:
+      const rowData = this._myDataSource.data.find(row => row['ID'] === rowId);
+      console.log("Row Data:", rowData); // Log the complete row data
 
-      try {
-        await this.writeBackToModel(writeBackPayload);
-      } catch (error) {
-        console.error("Write-back failed:", error);
-        alert("Failed to update the model.");
+      if (rowData) {
+        const writeBackPayload = {
+          rowId: rowId,
+          measure: measure,
+          value: parseFloat(editedValue),
+        };
+
+        try {
+          await this.writeBackToModel(writeBackPayload);
+        } catch (error) {
+          console.error("Write-back failed:", error);
+          alert("Failed to update the model.");
+        }
       }
     }
 
     async writeBackToModel(payload) {
       try {
         const response = await this._myDataSource.writeBack({
-          dimensions: payload.dimensions,
+          rowId: payload.rowId,
           measure: payload.measure,
           value: payload.value,
         });

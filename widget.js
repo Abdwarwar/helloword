@@ -7,7 +7,7 @@
       th { background-color: #f4f4f4; }
       tr:nth-child(even) { background-color: #f9f9f9; }
       tr.selected { background-color: #ffeb3b; }
-      .action-button { padding: 5px 10px; cursor: pointer; }
+      .button-cell button { padding: 5px 10px; cursor: pointer; }
     </style>
     <div id="root" style="width: 100%; height: 100%; overflow: auto;"></div>
   `;
@@ -27,6 +27,11 @@
 
     set myDataSource(dataBinding) {
       this._myDataSource = dataBinding;
+      this.render();
+    }
+
+    set buttonLabel(label) {
+      this._buttonLabel = label;
       this.render();
     }
 
@@ -73,7 +78,7 @@
         return;
       }
 
-      const buttonLabel = this._props.buttonLabel || "Click Me";  // Use the button label from properties
+      const buttonLabel = this._buttonLabel || "Click Me"; // Use the property or default value
 
       const table = document.createElement("table");
       const headerRow = `
@@ -96,7 +101,7 @@
                       `<td contenteditable="true" data-measure="${measureId}" data-row-id="${row['ID']}">${row[measureId]}</td>`
                   )
                   .join("")}
-                <td><button class="action-button">${buttonLabel}</button></td>
+                <td class="button-cell"><button>${buttonLabel}</button></td>
               </tr>`
           ).join("")}
         </tbody>
@@ -105,6 +110,7 @@
       this._root.innerHTML = "";
       this._root.appendChild(table);
       this.addEventListenersToRows();
+      this.addButtonListeners();
     }
 
     addEventListenersToRows() {
@@ -112,22 +118,14 @@
       rows.forEach(row => {
         row.addEventListener("click", (event) => this.handleRowSelection(event, row));
       });
-
-      // Button click event
-      const buttons = this._root.querySelectorAll(".action-button");
-      buttons.forEach(button => {
-        button.addEventListener("click", (event) => this.handleButtonClick(event));
-      });
     }
 
     handleRowSelection(event, row) {
-      // Remove the highlight from the previously selected row
       const previouslySelected = this._root.querySelector(".selected");
       if (previouslySelected) {
         previouslySelected.classList.remove("selected");
       }
 
-      // Highlight the clicked row
       row.classList.add("selected");
 
       const rowId = row.getAttribute('data-row-id');
@@ -153,14 +151,20 @@
       console.log("Selected Measure:", selectedMeasure);
     }
 
+    addButtonListeners() {
+      const buttons = this._root.querySelectorAll("button");
+      buttons.forEach(button => {
+        button.addEventListener("click", (event) => this.handleButtonClick(event));
+      });
+    }
+
     handleButtonClick(event) {
-      event.stopPropagation();  // Prevent row selection on button click
       const button = event.target;
       const row = button.closest("tr");
-      const rowId = row.getAttribute("data-row-id");
-
-      console.log("Button clicked for row ID:", rowId);
-      // Add your custom logic for button click here
+      const rowId = row ? row.getAttribute("data-row-id") : null;
+      if (rowId) {
+        console.log("Button clicked for Row ID:", rowId);
+      }
     }
   }
 

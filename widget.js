@@ -42,10 +42,13 @@
       const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
       const measures = this._myDataSource.metadata.feeds.measures.values;
 
-      if (dimensions.length === 0 || measures.length === 0) {
-        this._root.innerHTML = `<p>Ensure dimensions and measures are configured in the model.</p>`;
-        return;
-      }
+      const dimensionHeaders = dimensions.map(
+        (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
+      );
+      const measureHeaders = measures.map((measureId) => {
+        const measureMeta = this._myDataSource.metadata.mainStructureMembers[measureId];
+        return measureMeta && measureMeta.id ? measureMeta.id : measureId;
+      });
 
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
@@ -65,8 +68,8 @@
 
       const table = document.createElement("table");
       const headerRow = `
-        <tr>${dimensions.map((header) => `<th>${header}</th>`).join("")}
-        ${measures.map((header) => `<th>${header}</th>`).join("")}</tr>
+        <tr>${dimensionHeaders.map((header) => `<th>${header}</th>`).join("")}
+        ${measureHeaders.map((header) => `<th>${header}</th>`).join("")}</tr>
       `;
 
       table.innerHTML = `
@@ -80,9 +83,7 @@
                 ${measures
                   .map(
                     (measureId) =>
-                      `<td contenteditable="true" data-measure="${measureId}" data-row='${JSON.stringify(
-                        row
-                      )}'>${row[measureId]}</td>`
+                      `<td contenteditable="true" data-measure="${measureId}" data-row="${JSON.stringify(row)}">${row[measureId]}</td>`
                   )
                   .join("")}
               </tr>`
@@ -97,7 +98,7 @@
 
     addEventListenersToEditableCells() {
       const editableCells = this._root.querySelectorAll("td[contenteditable='true']");
-      editableCells.forEach((cell) => {
+      editableCells.forEach(cell => {
         cell.addEventListener("blur", (event) => this.handleCellEdit(event));
       });
     }
@@ -106,18 +107,22 @@
       const editedValue = event.target.innerText;
       const row = JSON.parse(event.target.getAttribute("data-row"));
       const measure = event.target.getAttribute("data-measure");
-      console.log("Updated value:", editedValue, "Row:", row, "Measure:", measure);
+
+      console.log("Selected Row Data:", row); // Log the selected row's data
+      console.log("Updated Measure:", measure);
+      console.log("Edited Value:", editedValue);
+
+      const writeBackPayload = {
+        dimensions: row,
+        measure: measure,
+        value: parseFloat(editedValue),
+      };
 
       try {
-        const writeBackPayload = {
-          dimensions: row,
-          measure: measure,
-          value: parseFloat(editedValue),
-        };
-
         await this.writeBackToModel(writeBackPayload);
       } catch (error) {
         console.error("Write-back failed:", error);
+        alert("Failed to update the model.");
       }
     }
 
@@ -128,7 +133,6 @@
           measure: payload.measure,
           value: payload.value,
         });
-
         console.log("Write-back response:", response);
         alert("Data updated successfully in the model!");
       } catch (error) {

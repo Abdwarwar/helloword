@@ -46,6 +46,9 @@
         return;
       }
 
+      console.log("Data Source Metadata:", this._myDataSource.metadata);
+      console.log("Data Source Data:", this._myDataSource.data);
+
       if (this._myDataSource.state !== "success") {
         this._root.innerHTML = `<p>Loading data...</p>`;
         return;
@@ -59,6 +62,7 @@
         return;
       }
 
+      // Get metadata names
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
@@ -68,6 +72,10 @@
           measure
       );
 
+      console.log("Dimension Headers:", dimensionHeaders);
+      console.log("Measure Headers:", measureHeaders);
+
+      // Map data to table rows
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
         dimensions.forEach((dim) => {
@@ -79,13 +87,17 @@
         return rowData;
       });
 
+      console.log("Mapped Table Data:", tableData);
+
       if (tableData.length === 0) {
         this._root.innerHTML = `<p>No data available to display.</p>`;
         return;
       }
 
+      // Create table
       const table = document.createElement("table");
 
+      // Create header
       const headerRow = `<tr>${dimensionHeaders
         .map((header) => `<th>${header}</th>`)
         .join("")}${measureHeaders
@@ -100,46 +112,52 @@
                 `<tr>${dimensions
                   .map((dim) => `<td>${row[dim]}</td>`)
                   .join("")}${measures
-                  .map((measure) => `<td contenteditable="true">${row[measure]}</td>`)
+                  .map(
+                    (measure) => 
+                    `<td contenteditable="true" data-measure="${measure}" data-row-id="${row[measure]}">${row[measure]}</td>`
+                  )
                   .join("")}</tr>`
             )
             .join("")}
         </tbody>
       `;
 
+      // Clear existing content and add the table
       this._root.innerHTML = "";
       this._root.appendChild(table);
 
-      // Handle click or edit on table cells
-      table.querySelectorAll("td[contenteditable]").forEach((cell) => {
-        cell.addEventListener("blur", (e) => {
-          const newValue = e.target.textContent;
-          const measureId = e.target.dataset.measureId;
-          const rowIndex = e.target.dataset.rowIndex;
+      // Make the table cells editable
+      this.addEventListenersToEditableCells();
+    }
 
-          if (newValue && measureId && rowIndex) {
-            this.updateModelValue(measureId, rowIndex, newValue);
-          }
-        });
+    addEventListenersToEditableCells() {
+      const editableCells = this._root.querySelectorAll("td[contenteditable='true']");
+      editableCells.forEach(cell => {
+        cell.addEventListener("blur", (event) => this.handleCellEdit(event));
       });
     }
 
-    async updateModelValue(measureId, rowIndex, newValue) {
-      try {
-        // Assuming SAC planning model write-back function
-        const result = await this._myDataSource.writeBack({
-          measureId: measureId,
-          rowIndex: rowIndex,
-          value: newValue
-        });
+    handleCellEdit(event) {
+      const editedValue = event.target.innerText;
+      const rowId = event.target.getAttribute('data-row-id');
+      const measure = event.target.getAttribute('data-measure');
 
-        if (result.success) {
-          console.log("Value updated successfully!");
-        } else {
-          console.error("Failed to update value:", result.error);
-        }
-      } catch (error) {
-        console.error("Error updating value:", error);
+      console.log("Updated value for row:", rowId, "Measure:", measure, "New Value:", editedValue);
+
+      // Update the model with the new value
+      this.writeBackToModel(rowId, measure, editedValue);
+    }
+
+    writeBackToModel(rowId, measure, value) {
+      // Find the row in your data source and update it
+      const dataRow = this._myDataSource.data.find(row => row['ID'] === rowId);
+      if (dataRow) {
+        dataRow[measure] = value;
+        console.log("Write-back successful: ", dataRow);
+
+        // Ideally, you'd call the SAC planning API here for write-back.
+        // You'd need to replace this with the actual API call to write-back the data to the SAC model.
+        this._myDataSource.writeBackToModel(dataRow);
       }
     }
   }

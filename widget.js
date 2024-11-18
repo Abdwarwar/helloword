@@ -1,9 +1,3 @@
-var getScriptPromisify = (src) => {
-  return new Promise((resolve) => {
-    $.getScript(src, resolve);
-  });
-};
-
 (function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `
@@ -36,9 +30,7 @@ var getScriptPromisify = (src) => {
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
 
       this._root = this._shadowRoot.getElementById("root");
-
       this._props = {};
-      this._planningEnabled = false; // Flag to check if planning is enabled
     }
 
     onCustomWidgetResize(width, height) {
@@ -56,9 +48,7 @@ var getScriptPromisify = (src) => {
         return;
       }
 
-      console.log("Data Source Metadata:", this._myDataSource.metadata);
-      console.log("Data Source Data:", this._myDataSource.data);
-
+      // Ensure data source is available
       if (this._myDataSource.state !== "success") {
         this._root.innerHTML = `<p>Loading data...</p>`;
         return;
@@ -67,6 +57,7 @@ var getScriptPromisify = (src) => {
       const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
       const measures = this._myDataSource.metadata.feeds.measures.values;
 
+      // Ensure there are dimensions and measures to display
       if (dimensions.length === 0 || measures.length === 0) {
         this._root.innerHTML = `<p>Ensure dimensions and measures are configured in the model.</p>`;
         return;
@@ -81,9 +72,6 @@ var getScriptPromisify = (src) => {
           measure
       );
 
-      console.log("Dimension Headers:", dimensionHeaders);
-      console.log("Measure Headers:", measureHeaders);
-
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
         dimensions.forEach((dim) => {
@@ -95,13 +83,7 @@ var getScriptPromisify = (src) => {
         return rowData;
       });
 
-      console.log("Mapped Table Data:", tableData);
-
-      if (tableData.length === 0) {
-        this._root.innerHTML = `<p>No data available to display.</p>`;
-        return;
-      }
-
+      // Create table
       const table = document.createElement("table");
 
       const headerRow = `<tr>${dimensionHeaders
@@ -129,6 +111,7 @@ var getScriptPromisify = (src) => {
       this._root.innerHTML = "";
       this._root.appendChild(table);
 
+      // Add event listeners for cell updates
       this._root.querySelectorAll(".editable").forEach((cell) => {
         cell.addEventListener("blur", (event) => {
           this.handleCellUpdate(event);
@@ -139,34 +122,38 @@ var getScriptPromisify = (src) => {
     handleCellUpdate(event) {
       const measure = event.target.getAttribute("data-measure");
       const newValue = parseFloat(event.target.innerText);
-      const rowIndex = event.target.parentElement.rowIndex - 1; // Excluding the header row
+      const rowIndex = event.target.parentElement.rowIndex - 1; // Excluding header row
 
       const updatedData = this._myDataSource.data[rowIndex];
       updatedData[measure] = newValue;
 
-      // Call the internal planning API or custom write-back logic to update the model
+      // Call SAC Planning API to update the model
       this.updateModelCell(updatedData, measure, newValue);
     }
 
-    // API Call to update model (Approach 1 - Using SAC internal API)
+    // Implement SAC Planning API for write-back
     async updateModelCell(updatedData, measure, newValue) {
       try {
-        if (this._planningEnabled) {
-          const cell = updatedData[measure];
-          // Assuming this would trigger SAC's internal write-back API
-          // Here we mimic the internal SAC planning behavior
-          this._myDataSource.setCellValue({
-            row: updatedData,
-            column: measure,
-            value: newValue
+        if (this._myDataSource.planningModel) {
+          const planningModel = this._myDataSource.planningModel;
+
+          // Write-back the new value for the measure to the SAC model
+          const updateResult = await planningModel.setCellValue({
+            rowIndex: updatedData,
+            columnName: measure,
+            value: newValue,
           });
 
-          console.log(`Cell updated with new value: ${newValue}`);
+          if (updateResult.success) {
+            console.log(`Successfully updated measure '${measure}' with value ${newValue}`);
+          } else {
+            console.error(`Failed to update measure '${measure}'.`);
+          }
         } else {
-          console.log("Planning is not enabled for this measure.");
+          console.log("Planning model is not available.");
         }
       } catch (error) {
-        console.error("Failed to update the value:", error);
+        console.error("Error updating model cell:", error);
       }
     }
   }

@@ -6,7 +6,7 @@
       th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
       th { background-color: #f4f4f4; }
       tr:nth-child(even) { background-color: #f9f9f9; }
-      .selected { background-color: #d3d3d3; }
+      tr.selected { background-color: #ffeb3b; }
     </style>
     <div id="root" style="width: 100%; height: 100%; overflow: auto;"></div>
   `;
@@ -29,13 +29,11 @@
       this.render();
     }
 
-    render() {
+    async render() {
       if (!this._myDataSource) {
         this._root.innerHTML = `<p>No data source bound.</p>`;
         return;
       }
-      console.log("Data Source Metadata:", this._myDataSource.metadata);
-      console.log("Data Source Data:", this._myDataSource.data);
 
       if (this._myDataSource.state !== "success") {
         this._root.innerHTML = `<p>Loading data...</p>`;
@@ -84,13 +82,16 @@
         <thead>${headerRow}</thead>
         <tbody>
           ${tableData.map(
-            (row, index) => `
-              <tr data-row-id="${index}">
-                ${dimensions.map((dim) => `<td>${row[dim]}</td>`).join("")}
-                ${measures.map(
-                  (measureId) =>
-                    `<td contenteditable="true" data-measure="${measureId}">${row[measureId]}</td>`
-                ).join("")}
+            (row) => `
+              <tr data-row-id="${row['ID']}">${dimensions
+                .map((dim) => `<td>${row[dim]}</td>`)
+                .join("")}
+                ${measures
+                  .map(
+                    (measureId) =>
+                      `<td contenteditable="true" data-measure="${measureId}" data-row-id="${row['ID']}">${row[measureId]}</td>`
+                  )
+                  .join("")}
               </tr>`
           ).join("")}
         </tbody>
@@ -102,28 +103,43 @@
     }
 
     addEventListenersToRows() {
-      const rows = this._root.querySelectorAll("tr");
-      rows.forEach((row) => {
-        row.addEventListener("click", (event) => this.handleRowSelection(event));
+      const rows = this._root.querySelectorAll("tr[data-row-id]");
+      rows.forEach(row => {
+        row.addEventListener("click", (event) => this.handleRowSelection(event, row));
       });
     }
 
-    handleRowSelection(event) {
-      const row = event.currentTarget;
-      const rowId = row.getAttribute("data-row-id");
-      console.log("Selected Row ID:", rowId);
-
-      const selectedRow = this._myDataSource.data[rowId];
-      if (selectedRow) {
-        console.log("Selected Row Data:", selectedRow);
-        this.highlightSelectedRow(row);
+    handleRowSelection(event, row) {
+      // Remove the highlight from the previously selected row
+      const previouslySelected = this._root.querySelector(".selected");
+      if (previouslySelected) {
+        previouslySelected.classList.remove("selected");
       }
-    }
 
-    highlightSelectedRow(row) {
-      const rows = this._root.querySelectorAll("tr");
-      rows.forEach((r) => r.classList.remove("selected"));
+      // Highlight the clicked row
       row.classList.add("selected");
+
+      const rowId = row.getAttribute('data-row-id');
+      if (!rowId) {
+        console.error("Row ID not found.");
+        return;
+      }
+
+      const rowData = this._myDataSource.data.find(row => row['ID'] === rowId);
+      if (!rowData) {
+        console.error("Row data not found for ID:", rowId);
+        return;
+      }
+
+      const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
+      const measures = this._myDataSource.metadata.feeds.measures.values;
+
+      const selectedDimensions = dimensions.map((dim) => rowData[dim]?.label || "N/A");
+      const selectedMeasure = measures.map((measureId) => rowData[measureId]?.raw || "N/A");
+
+      console.log("Selected Row ID:", rowId);
+      console.log("Selected Dimensions:", selectedDimensions);
+      console.log("Selected Measure:", selectedMeasure);
     }
   }
 

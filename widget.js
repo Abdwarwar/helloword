@@ -62,16 +62,14 @@
         return;
       }
 
-      // Get metadata names for dimensions and measures
+      // Get actual measure names from the metadata
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
 
-      // Ensure correct measure names from the metadata
+      // Use actual measure names for measures, not descriptions
       const measureHeaders = measures.map(
-        (measure) =>
-          this._myDataSource.metadata.mainStructureMembers[measure]?.description ||
-          measure
+        (measure) => measure // Using the actual measure name, not description
       );
 
       console.log("Dimension Headers:", dimensionHeaders);
@@ -155,6 +153,7 @@
       // Find the row in your data source and update it
       const dataRow = this._myDataSource.data.find(row => row['ID'] === rowId);
       if (dataRow) {
+        // Update the value in the row for the corresponding measure
         dataRow[measure] = value;
         console.log("Write-back successful: ", dataRow);
 

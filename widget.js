@@ -66,7 +66,7 @@
       console.log("Dimensions:", dimensions);
       console.log("Measures:", measures);
 
-      // Now directly log the structure of mainStructureMembers for clarity
+      // Log the structure of mainStructureMembers for clarity
       console.log("mainStructureMembers:", this._myDataSource.metadata.mainStructureMembers);
 
       // Ensure measure headers are obtained from mainStructureMembers and use their actual names
@@ -74,14 +74,14 @@
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
 
-      // Get actual measure names from mainStructureMembers
+      // Get actual measure names from mainStructureMembers using the measure IDs
       const measureHeaders = measures.map((measureId) => {
+        // Access the mainStructureMembers for the given measureId
         const measureMeta = this._myDataSource.metadata.mainStructureMembers[measureId];
         console.log("Measure Metadata:", measureMeta); // Debugging output for measure details
-        // Check for proper mapping and handle missing descriptions
         return measureMeta && measureMeta.description
-          ? measureMeta.description
-          : measureId; // Fall back to measureId if description is missing
+          ? measureMeta.description // Use description if available
+          : measureId; // Fallback to the ID if description is missing
       });
 
       console.log("Dimension Headers:", dimensionHeaders);

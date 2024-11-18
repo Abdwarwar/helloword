@@ -79,7 +79,7 @@
         <tr>
           ${dimensionHeaders.map((header) => `<th>${header}</th>`).join("")}
           ${measureHeaders.map((header) => `<th>${header}</th>`).join("")}
-          <th>Actions</th>
+          <th>Action</th>
         </tr>
       `;
 

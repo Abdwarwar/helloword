@@ -34,11 +34,6 @@
         return;
       }
 
-      if (this._myDataSource.state !== "success") {
-        this._root.innerHTML = `<p>Loading data...</p>`;
-        return;
-      }
-
       const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
       const measures = this._myDataSource.metadata.feeds.measures.values;
 
@@ -61,11 +56,6 @@
         return rowData;
       });
 
-      if (tableData.length === 0) {
-        this._root.innerHTML = `<p>No data available to display.</p>`;
-        return;
-      }
-
       const table = document.createElement("table");
       const headerRow = `
         <tr>${dimensionHeaders.map((header) => `<th>${header}</th>`).join("")}
@@ -77,7 +67,7 @@
         <tbody>
           ${tableData.map(
             (row) => `
-              <tr data-row-id="${row['ID']}">${dimensions
+              <tr>${dimensions
                 .map((dim) => `<td>${row[dim]}</td>`)
                 .join("")}
                 ${measures
@@ -107,15 +97,15 @@
       const editedValue = event.target.innerText;
       const rowId = event.target.getAttribute('data-row-id');
       const measure = event.target.getAttribute('data-measure');
-
-      console.log("Selected Row ID:", rowId); // Log the selected row ID
+      console.log("Selected Row ID:", rowId);
       console.log("Updated Measure:", measure);
       console.log("Edited Value:", editedValue);
-
-      // You can fetch the row data based on the row ID if needed:
+      
+      // Find the row data from the source
       const rowData = this._myDataSource.data.find(row => row['ID'] === rowId);
-      console.log("Row Data:", rowData); // Log the complete row data
+      console.log("Row Data:", rowData);
 
+      // Check the row data
       if (rowData) {
         const writeBackPayload = {
           rowId: rowId,
@@ -124,6 +114,8 @@
         };
 
         try {
+          // Log the write-back payload to check the structure
+          console.log("Write-back payload:", writeBackPayload);
           await this.writeBackToModel(writeBackPayload);
         } catch (error) {
           console.error("Write-back failed:", error);
@@ -132,18 +124,16 @@
       }
     }
 
-    async writeBackToModel(payload) {
+    async writeBackToModel(writeBackPayload) {
       try {
+        // Attempt to call the SAC API (update based on actual API)
         const response = await this._myDataSource.writeBack({
-          rowId: payload.rowId,
-          measure: payload.measure,
-          value: payload.value,
+          data: writeBackPayload,
         });
-        console.log("Write-back response:", response);
-        alert("Data updated successfully in the model!");
+        console.log("Write-back successful:", response);
       } catch (error) {
-        console.error("Failed to write data to the model:", error);
-        alert("Failed to update the model. Check the logs for more details.");
+        console.error("Write-back failed:", error);
+        alert("Failed to update the model.");
       }
     }
   }

@@ -62,10 +62,6 @@
         return;
       }
 
-      // Logging for debugging purposes
-      console.log("Dimensions:", dimensions);
-      console.log("Measures:", measures);
-
       // Log the structure of mainStructureMembers for clarity
       console.log("mainStructureMembers:", this._myDataSource.metadata.mainStructureMembers);
 
@@ -115,7 +111,7 @@
         .map((header) => `<th>${header}</th>`)
         .join("")}</tr>`;
 
-      table.innerHTML = `
+      table.innerHTML = `  
         <thead>${headerRow}</thead>
         <tbody>
           ${tableData

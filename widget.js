@@ -63,7 +63,6 @@
       });
 
       const tableData = this._myDataSource.data.map((row) => {
-        console.log("Row data:", row); // Debugging to check if 'ID' exists
         const rowData = {};
         dimensions.forEach((dim) => {
           rowData[dim] = row[dim]?.label || "N/A";
@@ -131,7 +130,7 @@
 
       const rowId = row.getAttribute('data-row-id');
       if (!rowId) {
-        console.error("Row ID not found:", row);
+        console.error("Row ID not found.");
         return;
       }
 
@@ -145,11 +144,11 @@
       const measures = this._myDataSource.metadata.feeds.measures.values;
 
       const selectedDimensions = dimensions.map((dim) => rowData[dim]?.label || "N/A");
-      const selectedMeasure = measures.map((measureId) => rowData[measureId]?.raw || "N/A");
+      const selectedMeasures = measures.map((measureId) => rowData[measureId]?.raw || "N/A");
 
       console.log("Selected Row ID:", rowId);
       console.log("Selected Dimensions:", selectedDimensions);
-      console.log("Selected Measure:", selectedMeasure);
+      console.log("Selected Measures:", selectedMeasures);
     }
 
     addButtonListeners() {
@@ -163,10 +162,24 @@
       const button = event.target;
       const row = button.closest("tr");
       const rowId = row ? row.getAttribute("data-row-id") : null;
+
+      console.log("Button clicked for Row ID:", rowId); // Log the row ID
+
       if (rowId) {
-        console.log("Button clicked for Row ID:", rowId);
-      } else {
-        console.error("Row ID is missing for the button click.");
+        const rowData = this._myDataSource.data.find(row => row['ID'] === rowId);
+
+        if (rowData) {
+          const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
+          const measures = this._myDataSource.metadata.feeds.measures.values;
+
+          const selectedDimensions = dimensions.map((dim) => rowData[dim]?.label || "N/A");
+          const selectedMeasures = measures.map((measureId) => rowData[measureId]?.raw || "N/A");
+
+          console.log("Selected Dimensions:", selectedDimensions);
+          console.log("Selected Measures:", selectedMeasures);
+        } else {
+          console.error("Row data not found for ID:", rowId);
+        }
       }
     }
   }

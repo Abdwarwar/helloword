@@ -1,3 +1,9 @@
+var getScriptPromisify = (src) => {
+  return new Promise((resolve) => {
+    $.getScript(src, resolve);
+  });
+};
+
 (function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `
@@ -25,11 +31,14 @@
   class CustomTableWidget extends HTMLElement {
     constructor() {
       super();
+
       this._shadowRoot = this.attachShadow({ mode: "open" });
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
 
       this._root = this._shadowRoot.getElementById("root");
+
       this._props = {};
+      this._planningEnabled = false; // Flag to check if planning is enabled
     }
 
     onCustomWidgetResize(width, height) {
@@ -67,7 +76,9 @@
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
       const measureHeaders = measures.map(
-        (measure) => this._myDataSource.metadata.mainStructureMembers[measure]?.id || measure
+        (measure) =>
+          this._myDataSource.metadata.mainStructureMembers[measure]?.description ||
+          measure
       );
 
       console.log("Dimension Headers:", dimensionHeaders);
@@ -92,11 +103,13 @@
       }
 
       const table = document.createElement("table");
+
       const headerRow = `<tr>${dimensionHeaders
         .map((header) => `<th>${header}</th>`)
         .join("")}${measureHeaders
         .map((header) => `<th>${header}</th>`)
         .join("")}</tr>`;
+
       table.innerHTML = `
         <thead>${headerRow}</thead>
         <tbody>
@@ -106,7 +119,7 @@
                 `<tr>${dimensions
                   .map((dim) => `<td>${row[dim]}</td>`)
                   .join("")}${measures
-                  .map((measure) => `<td contenteditable="true" data-measure="${measure}">${row[measure]}</td>`)
+                  .map((measure) => `<td contenteditable="true" class="editable" data-measure="${measure}">${row[measure]}</td>`)
                   .join("")}</tr>`
             )
             .join("")}
@@ -116,68 +129,44 @@
       this._root.innerHTML = "";
       this._root.appendChild(table);
 
-      this._root.querySelectorAll("td[contenteditable]").forEach((cell) => {
-        cell.addEventListener("input", this.handleCellEdit.bind(this));
+      this._root.querySelectorAll(".editable").forEach((cell) => {
+        cell.addEventListener("blur", (event) => {
+          this.handleCellUpdate(event);
+        });
       });
     }
 
-    async handleCellEdit(event) {
-      const cell = event.target;
-      const measure = cell.getAttribute("data-measure");
-      const newValue = cell.innerText;
+    handleCellUpdate(event) {
+      const measure = event.target.getAttribute("data-measure");
+      const newValue = parseFloat(event.target.innerText);
+      const rowIndex = event.target.parentElement.rowIndex - 1; // Excluding the header row
 
-      const rowIndex = Array.from(cell.parentNode.parentNode.children).indexOf(cell.parentNode);
-      const measureIndex = this._myDataSource.metadata.feeds.measures.values.indexOf(measure);
+      const updatedData = this._myDataSource.data[rowIndex];
+      updatedData[measure] = newValue;
 
-      if (measureIndex === -1) return;
-
-      const row = this._myDataSource.data[rowIndex];
-      row[measure] = newValue;
-
-      console.log(`Updated ${measure} in row ${rowIndex} to ${newValue}`);
-
-      try {
-        await this.updatePlanningModel(rowIndex, measure, newValue);
-      } catch (error) {
-        console.error("Failed to update model:", error);
-      }
+      // Call the internal planning API or custom write-back logic to update the model
+      this.updateModelCell(updatedData, measure, newValue);
     }
 
-    async updatePlanningModel(rowIndex, measure, value) {
-      const dataSourceId = this._myDataSource.id;
-      const dimensionKeys = Object.keys(this._myDataSource.metadata.dimensions);
-      const dimensionValues = this._myDataSource.metadata.feeds.dimensions.values;
-
-      const payload = {
-        cellData: [
-          {
-            dimensionKey: dimensionValues[0],
-            measureKey: measure,
-            value: value,
-            rowKey: rowIndex,
-          },
-        ],
-      };
-
+    // API Call to update model (Approach 1 - Using SAC internal API)
+    async updateModelCell(updatedData, measure, newValue) {
       try {
-        const action = await this.triggerPlanningWriteBack(payload);
-        console.log("Planning model updated successfully", action);
-      } catch (error) {
-        console.error("Error while updating planning model:", error);
-      }
-    }
+        if (this._planningEnabled) {
+          const cell = updatedData[measure];
+          // Assuming this would trigger SAC's internal write-back API
+          // Here we mimic the internal SAC planning behavior
+          this._myDataSource.setCellValue({
+            row: updatedData,
+            column: measure,
+            value: newValue
+          });
 
-    async triggerPlanningWriteBack(payload) {
-      // Use the correct SAP API for planning write-back.
-      try {
-        const response = await this._myDataSource.writeBack({
-          dataActionName: "UpdateDataAction", // Ensure this matches the name of your action
-          inputData: payload,
-        });
-        console.log("Write-back response:", response);
-        return response;
+          console.log(`Cell updated with new value: ${newValue}`);
+        } else {
+          console.log("Planning is not enabled for this measure.");
+        }
       } catch (error) {
-        throw new Error("Failed to trigger write-back API:", error);
+        console.error("Failed to update the value:", error);
       }
     }
   }

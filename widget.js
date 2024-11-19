@@ -45,8 +45,6 @@
         return;
       }
 
-
-
       // Check the state of the data source
       if (this._myDataSource.state !== "success") {
         console.log("Data source not ready. Rendering loading state.");
@@ -65,7 +63,6 @@
         return;
       }
 
-      // Fetch proper descriptions for dimensions and measures
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
@@ -74,7 +71,6 @@
           this._myDataSource.metadata.mainStructureMembers[measure]?.id || measure
       );
 
-      // Prepare table data
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
         dimensions.forEach((dim) => {
@@ -148,11 +144,6 @@
         return;
       }
 
-      if (!this._myDataSource.isPlanningEnabled) {
-        console.error("Planning is not enabled for this data source.");
-        return;
-      }
-
       const updatedData = {};
       updatedData[measureId] = newValue;
 
@@ -165,11 +156,11 @@
       this._myDataSource
         .pushData([dataForUpdate])
         .then(() => {
-          console.log(`Successfully pushed planning data for row ID ${rowId}`);
+          console.log(`Successfully pushed data for row ID ${rowId}`);
           this.refreshDataSource(); // Refresh the table to show the updated value
         })
         .catch((error) => {
-          console.error("Error pushing planning data to SAC model:", error);
+          console.error("Error pushing data to SAC model:", error);
         });
     }
 

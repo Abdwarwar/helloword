@@ -30,9 +30,9 @@
       console.log("Default Properties:", this._props); // Debugging
     }
 
-      connectedCallback() {
+    connectedCallback() {
     console.log("Widget Connected to DOM"); // Debugging
-
+      
     // Simulate property setting (trigger the setters)
     this.enableDataAnalyzer = this._props.enableDataAnalyzer;
     this.disableInteraction = this._props.disableInteraction;
@@ -55,6 +55,7 @@ set disableInteraction(value) {
 }
 
 set allowComments(value) {
+  console.log("Setting allowComments:", value); // Log the value being set
   this._props.allowComments = value;
   this.render();
 }

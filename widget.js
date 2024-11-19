@@ -67,9 +67,11 @@
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
+      console.log(dimensionHeaders);
       const measureHeaders = measures.map(
         (measure) => this._myDataSource.metadata.mainStructureMembers[measure]?.description || measure
       );
+      console.log(measureHeaders);
 
       // Prepare table data
       const tableData = this._myDataSource.data.map((row) => {

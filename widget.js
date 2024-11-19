@@ -30,18 +30,21 @@
       console.log("Default Properties:", this._props); // Debugging
     }
 
-    connectedCallback() {
-    console.log("Widget Connected to DOM"); // Debugging
-      
-    // Simulate property setting (trigger the setters)
-    this.enableDataAnalyzer = this._props.enableDataAnalyzer;
-    this.disableInteraction = this._props.disableInteraction;
-    this.allowComments = this._props.allowComments;
-    this.planningEnabled = this._props.planningEnabled;
-    this.dataRefreshMode = this._props.dataRefreshMode;
+connectedCallback() {
+  console.log("Widget Connected to DOM");
 
-    console.log("Properties Initialized via connectedCallback");
-  }
+  // Ensure properties are initialized
+  this.enableDataAnalyzer = this._props.enableDataAnalyzer || false;
+  this.disableInteraction = this._props.disableInteraction || false;
+  this.allowComments = this._props.allowComments || false;
+  this.planningEnabled = this._props.planningEnabled || false;
+  this.dataRefreshMode = this._props.dataRefreshMode || "AlwaysRefresh";
+
+  console.log("Properties Initialized via connectedCallback");
+
+  // Trigger an initial render
+  this.render();
+}
 
     // Builder option setters
     set enableDataAnalyzer(value) {

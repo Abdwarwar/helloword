@@ -100,21 +100,10 @@
 
     // Add default data-binding interface
     addDefaultBindings() {
-      const defaultBindingContainer = document.createElement("div");
-      defaultBindingContainer.setAttribute("id", "defaultBindingContainer");
-      this.shadowRoot.appendChild(defaultBindingContainer);
-
-      const modelBinding = document.createElement("button");
-      modelBinding.textContent = "Add Model";
-      modelBinding.addEventListener("click", () => {
-        this.dispatchEvent(new CustomEvent("openDataBinding", {
-          detail: {
-            id: "myDataSource"
-          }
-        }));
-      });
-
-      defaultBindingContainer.appendChild(modelBinding);
+    set myDataSource(dataBinding) {
+      this._myDataSource = dataBinding;
+      this.render();
+    }
     }
   }
 

@@ -34,6 +34,20 @@
       this.render();
     }
 
+        resolveMeasureMetadata() {
+      // Resolve measures to their proper metadata IDs and descriptions
+      const measureKeys = this._myDataSource.metadata.feeds.measures.values;
+      const measures = measureKeys.map((key) => ({
+        id: this._myDataSource.metadata.mainStructureMembers[key]?.id || key,
+        description:
+          this._myDataSource.metadata.mainStructureMembers[key]?.description || key,
+      }));
+
+      console.log("Resolved Measures:", measures);
+      console.log("Data Rows Example:", this._myDataSource.data[0]);
+      return measures;
+    }
+
     render() {
       console.log("Rendering Widget");
 
@@ -116,19 +130,7 @@
       this.addEditableListeners(dimensions, measures);
     }
 
-    resolveMeasureMetadata() {
-      // Resolve measures to their proper metadata IDs and descriptions
-      const measureKeys = this._myDataSource.metadata.feeds.measures.values;
-      const measures = measureKeys.map((key) => ({
-        id: this._myDataSource.metadata.mainStructureMembers[key]?.id || key,
-        description:
-          this._myDataSource.metadata.mainStructureMembers[key]?.description || key,
-      }));
 
-      console.log("Resolved Measures:", measures);
-      console.log("Data Rows Example:", this._myDataSource.data[0]);
-      return measures;
-    }
 
     addEditableListeners(dimensions, measures) {
       const cells = this._root.querySelectorAll('td[contenteditable="true"]');

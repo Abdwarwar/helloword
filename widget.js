@@ -54,7 +54,7 @@
 
       // Extract dimensions and resolved measures
       const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
-      const measures = this.resolveMeasureIds();
+      const measures = this.resolveMeasureMetadata();
 
       if (dimensions.length === 0 || measures.length === 0) {
         this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
@@ -115,13 +115,13 @@
       this.addEditableListeners(dimensions, measures);
     }
 
-    resolveMeasureIds() {
-      // Resolve measures to their proper metadata IDs
-      const measuresFeed = this._myDataSource.metadata.feeds.measures.values;
-      return measuresFeed.map((measureKey) => ({
-        id: this._myDataSource.metadata.mainStructureMembers[measureKey]?.id || measureKey,
+    resolveMeasureMetadata() {
+      // Resolve measures to their proper metadata IDs and descriptions
+      const measureKeys = this._myDataSource.metadata.feeds.measures.values;
+      return measureKeys.map((key) => ({
+        id: this._myDataSource.metadata.mainStructureMembers[key]?.id || key,
         description:
-          this._myDataSource.metadata.mainStructureMembers[measureKey]?.description || measureKey,
+          this._myDataSource.metadata.mainStructureMembers[key]?.description || key,
       }));
     }
 
@@ -138,7 +138,7 @@
           );
 
           // Push updated value to SAC model
-          this.pushDataToModel(rowIndex, measureId, newValue, dimensions, measures);
+          this.pushDataToModel(rowIndex, measureId, newValue, dimensions);
         });
       });
     }

@@ -27,124 +27,35 @@
         planningEnabled: false,
         dataRefreshMode: "AlwaysRefresh"
       };
-      console.log("Default Properties:", this._props); // Debugging
+      console.log("Default Properties:", this._props);
     }
 
-connectedCallback() {
-  // Attach event listeners for custom properties
-  this.shadowRoot.getElementById("enableDataAnalyzer").addEventListener("change", (event) => {
-    this.dispatchEvent(new CustomEvent("propertiesChanged", {
-      detail: {
-        properties: {
-          enableDataAnalyzer: event.target.checked
-        }
-      }
-    }));
-  });
-
-  this.shadowRoot.getElementById("disableInteraction").addEventListener("change", (event) => {
-    this.dispatchEvent(new CustomEvent("propertiesChanged", {
-      detail: {
-        properties: {
-          disableInteraction: event.target.checked
-        }
-      }
-    }));
-  });
-
-  this.shadowRoot.getElementById("allowComments").addEventListener("change", (event) => {
-    this.dispatchEvent(new CustomEvent("propertiesChanged", {
-      detail: {
-        properties: {
-          allowComments: event.target.checked
-        }
-      }
-    }));
-  });
-
-  this.shadowRoot.getElementById("planningEnabled").addEventListener("change", (event) => {
-    this.dispatchEvent(new CustomEvent("propertiesChanged", {
-      detail: {
-        properties: {
-          planningEnabled: event.target.checked
-        }
-      }
-    }));
-  });
-
-  this.shadowRoot.getElementById("dataRefreshMode").addEventListener("change", (event) => {
-    this.dispatchEvent(new CustomEvent("propertiesChanged", {
-      detail: {
-        properties: {
-          dataRefreshMode: event.target.value
-        }
-      }
-    }));
-  });
-
-  // Add Default Data Binding Options (Model, Dimensions, Measures)
-  const defaultBindingContainer = document.createElement("div");
-  defaultBindingContainer.innerHTML = `
-    <div class="property">
-      <button id="addModel">Add Model</button>
-      <button id="addDimension">Add Dimension</button>
-      <button id="addMeasure">Add Measure</button>
-    </div>
-  `;
-  this.shadowRoot.appendChild(defaultBindingContainer);
-
-  this.shadowRoot.getElementById("addModel").addEventListener("click", () => {
-    this.dispatchEvent(new CustomEvent("openDataBinding", {
-      detail: {
-        id: "myDataSource"
-      }
-    }));
-  });
-
-  this.shadowRoot.getElementById("addDimension").addEventListener("click", () => {
-    this.dispatchEvent(new CustomEvent("openFeedDialog", {
-      detail: {
-        id: "dimensions"
-      }
-    }));
-  });
-
-  this.shadowRoot.getElementById("addMeasure").addEventListener("click", () => {
-    this.dispatchEvent(new CustomEvent("openFeedDialog", {
-      detail: {
-        id: "measures"
-      }
-    }));
-  });
-}
-
+    connectedCallback() {
+      console.log("Widget Connected to DOM");
+      this.render();
+    }
 
     set enableDataAnalyzer(value) {
-      console.log("Set enableDataAnalyzer:", value); // Debugging
       this._props.enableDataAnalyzer = value;
       this.render();
     }
 
     set disableInteraction(value) {
-      console.log("Set disableInteraction:", value); // Debugging
       this._props.disableInteraction = value;
       this.render();
     }
 
     set allowComments(value) {
-      console.log("Setting allowComments:", value); // Log the value being set
       this._props.allowComments = value;
       this.render();
     }
 
     set planningEnabled(value) {
-      console.log("Setting planningEnabled:", value); // Log the value being set
       this._props.planningEnabled = value;
       this.render();
     }
 
     set dataRefreshMode(value) {
-      console.log("Setting dataRefreshMode:", value); // Log the value being set
       this._props.dataRefreshMode = value;
       this.render();
     }
@@ -154,85 +65,80 @@ connectedCallback() {
       this.render();
     }
 
-render() {
-  console.log("Rendering Widget with Properties:", this._props);
+    render() {
+      console.log("Rendering Widget with Properties:", this._props);
 
-  // Check if the data source is bound
-  if (!this._myDataSource) {
-    console.log("No data source bound yet. Rendering default state.");
-    this._root.innerHTML = `<p>Widget is initializing...</p>`;
-    return;
-  }
+      // Check if the data source is bound
+      if (!this._myDataSource) {
+        this._root.innerHTML = `<p>Widget is initializing...</p>`;
+        return;
+      }
 
-  // Check the state of the data source
-  if (this._myDataSource.state !== "success") {
-    console.log("Data source not ready. Rendering loading state.");
-    this._root.innerHTML = `<p>Loading data...</p>`;
-    return;
-  }
+      // Check the state of the data source
+      if (this._myDataSource.state !== "success") {
+        this._root.innerHTML = `<p>Loading data...</p>`;
+        return;
+      }
 
-  console.log("Data source ready. Rendering table.");
+      console.log("Data source ready. Rendering table.");
 
-  // Extract dimensions and measures
-  const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
-  const measures = this._myDataSource.metadata.feeds.measures.values;
+      const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
+      const measures = this._myDataSource.metadata.feeds.measures.values;
 
-  if (dimensions.length === 0 || measures.length === 0) {
-    this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
-    return;
-  }
+      if (dimensions.length === 0 || measures.length === 0) {
+        this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
+        return;
+      }
 
-  const tableData = this._myDataSource.data.map((row) => {
-    const rowData = {};
-    dimensions.forEach((dim) => {
-      rowData[dim] = row[dim]?.label || "N/A";
-    });
-    measures.forEach((measureId) => {
-      rowData[measureId] = row[measureId]?.raw || "N/A";
-    });
-    return rowData;
-  });
+      const tableData = this._myDataSource.data.map((row) => {
+        const rowData = {};
+        dimensions.forEach((dim) => {
+          rowData[dim] = row[dim]?.label || "N/A";
+        });
+        measures.forEach((measureId) => {
+          rowData[measureId] = row[measureId]?.raw || "N/A";
+        });
+        return rowData;
+      });
 
-  if (tableData.length === 0) {
-    this._root.innerHTML = `<p>No data available to display.</p>`;
-    return;
-  }
+      if (tableData.length === 0) {
+        this._root.innerHTML = `<p>No data available to display.</p>`;
+        return;
+      }
 
-  const interactionStyle = this._props.disableInteraction ? "pointer-events: none; opacity: 0.6;" : "";
+      const interactionStyle = this._props.disableInteraction ? "pointer-events: none; opacity: 0.6;" : "";
 
-  const table = document.createElement("table");
-  table.style = interactionStyle;
+      const table = document.createElement("table");
+      table.style = interactionStyle;
 
-  const headerRow = `
-    <tr>${dimensions.map((dim) => `<th>${dim}</th>`).join("")}
-    ${measures.map((measure) => `<th>${measure}</th>`).join("")}</tr>
-  `;
+      const headerRow = `
+        <tr>${dimensions.map((dim) => `<th>${dim}</th>`).join("")}
+        ${measures.map((measure) => `<th>${measure}</th>`).join("")}</tr>
+      `;
 
-  table.innerHTML = `
-    <thead>${headerRow}</thead>
-    <tbody>
-      ${tableData
-        .map(
-          (row) =>
-            `<tr>${dimensions
-              .map((dim) => `<td>${row[dim]}</td>`)
-              .join("")}${measures
-              .map((measure) => `<td contenteditable="${this._props.planningEnabled}">${row[measure]}</td>`)
-              .join("")}</tr>`
-        )
-        .join("")}
-    </tbody>
-  `;
+      table.innerHTML = `
+        <thead>${headerRow}</thead>
+        <tbody>
+          ${tableData
+            .map(
+              (row) =>
+                `<tr>${dimensions
+                  .map((dim) => `<td>${row[dim]}</td>`)
+                  .join("")}${measures
+                  .map((measure) => `<td contenteditable="${this._props.planningEnabled}">${row[measure]}</td>`)
+                  .join("")}</tr>`
+            )
+            .join("")}
+        </tbody>
+      `;
 
-  this._root.innerHTML = "";
-  this._root.appendChild(table);
-}
-
+      this._root.innerHTML = "";
+      this._root.appendChild(table);
+    }
   }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);
 
-  // Custom Builder Logic for SAP Builder Panel
   const builderTemplate = document.createElement("template");
   builderTemplate.innerHTML = `
     <style>
@@ -276,6 +182,7 @@ render() {
     }
 
     connectedCallback() {
+      // Attach event listeners for custom properties
       this.shadowRoot.getElementById("enableDataAnalyzer").addEventListener("change", (event) => {
         this.dispatchEvent(new CustomEvent("propertiesChanged", {
           detail: {
@@ -322,6 +229,41 @@ render() {
             properties: {
               dataRefreshMode: event.target.value
             }
+          }
+        }));
+      });
+
+      // Add Default Data Binding Options (Model, Dimensions, Measures)
+      const defaultBindingContainer = document.createElement("div");
+      defaultBindingContainer.innerHTML = `
+        <div class="property">
+          <button id="addModel">Add Model</button>
+          <button id="addDimension">Add Dimension</button>
+          <button id="addMeasure">Add Measure</button>
+        </div>
+      `;
+      this.shadowRoot.appendChild(defaultBindingContainer);
+
+      this.shadowRoot.getElementById("addModel").addEventListener("click", () => {
+        this.dispatchEvent(new CustomEvent("openDataBinding", {
+          detail: {
+            id: "myDataSource"
+          }
+        }));
+      });
+
+      this.shadowRoot.getElementById("addDimension").addEventListener("click", () => {
+        this.dispatchEvent(new CustomEvent("openFeedDialog", {
+          detail: {
+            id: "dimensions"
+          }
+        }));
+      });
+
+      this.shadowRoot.getElementById("addMeasure").addEventListener("click", () => {
+        this.dispatchEvent(new CustomEvent("openFeedDialog", {
+          detail: {
+            id: "measures"
           }
         }));
       });

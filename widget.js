@@ -52,9 +52,9 @@
 
       console.log("Data source ready. Rendering table.");
 
-      // Extract dimensions and measures
+      // Extract dimensions and resolved measures
       const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
-      const measures = this._myDataSource.metadata.feeds.measures.values;
+      const measures = this.resolveMeasureIds();
 
       if (dimensions.length === 0 || measures.length === 0) {
         this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
@@ -64,18 +64,15 @@
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
       );
-      const measureHeaders = measures.map(
-        (measure) =>
-          this._myDataSource.metadata.mainStructureMembers[measure]?.id || measure
-      );
+      const measureHeaders = measures.map((measure) => measure.description);
 
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
         dimensions.forEach((dim) => {
           rowData[dim] = row[dim]?.label || "N/A";
         });
-        measures.forEach((measureId) => {
-          rowData[measureId] = row[measureId]?.raw || "N/A";
+        measures.forEach((measure) => {
+          rowData[measure.id] = row[measure.id]?.raw || "N/A";
         });
         return rowData;
       });
@@ -103,7 +100,7 @@
                   .join("")}${measures
                   .map(
                     (measure) =>
-                      `<td contenteditable="true" data-row="${rowIndex}" data-measure="${measure}">${row[measure]}</td>`
+                      `<td contenteditable="true" data-row="${rowIndex}" data-measure="${measure.id}">${row[measure.id]}</td>`
                   )
                   .join("")}</tr>`
             )
@@ -116,6 +113,16 @@
 
       // Add event listeners for editable cells
       this.addEditableListeners(dimensions, measures);
+    }
+
+    resolveMeasureIds() {
+      // Resolve measures to their proper metadata IDs
+      const measuresFeed = this._myDataSource.metadata.feeds.measures.values;
+      return measuresFeed.map((measureKey) => ({
+        id: this._myDataSource.metadata.mainStructureMembers[measureKey]?.id || measureKey,
+        description:
+          this._myDataSource.metadata.mainStructureMembers[measureKey]?.description || measureKey,
+      }));
     }
 
     addEditableListeners(dimensions, measures) {
@@ -136,15 +143,15 @@
       });
     }
 
-    pushDataToModel(rowIndex, measureId, newValue, dimensions, measures) {
+    pushDataToModel(rowIndex, measureId, newValue, dimensions) {
       if (!this._myDataSource) {
         console.error("Data source is not bound. Cannot push data.");
         return;
       }
 
-      // Temporarily bypass planning check for debugging
       if (!this._myDataSource.isPlanningEnabled) {
-        console.warn("Planning is not recognized as enabled. Proceeding for debugging.");
+        console.error("Planning is not enabled for this data source.");
+        return;
       }
 
       // Prepare the updated data structure for pushPlanningData

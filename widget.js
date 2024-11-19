@@ -31,29 +31,29 @@
 
     // Builder option setters
     set enableDataAnalyzer(value) {
-      this._props.enableDataAnalyzer = value;
-      this.render();
-    }
+  this._props.enableDataAnalyzer = value;
+  this.render(); // Re-render widget based on new property value
+}
 
-    set disableInteraction(value) {
-      this._props.disableInteraction = value;
-      this.render();
-    }
+set disableInteraction(value) {
+  this._props.disableInteraction = value;
+  this.render();
+}
 
-    set allowComments(value) {
-      this._props.allowComments = value;
-      this.render();
-    }
+set allowComments(value) {
+  this._props.allowComments = value;
+  this.render();
+}
 
-    set planningEnabled(value) {
-      this._props.planningEnabled = value;
-      this.render();
-    }
+set planningEnabled(value) {
+  this._props.planningEnabled = value;
+  this.render();
+}
 
-    set dataRefreshMode(value) {
-      this._props.dataRefreshMode = value;
-      this.render();
-    }
+set dataRefreshMode(value) {
+  this._props.dataRefreshMode = value;
+  this.render();
+}
 
     // Resize handler
     onCustomWidgetResize(width, height) {

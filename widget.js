@@ -1,4 +1,4 @@
-(function () { 
+(function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `
     <style>
@@ -30,217 +30,178 @@
       console.log("Default Properties:", this._props); // Debugging
     }
 
-connectedCallback() {
-  console.log("Widget Connected to DOM");
+    connectedCallback() {
+      console.log("Widget Connected to DOM");
 
-  // Ensure properties are initialized
-  const enableDataAnalyzer = this._props.enableDataAnalyzer || false;
-  const disableInteraction = this._props.disableInteraction || false;
-  const allowComments = this._props.allowComments || false;
-  const planningEnabled = this._props.planningEnabled || false;
-  const dataRefreshMode = this._props.dataRefreshMode || "AlwaysRefresh";
+      // Ensure properties are initialized
+      const enableDataAnalyzer = this._props.enableDataAnalyzer || false;
+      const disableInteraction = this._props.disableInteraction || false;
+      const allowComments = this._props.allowComments || false;
+      const planningEnabled = this._props.planningEnabled || false;
+      const dataRefreshMode = this._props.dataRefreshMode || "AlwaysRefresh";
 
-  console.log("Properties Initialized via connectedCallback");
+      console.log("Properties Initialized via connectedCallback");
 
-  // Trigger an initial render
-  this.render();
-}
-
-    // Builder option setters
-    set enableDataAnalyzer(value) {
-      console.log("Set enableDataAnalyzer:", value); // Debugging
-  this._props.enableDataAnalyzer = value;
-  this.render(); // Re-render widget based on new property value
-}
-
-set disableInteraction(value) {
-  console.log("Set disableInteraction:", value); // Debugging
-  this._props.disableInteraction = value;
-  this.render();
-}
-
-set allowComments(value) {
-  console.log("Setting allowComments:", value); // Log the value being set
-  this._props.allowComments = value;
-  this.render();
-}
-
-set planningEnabled(value) {
-  console.log("Setting planningEnabled:", value); // Log the value being set
-  this._props.planningEnabled = value;
-  this.render();
-}
-
-set dataRefreshMode(value) {
-  console.log("Setting dataRefreshMode:", value); // Log the value being set
-  this._props.dataRefreshMode = value;
-  this.render();
-}
-
-    
-
-    // Resize handler
-    onCustomWidgetResize(width, height) {
+      // Trigger an initial render
       this.render();
     }
 
-    // Data source setter
+    set enableDataAnalyzer(value) {
+      console.log("Set enableDataAnalyzer:", value); // Debugging
+      this._props.enableDataAnalyzer = value;
+      this.render();
+    }
+
+    set disableInteraction(value) {
+      console.log("Set disableInteraction:", value); // Debugging
+      this._props.disableInteraction = value;
+      this.render();
+    }
+
+    set allowComments(value) {
+      console.log("Setting allowComments:", value); // Log the value being set
+      this._props.allowComments = value;
+      this.render();
+    }
+
+    set planningEnabled(value) {
+      console.log("Setting planningEnabled:", value); // Log the value being set
+      this._props.planningEnabled = value;
+      this.render();
+    }
+
+    set dataRefreshMode(value) {
+      console.log("Setting dataRefreshMode:", value); // Log the value being set
+      this._props.dataRefreshMode = value;
+      this.render();
+    }
+
     set myDataSource(dataBinding) {
       this._myDataSource = dataBinding;
       this.render();
     }
 
     render() {
-  console.log("Rendering Widget with Properties:", this._props);
+      console.log("Rendering Widget with Properties:", this._props);
 
-  // Check if the data source is bound
-  if (!this._myDataSource) {
-    console.log("No data source bound yet. Rendering default state.");
-    this._root.innerHTML = `<p>Widget is initializing...</p>`;
-    return;
-  }
-
-  // Check the state of the data source
-  if (this._myDataSource.state !== "success") {
-    console.log("Data source not ready. Rendering loading state.");
-    this._root.innerHTML = `<p>Loading data...</p>`;
-    return;
-  }
-
-  console.log("Data source ready. Rendering table.");
-
-  // Rendering logic for the table goes here
-  this._root.innerHTML = `<p>Table will be rendered here based on data source.</p>`;
-}
-
-    // Render the table
-    async render() {
+      // Check if the data source is bound
       if (!this._myDataSource) {
-        this._root.innerHTML = `<p>No data source bound.</p>`;
+        console.log("No data source bound yet. Rendering default state.");
+        this._root.innerHTML = `<p>Widget is initializing...</p>`;
         return;
       }
 
+      // Check the state of the data source
       if (this._myDataSource.state !== "success") {
+        console.log("Data source not ready. Rendering loading state.");
         this._root.innerHTML = `<p>Loading data...</p>`;
         return;
       }
 
-      const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
-      const measures = this._myDataSource.metadata.feeds.measures.values;
+      console.log("Data source ready. Rendering table.");
 
-      if (dimensions.length === 0 || measures.length === 0) {
-        this._root.innerHTML = `<p>Ensure dimensions and measures are configured in the model.</p>`;
-        return;
-      }
-
-      const tableData = this._myDataSource.data.map((row) => {
-        const rowData = {};
-        dimensions.forEach((dim) => {
-          rowData[dim] = row[dim]?.label || "N/A";
-        });
-        measures.forEach((measureId) => {
-          rowData[measureId] = row[measureId]?.raw || "N/A";
-        });
-        return rowData;
-      });
-
-      if (tableData.length === 0) {
-        this._root.innerHTML = `<p>No data available to display.</p>`;
-        return;
-      }
-
-      const interactionStyle = this._props.disableInteraction ? "pointer-events: none; opacity: 0.6;" : "";
-
-      const table = document.createElement("table");
-      table.style = interactionStyle;
-
-      const headerRow = `
-        <tr>${dimensions.map((dim) => `<th>${dim}</th>`).join("")}
-        ${measures.map((measure) => `<th>${measure}</th>`).join("")}</tr>
-      `;
-
-      table.innerHTML = `
-        <thead>${headerRow}</thead>
-        <tbody>
-          ${tableData
-            .map(
-              (row) =>
-                `<tr>${dimensions
-                  .map((dim) => `<td>${row[dim]}</td>`)
-                  .join("")}${measures
-                  .map((measure) => `<td contenteditable="${this._props.planningEnabled}">${row[measure]}</td>`)
-                  .join("")}</tr>`
-            )
-            .join("")}
-        </tbody>
-      `;
-
-      this._root.innerHTML = "";
-      this._root.appendChild(table);
-
-      this.addEventListenersToRows();
-      this.addButtonListeners();
-    }
-
-    // Row selection logic
-    addEventListenersToRows() {
-      const rows = this._root.querySelectorAll("tr[data-row-id]");
-      rows.forEach((row) => {
-        row.addEventListener("click", (event) => this.handleRowSelection(event, row));
-      });
-    }
-
-    handleRowSelection(event, row) {
-      if (this._props.disableInteraction) return; // Ignore if interaction is disabled
-
-      const previouslySelected = this._root.querySelector(".selected");
-      if (previouslySelected) {
-        previouslySelected.classList.remove("selected");
-      }
-
-      row.classList.add("selected");
-
-      const rowId = row.getAttribute("data-row-id");
-      if (!rowId) {
-        console.error("Row ID not found.");
-        return;
-      }
-
-      const rowData = this._myDataSource.data.find((row) => row["ID"] === rowId);
-      if (!rowData) {
-        console.error("Row data not found for ID:", rowId);
-        return;
-      }
-
-      const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
-      const measures = this._myDataSource.metadata.feeds.measures.values;
-
-      const selectedDimensions = dimensions.map((dim) => rowData[dim]?.label || "N/A");
-      const selectedMeasures = measures.map((measureId) => rowData[measureId]?.raw || "N/A");
-
-      console.log("Selected Row ID:", rowId);
-      console.log("Selected Dimensions:", selectedDimensions);
-      console.log("Selected Measures:", selectedMeasures);
-    }
-
-    // Button listeners
-    addButtonListeners() {
-      const buttons = this._root.querySelectorAll("button");
-      buttons.forEach((button) => {
-        button.addEventListener("click", (event) => this.handleButtonClick(event));
-      });
-    }
-
-    handleButtonClick(event) {
-      const button = event.target;
-      const row = button.closest("tr");
-      const rowId = row ? row.getAttribute("data-row-id") : null;
-
-      if (rowId) {
-        console.log("Button clicked for Row ID:", rowId);
-      }
+      // Rendering logic for the table goes here
+      this._root.innerHTML = `<p>Table will be rendered here based on data source.</p>`;
     }
   }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);
+
+  // Custom Builder Logic for SAP Builder Panel
+  const builderTemplate = document.createElement("template");
+  builderTemplate.innerHTML = `
+    <style>
+      .builder-panel { font-family: Arial, sans-serif; }
+      .property { margin-bottom: 10px; }
+      label { display: block; margin-bottom: 5px; font-weight: bold; }
+    </style>
+    <div class="builder-panel">
+      <div class="property">
+        <label for="enableDataAnalyzer">Enable Data Analyzer:</label>
+        <input type="checkbox" id="enableDataAnalyzer" />
+      </div>
+      <div class="property">
+        <label for="disableInteraction">Disable Interaction:</label>
+        <input type="checkbox" id="disableInteraction" />
+      </div>
+      <div class="property">
+        <label for="allowComments">Allow Comments:</label>
+        <input type="checkbox" id="allowComments" />
+      </div>
+      <div class="property">
+        <label for="planningEnabled">Planning Enabled:</label>
+        <input type="checkbox" id="planningEnabled" />
+      </div>
+      <div class="property">
+        <label for="dataRefreshMode">Data Refresh Mode:</label>
+        <select id="dataRefreshMode">
+          <option value="AlwaysRefresh">Always Refresh</option>
+          <option value="RefreshActiveWidgetsOnly">Refresh Active Widgets Only</option>
+          <option value="AlwaysPause">Always Pause</option>
+        </select>
+      </div>
+    </div>
+  `;
+
+  class TableWidgetBuilder extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({ mode: "open" });
+      this.shadowRoot.appendChild(builderTemplate.content.cloneNode(true));
+    }
+
+    connectedCallback() {
+      this.shadowRoot.getElementById("enableDataAnalyzer").addEventListener("change", (event) => {
+        this.dispatchEvent(new CustomEvent("propertiesChanged", {
+          detail: {
+            properties: {
+              enableDataAnalyzer: event.target.checked
+            }
+          }
+        }));
+      });
+
+      this.shadowRoot.getElementById("disableInteraction").addEventListener("change", (event) => {
+        this.dispatchEvent(new CustomEvent("propertiesChanged", {
+          detail: {
+            properties: {
+              disableInteraction: event.target.checked
+            }
+          }
+        }));
+      });
+
+      this.shadowRoot.getElementById("allowComments").addEventListener("change", (event) => {
+        this.dispatchEvent(new CustomEvent("propertiesChanged", {
+          detail: {
+            properties: {
+              allowComments: event.target.checked
+            }
+          }
+        }));
+      });
+
+      this.shadowRoot.getElementById("planningEnabled").addEventListener("change", (event) => {
+        this.dispatchEvent(new CustomEvent("propertiesChanged", {
+          detail: {
+            properties: {
+              planningEnabled: event.target.checked
+            }
+          }
+        }));
+      });
+
+      this.shadowRoot.getElementById("dataRefreshMode").addEventListener("change", (event) => {
+        this.dispatchEvent(new CustomEvent("propertiesChanged", {
+          detail: {
+            properties: {
+              dataRefreshMode: event.target.value
+            }
+          }
+        }));
+      });
+    }
+  }
+
+  customElements.define("com-sap-custom-tablewidget-builder", TableWidgetBuilder);
 })();

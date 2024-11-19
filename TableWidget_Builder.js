@@ -7,6 +7,7 @@
       label { display: block; margin-bottom: 5px; font-weight: bold; }
     </style>
     <div class="builder-panel">
+      <!-- Custom Properties -->
       <div class="property">
         <label for="enableDataAnalyzer">Enable Data Analyzer:</label>
         <input type="checkbox" id="enableDataAnalyzer" />
@@ -92,6 +93,28 @@
           }
         }));
       });
+
+      // Add Default Data Binding (Model, Measures, Dimensions)
+      this.addDefaultBindings();
+    }
+
+    // Add default data-binding interface
+    addDefaultBindings() {
+      const defaultBindingContainer = document.createElement("div");
+      defaultBindingContainer.setAttribute("id", "defaultBindingContainer");
+      this.shadowRoot.appendChild(defaultBindingContainer);
+
+      const modelBinding = document.createElement("button");
+      modelBinding.textContent = "Add Model";
+      modelBinding.addEventListener("click", () => {
+        this.dispatchEvent(new CustomEvent("openDataBinding", {
+          detail: {
+            id: "myDataSource"
+          }
+        }));
+      });
+
+      defaultBindingContainer.appendChild(modelBinding);
     }
   }
 

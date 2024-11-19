@@ -163,7 +163,7 @@
       };
 
       this._myDataSource
-        .pushPlanningData([dataForUpdate])
+        .pushData([dataForUpdate])
         .then(() => {
           console.log(`Successfully pushed planning data for row ID ${rowId}`);
           this.refreshDataSource(); // Refresh the table to show the updated value

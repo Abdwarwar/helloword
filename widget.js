@@ -45,6 +45,13 @@
         return;
       }
 
+      // Check planning capabilities
+      if (!this._myDataSource.isPlanningEnabled) {
+        console.error("Planning is not enabled for this widget.");
+        this._root.innerHTML = `<p>Planning is not enabled for the data source.</p>`;
+        return;
+      }
+
       // Check the state of the data source
       if (this._myDataSource.state !== "success") {
         console.log("Data source not ready. Rendering loading state.");
@@ -146,6 +153,11 @@
         return;
       }
 
+      if (!this._myDataSource.isPlanningEnabled) {
+        console.error("Planning is not enabled for this data source.");
+        return;
+      }
+
       const updatedData = {};
       updatedData[measureId] = newValue;
 
@@ -156,13 +168,13 @@
       };
 
       this._myDataSource
-        .pushData([dataForUpdate])
+        .pushPlanningData([dataForUpdate])
         .then(() => {
-          console.log(`Successfully pushed data for row ID ${rowId}`);
+          console.log(`Successfully pushed planning data for row ID ${rowId}`);
           this.refreshDataSource(); // Refresh the table to show the updated value
         })
         .catch((error) => {
-          console.error("Error pushing data to SAC model:", error);
+          console.error("Error pushing planning data to SAC model:", error);
         });
     }
 

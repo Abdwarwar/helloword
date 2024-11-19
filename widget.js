@@ -63,7 +63,7 @@
       );
       console.log(dimensionHeaders);
       const measureHeaders = measures.map(
-        (measure) => this._myDataSource.metadata.mainStructureMembers[measure]?.description || measure
+        (measure) => this._myDataSource.metadata.mainStructureMembers[measure]?.id || measure
       );
       console.log(measureHeaders);
 

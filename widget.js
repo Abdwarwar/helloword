@@ -27,7 +27,21 @@
         planningEnabled: false,
         dataRefreshMode: "AlwaysRefresh"
       };
+      console.log("Default Properties:", this._props); // Debugging
     }
+
+      connectedCallback() {
+    console.log("Widget Connected to DOM"); // Debugging
+
+    // Simulate property setting (trigger the setters)
+    this.enableDataAnalyzer = this._props.enableDataAnalyzer;
+    this.disableInteraction = this._props.disableInteraction;
+    this.allowComments = this._props.allowComments;
+    this.planningEnabled = this._props.planningEnabled;
+    this.dataRefreshMode = this._props.dataRefreshMode;
+
+    console.log("Properties Initialized via connectedCallback");
+  }
 
     // Builder option setters
     set enableDataAnalyzer(value) {

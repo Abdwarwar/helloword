@@ -48,11 +48,13 @@ connectedCallback() {
 
     // Builder option setters
     set enableDataAnalyzer(value) {
+      console.log("Set enableDataAnalyzer:", value); // Debugging
   this._props.enableDataAnalyzer = value;
   this.render(); // Re-render widget based on new property value
 }
 
 set disableInteraction(value) {
+  console.log("Set disableInteraction:", value); // Debugging
   this._props.disableInteraction = value;
   this.render();
 }
@@ -64,11 +66,13 @@ set allowComments(value) {
 }
 
 set planningEnabled(value) {
+  console.log("Setting planningEnabled:", value); // Log the value being set
   this._props.planningEnabled = value;
   this.render();
 }
 
 set dataRefreshMode(value) {
+  console.log("Setting dataRefreshMode:", value); // Log the value being set
   this._props.dataRefreshMode = value;
   this.render();
 }
@@ -83,6 +87,29 @@ set dataRefreshMode(value) {
       this._myDataSource = dataBinding;
       this.render();
     }
+
+    render() {
+  console.log("Rendering Widget with Properties:", this._props);
+
+  // Check if the data source is bound
+  if (!this._myDataSource) {
+    console.log("No data source bound yet. Rendering default state.");
+    this._root.innerHTML = `<p>Widget is initializing...</p>`;
+    return;
+  }
+
+  // Check the state of the data source
+  if (this._myDataSource.state !== "success") {
+    console.log("Data source not ready. Rendering loading state.");
+    this._root.innerHTML = `<p>Loading data...</p>`;
+    return;
+  }
+
+  console.log("Data source ready. Rendering table.");
+
+  // Rendering logic for the table goes here
+  this._root.innerHTML = `<p>Table will be rendered here based on data source.</p>`;
+}
 
     // Render the table
     async render() {

@@ -20,10 +20,8 @@
       this._root = this._shadowRoot.getElementById("root");
 
       // Initialize default properties
-      this._props = {
-        dataRefreshMode: "AlwaysRefresh",
-      };
-      console.log("Default Properties:", this._props);
+      this._props = {};
+      console.log("Widget initialized with default properties.");
     }
 
     connectedCallback() {
@@ -37,7 +35,7 @@
     }
 
     render() {
-      console.log("Rendering Widget with Properties:", this._props);
+      console.log("Rendering Widget");
 
       // Check if the data source is bound
       if (!this._myDataSource) {
@@ -117,10 +115,10 @@
       this._root.appendChild(table);
 
       // Add event listeners for editable cells
-      this.addEditableListeners();
+      this.addEditableListeners(dimensions, measures);
     }
 
-    addEditableListeners() {
+    addEditableListeners(dimensions, measures) {
       const cells = this._root.querySelectorAll('td[contenteditable="true"]');
       cells.forEach((cell) => {
         cell.addEventListener("blur", (event) => {
@@ -133,34 +131,42 @@
           );
 
           // Push updated value to SAC model
-          this.pushDataToModel(rowIndex, measureId, newValue);
+          this.pushDataToModel(rowIndex, measureId, newValue, dimensions, measures);
         });
       });
     }
 
-    pushDataToModel(rowIndex, measureId, newValue) {
+    pushDataToModel(rowIndex, measureId, newValue, dimensions, measures) {
       if (!this._myDataSource) {
         console.error("Data source is not bound. Cannot push data.");
         return;
       }
 
-      const updatedData = {};
-      updatedData[measureId] = newValue;
+      if (!this._myDataSource.isPlanningEnabled) {
+        console.error("Planning is not enabled for this data source.");
+        return;
+      }
 
-      const rowId = this._myDataSource.data[rowIndex]["ID"];
-      const dataForUpdate = {
-        ID: rowId, // Use the primary key of the row
-        ...updatedData,
+      // Prepare the updated data structure for pushPlanningData
+      const dimensionValues = dimensions.map((dim) => ({
+        dimension: dim,
+        value: this._myDataSource.data[rowIndex][dim]?.id || null,
+      }));
+
+      const updatedData = {
+        measure: measureId,
+        value: newValue,
+        dimensionValues,
       };
 
       this._myDataSource
-        .pushData([dataForUpdate])
+        .pushPlanningData([updatedData])
         .then(() => {
-          console.log(`Successfully pushed data for row ID ${rowId}`);
-          this.refreshDataSource(); // Refresh the table to show the updated value
+          console.log(`Successfully pushed planning data for row ${rowIndex}`);
+          this.refreshDataSource();
         })
         .catch((error) => {
-          console.error("Error pushing data to SAC model:", error);
+          console.error("Error pushing planning data to SAC model:", error);
         });
     }
 

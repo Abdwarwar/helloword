@@ -72,6 +72,7 @@
           rowData[dim] = row[dim]?.label || "N/A";
         });
         measures.forEach((measure) => {
+          console.log(`Accessing measure '${measure.id}' in row:`, row);
           rowData[measure.id] = row[measure.id]?.raw || "N/A";
         });
         return rowData;
@@ -118,11 +119,15 @@
     resolveMeasureMetadata() {
       // Resolve measures to their proper metadata IDs and descriptions
       const measureKeys = this._myDataSource.metadata.feeds.measures.values;
-      return measureKeys.map((key) => ({
+      const measures = measureKeys.map((key) => ({
         id: this._myDataSource.metadata.mainStructureMembers[key]?.id || key,
         description:
           this._myDataSource.metadata.mainStructureMembers[key]?.description || key,
       }));
+
+      console.log("Resolved Measures:", measures);
+      console.log("Data Rows Example:", this._myDataSource.data[0]);
+      return measures;
     }
 
     addEditableListeners(dimensions, measures) {

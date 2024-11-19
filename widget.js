@@ -34,11 +34,11 @@ connectedCallback() {
   console.log("Widget Connected to DOM");
 
   // Ensure properties are initialized
-  const.enableDataAnalyzer = this._props.enableDataAnalyzer || false;
-  const.disableInteraction = this._props.disableInteraction || false;
-  const.allowComments = this._props.allowComments || false;
-  const.planningEnabled = this._props.planningEnabled || false;
-  const.dataRefreshMode = this._props.dataRefreshMode || "AlwaysRefresh";
+  const enableDataAnalyzer = this._props.enableDataAnalyzer || false;
+  const disableInteraction = this._props.disableInteraction || false;
+  const allowComments = this._props.allowComments || false;
+  const planningEnabled = this._props.planningEnabled || false;
+  const dataRefreshMode = this._props.dataRefreshMode || "AlwaysRefresh";
 
   console.log("Properties Initialized via connectedCallback");
 

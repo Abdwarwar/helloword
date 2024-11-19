@@ -45,12 +45,7 @@
         return;
       }
 
-      // Check planning capabilities
-      if (!this._myDataSource.isPlanningEnabled) {
-        console.error("Planning is not enabled for this widget.");
-        this._root.innerHTML = `<p>Planning is not enabled for the data source.</p>`;
-        return;
-      }
+
 
       // Check the state of the data source
       if (this._myDataSource.state !== "success") {

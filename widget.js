@@ -35,91 +35,103 @@
       this.render();
     }
 
+
+
     render() {
-      console.log("Rendering Widget");
+  console.log("Rendering Widget");
 
-      // Check if the data source is bound
-      if (!this._myDataSource) {
-        this._root.innerHTML = `<p>Widget is initializing...</p>`;
-        return;
-      }
+  // Check if the data source is bound
+  if (!this._myDataSource) {
+    this._root.innerHTML = `<p>Widget is initializing...</p>`;
+    return;
+  }
 
-      // Check the state of the data source
-      if (this._myDataSource.state !== "success") {
-        console.log("Data source not ready. Rendering loading state.");
-        this._root.innerHTML = `<p>Loading data...</p>`;
-        return;
-      }
+  // Check the state of the data source
+  if (this._myDataSource.state !== "success") {
+    console.log("Data source not ready. Rendering loading state.");
+    this._root.innerHTML = `<p>Loading data...</p>`;
+    return;
+  }
 
-      console.log("Data source ready. Rendering table.");
+  console.log("Data source ready. Rendering table.");
 
-      // Extract dimensions and resolved measures
-      const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
-      const measures = this.resolveMeasureMetadata();
+  // Extract dimensions and resolved measures
+  const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
+  const measures = this.resolveMeasureMetadata();
 
-      if (dimensions.length === 0 || measures.length === 0) {
-        this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
-        return;
-      }
+  if (dimensions.length === 0 || measures.length === 0) {
+    this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
+    return;
+  }
 
-      console.log("Resolved Dimensions:", dimensions);
-      console.log("Resolved Measures:", measures);
+  console.log("Resolved Dimensions:", dimensions);
+  console.log("Resolved Measures:", measures);
 
-      const dimensionHeaders = dimensions.map(
-        (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
-      );
-      const measureHeaders = measures.map((measure) => measure.id);
+  // Map measure keys to resolved IDs
+  const measureKeyMap = measures.reduce((map, measure, index) => {
+    const measureKey = `measures_${index}`; // Original key from row data
+    map[measureKey] = measure.id; // Map to resolved ID
+    return map;
+  }, {});
 
-      const tableData = this._myDataSource.data.map((row) => {
-        console.log("Row Data:", row); // Log the entire row
+  console.log("Measure Key Map:", measureKeyMap);
 
-        const rowData = {};
-        dimensions.forEach((dim) => {
-          rowData[dim] = row[dim]?.label || "N/A";
-        });
-        measures.forEach((measure) => {
-          rowData[measure.id] = row[measure.id]?.raw || "N/A"; // Use only resolved measure.id
-        });
-        return rowData;
-      });
+  const dimensionHeaders = dimensions.map(
+    (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
+  );
+  const measureHeaders = measures.map((measure) => measure.id);
 
-      if (tableData.length === 0) {
-        this._root.innerHTML = `<p>No data available to display.</p>`;
-        return;
-      }
+  const tableData = this._myDataSource.data.map((row) => {
+    console.log("Row Data:", row); // Log the entire row
 
-      const table = document.createElement("table");
+    const rowData = {};
+    dimensions.forEach((dim) => {
+      rowData[dim] = row[dim]?.label || "N/A";
+    });
+    Object.entries(measureKeyMap).forEach(([originalKey, resolvedId]) => {
+      rowData[resolvedId] = row[originalKey]?.raw || "N/A";
+    });
+    return rowData;
+  });
 
-      const headerRow = `
-        <tr>${dimensionHeaders.map((dim) => `<th>${dim}</th>`).join("")}
-        ${measureHeaders.map((measure) => `<th>${measure}</th>`).join("")}</tr>
-      `;
+  if (tableData.length === 0) {
+    this._root.innerHTML = `<p>No data available to display.</p>`;
+    return;
+  }
 
-      table.innerHTML = `
-        <thead>${headerRow}</thead>
-        <tbody>
-          ${tableData
-            .map(
-              (row, rowIndex) =>
-                `<tr>${dimensions
-                  .map((dim) => `<td>${row[dim]}</td>`)
-                  .join("")}${measures
-                  .map(
-                    (measure) =>
-                      `<td contenteditable="true" data-row="${rowIndex}" data-measure="${measure.id}">${row[measure.id]}</td>`
-                  )
-                  .join("")}</tr>`
-            )
-            .join("")}
-        </tbody>
-      `;
+  const table = document.createElement("table");
 
-      this._root.innerHTML = "";
-      this._root.appendChild(table);
+  const headerRow = `
+    <tr>${dimensionHeaders.map((dim) => `<th>${dim}</th>`).join("")}
+    ${measureHeaders.map((measure) => `<th>${measure}</th>`).join("")}</tr>
+  `;
 
-      // Add event listeners for editable cells
-      this.addEditableListeners(dimensions, measures);
-    }
+  table.innerHTML = `
+    <thead>${headerRow}</thead>
+    <tbody>
+      ${tableData
+        .map(
+          (row, rowIndex) =>
+            `<tr>${dimensions
+              .map((dim) => `<td>${row[dim]}</td>`)
+              .join("")}${measureHeaders
+              .map(
+                (measure) =>
+                  `<td contenteditable="true" data-row="${rowIndex}" data-measure="${measure}">${row[measure]}</td>`
+              )
+              .join("")}</tr>`
+        )
+        .join("")}
+    </tbody>
+  `;
+
+  this._root.innerHTML = "";
+  this._root.appendChild(table);
+
+  // Add event listeners for editable cells
+  this.addEditableListeners(dimensions, measures);
+}
+
 
     resolveMeasureMetadata() {
       if (!this._myDataSource || !this._myDataSource.metadata) {

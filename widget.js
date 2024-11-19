@@ -35,114 +35,111 @@
       this.render();
     }
 
+    render() {
+      console.log("Rendering Widget");
 
+      // Check if the data source is bound
+      if (!this._myDataSource) {
+        this._root.innerHTML = `<p>Widget is initializing...</p>`;
+        return;
+      }
 
-render() {
-  console.log("Rendering Widget");
+      // Check the state of the data source
+      if (this._myDataSource.state !== "success") {
+        console.log("Data source not ready. Rendering loading state.");
+        this._root.innerHTML = `<p>Loading data...</p>`;
+        return;
+      }
 
-  // Check if the data source is bound
-  if (!this._myDataSource) {
-    this._root.innerHTML = `<p>Widget is initializing...</p>`;
-    return;
-  }
+      console.log("Data source ready. Rendering table.");
 
-  // Check the state of the data source
-  if (this._myDataSource.state !== "success") {
-    console.log("Data source not ready. Rendering loading state.");
-    this._root.innerHTML = `<p>Loading data...</p>`;
-    return;
-  }
+      // Resolve dimensions and measures
+      const dimensions = this.resolveDimensionMetadata();
+      const measures = this.resolveMeasureMetadata();
 
-  console.log("Data source ready. Rendering table.");
+      if (dimensions.length === 0 || measures.length === 0) {
+        this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
+        return;
+      }
 
-  // Resolve dimensions and measures
-  const dimensions = this.resolveDimensionMetadata();
-  const measures = this.resolveMeasureMetadata();
+      console.log("Resolved Dimensions:", dimensions);
+      console.log("Resolved Measures:", measures);
 
-  if (dimensions.length === 0 || measures.length === 0) {
-    this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
-    return;
-  }
+      const dimensionHeaders = dimensions.map((dim) => dim.description || dim.id);
+      const measureHeaders = measures.map((measure) => measure.description || measure.id);
 
-  console.log("Resolved Dimensions:", dimensions);
-  console.log("Resolved Measures:", measures);
+      const tableData = this._myDataSource.data.map((row) => {
+        const rowData = {};
+        dimensions.forEach((dim) => {
+          rowData[dim.id] = row[dim.key]?.label || "N/A"; // Use resolved key for dimensions
+        });
+        measures.forEach((measure) => {
+          rowData[measure.id] = row[measure.key]?.raw || "N/A"; // Use resolved key for measures
+        });
+        return rowData;
+      });
 
-  const dimensionHeaders = dimensions.map((dim) => dim.description || dim.id);
-  const measureHeaders = measures.map((measure) => measure.id);
+      if (tableData.length === 0) {
+        this._root.innerHTML = `<p>No data available to display.</p>`;
+        return;
+      }
 
-  const tableData = this._myDataSource.data.map((row) => {
-    const rowData = {};
-    dimensions.forEach((dim) => {
-      rowData[dim.id] = row[dim.key]?.label || "N/A"; // Use resolved key for dimensions
-    });
-    measures.forEach((measure) => {
-      rowData[measure.id] = row[measure.key]?.raw || "N/A"; // Use resolved key for measures
-    });
-    return rowData;
-  });
+      const table = document.createElement("table");
 
-  if (tableData.length === 0) {
-    this._root.innerHTML = `<p>No data available to display.</p>`;
-    return;
-  }
+      const headerRow = `
+        <tr>${dimensionHeaders.map((dim) => `<th>${dim}</th>`).join("")}
+        ${measureHeaders.map((measure) => `<th>${measure}</th>`).join("")}</tr>
+      `;
 
-  const table = document.createElement("table");
+      table.innerHTML = `
+        <thead>${headerRow}</thead>
+        <tbody>
+          ${tableData
+            .map(
+              (row, rowIndex) =>
+                `<tr>${dimensions
+                  .map((dim) => `<td>${row[dim.id]}</td>`)
+                  .join("")}${measures
+                  .map(
+                    (measure) =>
+                      `<td contenteditable="true" data-row="${rowIndex}" data-measure="${measure.id}">${row[measure.id]}</td>`
+                  )
+                  .join("")}</tr>`
+            )
+            .join("")}
+        </tbody>
+      `;
 
-  const headerRow = `
-    <tr>${dimensionHeaders.map((dim) => `<th>${dim}</th>`).join("")}
-    ${measureHeaders.map((measure) => `<th>${measure}</th>`).join("")}</tr>
-  `;
+      this._root.innerHTML = "";
+      this._root.appendChild(table);
 
-  table.innerHTML = `
-    <thead>${headerRow}</thead>
-    <tbody>
-      ${tableData
-        .map(
-          (row, rowIndex) =>
-            `<tr>${dimensions
-              .map((dim) => `<td>${row[dim.id]}</td>`)
-              .join("")}${measureHeaders
-              .map(
-                (measure) =>
-                  `<td contenteditable="true" data-row="${rowIndex}" data-measure="${measure}">${row[measure]}</td>`
-              )
-              .join("")}</tr>`
-        )
-        .join("")}
-    </tbody>
-  `;
-
-  this._root.innerHTML = "";
-  this._root.appendChild(table);
-
-  // Add event listeners for editable cells
-  this.addEditableListeners(dimensions, measures);
-}
-
-resolveDimensionMetadata() {
-  if (!this._myDataSource || !this._myDataSource.metadata) {
-    console.error("Metadata is not available.");
-    return [];
-  }
-
-  const dimensionKeys = this._myDataSource.metadata.feeds.dimensions.values;
-  const dimensions = dimensionKeys.map((key) => {
-    const resolvedDimension = this._myDataSource.metadata.dimensions[key];
-    if (!resolvedDimension) {
-      console.warn(`Dimension key '${key}' could not be resolved.`);
-      return { id: key, key }; // Fallback
+      // Add event listeners for editable cells
+      this.addEditableListeners(dimensions, measures);
     }
-    return {
-      id: resolvedDimension.id,
-      key,
-      description: resolvedDimension.description || resolvedDimension.id,
-    };
-  });
 
-  console.log("Resolved Dimensions Metadata:", dimensions);
-  return dimensions;
-}
+    resolveDimensionMetadata() {
+      if (!this._myDataSource || !this._myDataSource.metadata) {
+        console.error("Metadata is not available.");
+        return [];
+      }
 
+      const dimensionKeys = this._myDataSource.metadata.feeds.dimensions.values;
+      const dimensions = dimensionKeys.map((key) => {
+        const resolvedDimension = this._myDataSource.metadata.dimensions[key];
+        if (!resolvedDimension) {
+          console.warn(`Dimension key '${key}' could not be resolved.`);
+          return { id: key, key }; // Fallback
+        }
+        return {
+          id: resolvedDimension.id,
+          key,
+          description: resolvedDimension.description || resolvedDimension.id,
+        };
+      });
+
+      console.log("Resolved Dimensions Metadata:", dimensions);
+      return dimensions;
+    }
 
     resolveMeasureMetadata() {
       if (!this._myDataSource || !this._myDataSource.metadata) {
@@ -150,22 +147,21 @@ resolveDimensionMetadata() {
         return [];
       }
 
-      console.log("Main Structure Members:", this._myDataSource.metadata.mainStructureMembers);
-
       const measureKeys = this._myDataSource.metadata.feeds.measures.values;
       const measures = measureKeys.map((key) => {
         const resolvedMeasure = this._myDataSource.metadata.mainStructureMembers[key];
         if (!resolvedMeasure) {
           console.warn(`Measure key '${key}' could not be resolved.`);
-          return { id: key, description: key }; // Fallback
+          return { id: key, key, description: key }; // Fallback
         }
         return {
           id: resolvedMeasure.id,
+          key,
           description: resolvedMeasure.description || resolvedMeasure.id,
         };
       });
 
-      console.log("Resolved Measures:", measures);
+      console.log("Resolved Measures Metadata:", measures);
       return measures;
     }
 
@@ -187,44 +183,41 @@ resolveDimensionMetadata() {
       });
     }
 
-pushDataToModel(rowIndex, measureId, newValue, dimensions) {
-  if (!this._myDataSource) {
-    console.error("Data source is not bound. Cannot push data.");
-    return;
-  }
+    pushDataToModel(rowIndex, measureId, newValue, dimensions) {
+      if (!this._myDataSource) {
+        console.error("Data source is not bound. Cannot push data.");
+        return;
+      }
 
-  if (!this._myDataSource.isPlanningEnabled) {
-    console.warn("Planning is not recognized as enabled. Proceeding for debugging.");
-    // Optionally return here to avoid pushing if you don't want to bypass this.
-    // return;
-  }
+      if (!this._myDataSource.isPlanningEnabled) {
+        console.error("Planning is not enabled for this data source.");
+        return;
+      }
 
-  // Use resolved dimension IDs for planning
-  const dimensionValues = dimensions.map((dim) => ({
-    dimension: dim.id,
-    value: this._myDataSource.data[rowIndex][dim.key]?.id || null,
-  }));
+      // Use resolved dimension IDs for planning
+      const dimensionValues = dimensions.map((dim) => ({
+        dimension: dim.id,
+        value: this._myDataSource.data[rowIndex][dim.key]?.id || null,
+      }));
 
-  const updatedData = {
-    measure: measureId,
-    value: newValue,
-    dimensionValues,
-  };
+      const updatedData = {
+        measure: measureId,
+        value: newValue,
+        dimensionValues,
+      };
 
-  console.log("Pushing Planning Data:", updatedData);
+      console.log("Pushing Planning Data:", updatedData);
 
-  this._myDataSource
-    .pushPlanningData([updatedData])
-    .then(() => {
-      console.log(`Successfully pushed planning data for row ${rowIndex}`);
-      this.refreshDataSource();
-    })
-    .catch((error) => {
-      console.error("Error pushing planning data to SAC model:", error);
-    });
-}
-
-
+      this._myDataSource
+        .pushPlanningData([updatedData])
+        .then(() => {
+          console.log(`Successfully pushed planning data for row ${rowIndex}`);
+          this.refreshDataSource();
+        })
+        .catch((error) => {
+          console.error("Error pushing planning data to SAC model:", error);
+        });
+    }
 
     refreshDataSource() {
       this._myDataSource

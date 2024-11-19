@@ -37,7 +37,7 @@
 
 
 
-    render() {
+render() {
   console.log("Rendering Widget");
 
   // Check if the data source is bound
@@ -55,8 +55,8 @@
 
   console.log("Data source ready. Rendering table.");
 
-  // Extract dimensions and resolved measures
-  const dimensions = this._myDataSource.metadata.feeds.dimensions.values;
+  // Resolve dimensions and measures
+  const dimensions = this.resolveDimensionMetadata();
   const measures = this.resolveMeasureMetadata();
 
   if (dimensions.length === 0 || measures.length === 0) {
@@ -67,29 +67,16 @@
   console.log("Resolved Dimensions:", dimensions);
   console.log("Resolved Measures:", measures);
 
-  // Map measure keys to resolved IDs
-  const measureKeyMap = measures.reduce((map, measure, index) => {
-    const measureKey = `measures_${index}`; // Original key from row data
-    map[measureKey] = measure.id; // Map to resolved ID
-    return map;
-  }, {});
-
-  console.log("Measure Key Map:", measureKeyMap);
-
-  const dimensionHeaders = dimensions.map(
-    (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
-  );
+  const dimensionHeaders = dimensions.map((dim) => dim.description || dim.id);
   const measureHeaders = measures.map((measure) => measure.id);
 
   const tableData = this._myDataSource.data.map((row) => {
-    console.log("Row Data:", row); // Log the entire row
-
     const rowData = {};
     dimensions.forEach((dim) => {
-      rowData[dim] = row[dim]?.label || "N/A";
+      rowData[dim.id] = row[dim.key]?.label || "N/A"; // Use resolved key for dimensions
     });
-    Object.entries(measureKeyMap).forEach(([originalKey, resolvedId]) => {
-      rowData[resolvedId] = row[originalKey]?.raw || "N/A";
+    measures.forEach((measure) => {
+      rowData[measure.id] = row[measure.key]?.raw || "N/A"; // Use resolved key for measures
     });
     return rowData;
   });
@@ -113,7 +100,7 @@
         .map(
           (row, rowIndex) =>
             `<tr>${dimensions
-              .map((dim) => `<td>${row[dim]}</td>`)
+              .map((dim) => `<td>${row[dim.id]}</td>`)
               .join("")}${measureHeaders
               .map(
                 (measure) =>
@@ -130,6 +117,30 @@
 
   // Add event listeners for editable cells
   this.addEditableListeners(dimensions, measures);
+}
+
+resolveDimensionMetadata() {
+  if (!this._myDataSource || !this._myDataSource.metadata) {
+    console.error("Metadata is not available.");
+    return [];
+  }
+
+  const dimensionKeys = this._myDataSource.metadata.feeds.dimensions.values;
+  const dimensions = dimensionKeys.map((key) => {
+    const resolvedDimension = this._myDataSource.metadata.dimensions[key];
+    if (!resolvedDimension) {
+      console.warn(`Dimension key '${key}' could not be resolved.`);
+      return { id: key, key }; // Fallback
+    }
+    return {
+      id: resolvedDimension.id,
+      key,
+      description: resolvedDimension.description || resolvedDimension.id,
+    };
+  });
+
+  console.log("Resolved Dimensions Metadata:", dimensions);
+  return dimensions;
 }
 
 
@@ -182,17 +193,16 @@ pushDataToModel(rowIndex, measureId, newValue, dimensions) {
     return;
   }
 
-  // Check if planning is enabled
   if (!this._myDataSource.isPlanningEnabled) {
     console.warn("Planning is not recognized as enabled. Proceeding for debugging.");
     // Optionally return here to avoid pushing if you don't want to bypass this.
     // return;
   }
 
-  // Prepare dimension values for the planning update
+  // Use resolved dimension IDs for planning
   const dimensionValues = dimensions.map((dim) => ({
-    dimension: dim,
-    value: this._myDataSource.data[rowIndex][dim]?.id || null,
+    dimension: dim.id,
+    value: this._myDataSource.data[rowIndex][dim.key]?.id || null,
   }));
 
   const updatedData = {
@@ -213,6 +223,7 @@ pushDataToModel(rowIndex, measureId, newValue, dimensions) {
       console.error("Error pushing planning data to SAC model:", error);
     });
 }
+
 
 
     refreshDataSource() {

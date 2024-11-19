@@ -176,39 +176,44 @@
       });
     }
 
-    pushDataToModel(rowIndex, measureId, newValue, dimensions) {
-      if (!this._myDataSource) {
-        console.error("Data source is not bound. Cannot push data.");
-        return;
-      }
+pushDataToModel(rowIndex, measureId, newValue, dimensions) {
+  if (!this._myDataSource) {
+    console.error("Data source is not bound. Cannot push data.");
+    return;
+  }
 
-      if (!this._myDataSource.isPlanningEnabled) {
-        console.error("Planning is not enabled for this data source.");
-        return;
-      }
+  // Check if planning is enabled
+  if (!this._myDataSource.isPlanningEnabled) {
+    console.warn("Planning is not recognized as enabled. Proceeding for debugging.");
+    // Optionally return here to avoid pushing if you don't want to bypass this.
+    // return;
+  }
 
-      // Prepare the updated data structure for pushPlanningData
-      const dimensionValues = dimensions.map((dim) => ({
-        dimension: dim,
-        value: this._myDataSource.data[rowIndex][dim]?.id || null,
-      }));
+  // Prepare dimension values for the planning update
+  const dimensionValues = dimensions.map((dim) => ({
+    dimension: dim,
+    value: this._myDataSource.data[rowIndex][dim]?.id || null,
+  }));
 
-      const updatedData = {
-        measure: measureId,
-        value: newValue,
-        dimensionValues,
-      };
+  const updatedData = {
+    measure: measureId,
+    value: newValue,
+    dimensionValues,
+  };
 
-      this._myDataSource
-        .pushPlanningData([updatedData])
-        .then(() => {
-          console.log(`Successfully pushed planning data for row ${rowIndex}`);
-          this.refreshDataSource();
-        })
-        .catch((error) => {
-          console.error("Error pushing planning data to SAC model:", error);
-        });
-    }
+  console.log("Pushing Planning Data:", updatedData);
+
+  this._myDataSource
+    .pushPlanningData([updatedData])
+    .then(() => {
+      console.log(`Successfully pushed planning data for row ${rowIndex}`);
+      this.refreshDataSource();
+    })
+    .catch((error) => {
+      console.error("Error pushing planning data to SAC model:", error);
+    });
+}
+
 
     refreshDataSource() {
       this._myDataSource

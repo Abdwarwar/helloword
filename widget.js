@@ -31,21 +31,8 @@
 
     set myDataSource(dataBinding) {
       this._myDataSource = dataBinding;
+      console.log("Data source set:", this._myDataSource);
       this.render();
-    }
-
-        resolveMeasureMetadata() {
-      // Resolve measures to their proper metadata IDs and descriptions
-      const measureKeys = this._myDataSource.metadata.feeds.measures.values;
-      const measures = measureKeys.map((key) => ({
-        id: this._myDataSource.metadata.mainStructureMembers[key]?.id || key,
-        description:
-          this._myDataSource.metadata.mainStructureMembers[key]?.description || key,
-      }));
-
-      console.log("Resolved Measures:", measures);
-      console.log("Data Rows Example:", this._myDataSource.data[0]);
-      return measures;
     }
 
     render() {
@@ -74,6 +61,9 @@
         this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
         return;
       }
+
+      console.log("Resolved Dimensions:", dimensions);
+      console.log("Resolved Measures:", measures);
 
       const dimensionHeaders = dimensions.map(
         (dim) => this._myDataSource.metadata.dimensions[dim]?.description || dim
@@ -130,7 +120,29 @@
       this.addEditableListeners(dimensions, measures);
     }
 
+    resolveMeasureMetadata() {
+      if (!this._myDataSource || !this._myDataSource.metadata) {
+        console.error("Metadata is not available.");
+        return [];
+      }
 
+      // Resolve measures to their proper metadata IDs and descriptions
+      const measureKeys = this._myDataSource.metadata.feeds.measures.values;
+      const measures = measureKeys.map((key) => {
+        const resolvedMeasure = this._myDataSource.metadata.mainStructureMembers[key];
+        if (!resolvedMeasure) {
+          console.warn(`Measure key '${key}' could not be resolved.`);
+          return { id: key, description: key }; // Fallback
+        }
+        return {
+          id: resolvedMeasure.id,
+          description: resolvedMeasure.description || resolvedMeasure.id,
+        };
+      });
+
+      console.log("Resolved Measures Metadata:", measures);
+      return measures;
+    }
 
     addEditableListeners(dimensions, measures) {
       const cells = this._root.querySelectorAll('td[contenteditable="true"]');

@@ -23,11 +23,9 @@
       this._props = {
         dataRefreshMode: "AlwaysRefresh"
       };
-      console.log("Default Properties:", this._props);
     }
 
     connectedCallback() {
-      console.log("Widget Connected to DOM");
       this.render();
     }
 
@@ -37,8 +35,6 @@
     }
 
     render() {
-      console.log("Rendering Widget with Properties:", this._props);
-
       // Check if the data source is bound
       if (!this._myDataSource) {
         this._root.innerHTML = `<p>Widget is initializing...</p>`;
@@ -51,8 +47,6 @@
         this._root.innerHTML = `<p>Loading data...</p>`;
         return;
       }
-
-      console.log("Data source ready. Rendering table.");
 
       // Extract dimensions and measures
       const dimensions = this._myDataSource.metadata.feeds.dimensions.values;

@@ -38,32 +38,15 @@
     render() {
       console.log("Rendering Widget");
 
-      console.log("Full Data Source Object:", this._myDataSource);
-      console.log("Metadata:", this._myDataSource?.metadata);
-      console.log("Planning Properties:");
-      console.log("isPlanningEnabled:", this._myDataSource.isPlanningEnabled);
-      console.log("pushPlanningData Exists:", typeof this._myDataSource.pushPlanningData === "function");
-
-      console.log("Complete Data Source Object:", JSON.stringify(this._myDataSource, null, 2));
-      console.log("Full Metadata Details:", this._myDataSource?.metadata);
-      console.log("Is Planning Enabled:", this._myDataSource?.isPlanningEnabled);
-      console.log("Available Methods:", Object.keys(this._myDataSource || {}));
-
-
-      // Check if the data source is bound
       if (!this._myDataSource) {
         this._root.innerHTML = `<p>Widget is initializing...</p>`;
         return;
       }
 
-      // Check the state of the data source
       if (this._myDataSource.state !== "success") {
-        console.log("Data source not ready. Rendering loading state.");
         this._root.innerHTML = `<p>Loading data...</p>`;
         return;
       }
-
-      console.log("Data source ready. Rendering table.");
 
       // Resolve dimensions and measures
       const dimensions = this.resolveDimensionMetadata();
@@ -74,19 +57,16 @@
         return;
       }
 
-      console.log("Resolved Dimensions:", dimensions);
-      console.log("Resolved Measures:", measures);
-
       const dimensionHeaders = dimensions.map((dim) => dim.description || dim.id);
       const measureHeaders = measures.map((measure) => measure.description || measure.id);
 
       const tableData = this._myDataSource.data.map((row) => {
         const rowData = {};
         dimensions.forEach((dim) => {
-          rowData[dim.id] = row[dim.key]?.label || "N/A"; // Use resolved key for dimensions
+          rowData[dim.id] = row[dim.key]?.label || "N/A";
         });
         measures.forEach((measure) => {
-          rowData[measure.id] = row[measure.key]?.raw || "N/A"; // Use resolved key for measures
+          rowData[measure.id] = row[measure.key]?.raw || "N/A";
         });
         return rowData;
       });
@@ -127,11 +107,6 @@
 
       // Add event listeners for editable cells
       this.addEditableListeners(dimensions, measures);
-
-      console.log("Full Data Source Object:", this._myDataSource);
-      console.log("Metadata:", this._myDataSource?.metadata);
-      console.log("State:", this._myDataSource?.state);      
-      
     }
 
     resolveDimensionMetadata() {
@@ -145,7 +120,7 @@
         const resolvedDimension = this._myDataSource.metadata.dimensions[key];
         if (!resolvedDimension) {
           console.warn(`Dimension key '${key}' could not be resolved.`);
-          return { id: key, key }; // Fallback
+          return { id: key, key };
         }
         return {
           id: resolvedDimension.id,
@@ -154,7 +129,6 @@
         };
       });
 
-      console.log("Resolved Dimensions Metadata:", dimensions);
       return dimensions;
     }
 
@@ -169,7 +143,7 @@
         const resolvedMeasure = this._myDataSource.metadata.mainStructureMembers[key];
         if (!resolvedMeasure) {
           console.warn(`Measure key '${key}' could not be resolved.`);
-          return { id: key, key, description: key }; // Fallback
+          return { id: key, key, description: key };
         }
         return {
           id: resolvedMeasure.id,
@@ -178,7 +152,6 @@
         };
       });
 
-      console.log("Resolved Measures Metadata:", measures);
       return measures;
     }
 
@@ -194,56 +167,41 @@
             `Updating measure '${measureId}' for row ${rowIndex} with value: ${newValue}`
           );
 
-          // Push updated value to SAC model
           this.pushDataToModel(rowIndex, measureId, newValue, dimensions);
         });
       });
     }
 
+    pushDataToModel(rowIndex, measureId, newValue, dimensions) {
+      if (!this._myDataSource || !this._myDataSource.isPlanningEnabled) {
+        console.error("Planning is not enabled or data source is not bound.");
+        return;
+      }
 
+      const dimensionValues = dimensions.map((dim) => ({
+        dimension: dim.id,
+        value: this._myDataSource.data[rowIndex][dim.key]?.id || null,
+      }));
 
-pushDataToModel(rowIndex, measureId, newValue, dimensions) {
-  if (!this._myDataSource) {
-    console.error("Data source is not bound. Cannot push data.");
-    return;
-  }
+      const planningPayload = {
+        measure: measureId,
+        value: newValue,
+        dimensionValues,
+      };
 
-  console.log("Attempting Fallback Planning API:");
-
-  const dimensionValues = dimensions.map((dim) => ({
-    dimension: dim.id,
-    value: this._myDataSource.data[rowIndex][dim.key]?.id || null,
-  }));
-
-  const planningPayload = {
-    measure: measureId,
-    value: newValue,
-    dimensionValues,
-  };
-
-  console.log("Fallback Planning Payload:", planningPayload);
-
-  // Example of a manual API push
-  this._myDataSource
-    .updatePlanningData(planningPayload)
-    .then(() => {
-      console.log("Fallback: Planning data pushed successfully.");
-      this.refreshDataSource();
-    })
-    .catch((error) => {
-      console.error("Fallback: Error pushing planning data:", error);
-    });
-}
-
-
-
-
-
-    
-
-
-
-
+      this._myDataSource
+        .updatePlanningData(planningPayload)
+        .then(() => {
+          console.log("Planning data pushed successfully.");
+          this._myDataSource.submitPlanningData().then(() => {
+            console.log("Planning data submitted successfully.");
+            this.refreshDataSource();
+          });
+        })
+        .catch((error) => {
+          console.error("Error pushing planning data:", error);
+        });
+    }
 
     refreshDataSource() {
       this._myDataSource

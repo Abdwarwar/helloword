@@ -196,6 +196,10 @@ pushDataToModel(rowIndex, measureId, newValue, dimensions) {
     return;
   }
 
+  console.log("Available Methods:", Object.keys(this._myDataSource));
+  console.log("isPlanningEnabled:", this._myDataSource.isPlanningEnabled);
+  console.log("pushPlanningData Function Exists:", typeof this._myDataSource.pushPlanningData === "function");
+
   // Log the entire data source object for debugging
   console.log("Data Source Debugging:", this._myDataSource);
 
@@ -241,9 +245,7 @@ pushDataToModel(rowIndex, measureId, newValue, dimensions) {
       console.error("Error pushing planning data to SAC model:", error);
     });
 
-  console.log("Available Methods:", Object.keys(this._myDataSource));
-console.log("isPlanningEnabled:", this._myDataSource.isPlanningEnabled);
-console.log("pushPlanningData Function Exists:", typeof this._myDataSource.pushPlanningData === "function");
+
 
 }
 

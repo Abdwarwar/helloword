@@ -115,6 +115,11 @@
 
       // Add event listeners for editable cells
       this.addEditableListeners(dimensions, measures);
+
+      console.log("Full Data Source Object:", this._myDataSource);
+      console.log("Metadata:", this._myDataSource?.metadata);
+      console.log("State:", this._myDataSource?.state);      
+      
     }
 
     resolveDimensionMetadata() {
@@ -191,15 +196,8 @@ pushDataToModel(rowIndex, measureId, newValue, dimensions) {
     return;
   }
 
-  console.log("Data Source Properties:", {
-    isPlanningEnabled: this._myDataSource.isPlanningEnabled,
-    availableMethods: Object.keys(this._myDataSource),
-  });
-
-  if (!this._myDataSource.isPlanningEnabled) {
-    console.warn("Planning is not recognized as enabled. Ensure the model supports planning.");
-    return;
-  }
+  // Log the entire data source object for debugging
+  console.log("Data Source Debugging:", this._myDataSource);
 
   if (typeof this._myDataSource.pushPlanningData !== "function") {
     console.error("The 'pushPlanningData' method is not available on the data source.");
@@ -230,7 +228,7 @@ pushDataToModel(rowIndex, measureId, newValue, dimensions) {
     dimensionValues,
   };
 
-  console.log("Pushing Planning Data:", updatedData);
+  console.log("Attempting to Push Planning Data:", updatedData);
 
   // Push planning data to SAC model
   this._myDataSource
@@ -243,6 +241,10 @@ pushDataToModel(rowIndex, measureId, newValue, dimensions) {
       console.error("Error pushing planning data to SAC model:", error);
     });
 }
+
+
+
+    
 
 
 

@@ -26,46 +26,60 @@
       this.render();
     }
 
-    render() {
-      if (!this._dataBinding || this._dataBinding.state !== "success") {
-        this._root.innerHTML = `<p>Loading data or data binding not ready...</p>`;
-        return;
-      }
+render() {
+  if (!this._dataBinding) {
+    this._root.innerHTML = `<p>Widget is initializing...</p>`;
+    console.log("Data binding is not set.");
+    return;
+  }
 
-      // Check if planning is enabled
-      if (!this._dataBinding.isPlanningEnabled) {
-        this._root.innerHTML = `<p>Planning is not enabled for this data source.</p>`;
-        return;
-      }
+  console.log("Data Binding Object:", this._dataBinding);
+  console.log("Planning Enabled:", this._dataBinding.isPlanningEnabled);
+  console.log("Data Binding State:", this._dataBinding.state);
 
-      const dimensions = this.getDimensions();
-      const measures = this.getMeasures();
+  if (this._dataBinding.state !== "success") {
+    this._root.innerHTML = `<p>Loading data...</p>`;
+    return;
+  }
 
-      const table = document.createElement("table");
-      table.innerHTML = `
-        <thead>
-          <tr>
-            ${dimensions.map((dim) => `<th>${dim.id}</th>`).join("")}
-            ${measures.map((measure) => `<th>${measure.id}</th>`).join("")}
-          </tr>
-        </thead>
-        <tbody>
-          ${this._dataBinding.data.map((row, rowIndex) => `
-            <tr>
-              ${dimensions.map((dim) => `<td>${row[dim.id]?.label || ""}</td>`).join("")}
-              ${measures.map((measure) => `
-                <td contenteditable="true" data-row="${rowIndex}" data-measure="${measure.id}">
-                  ${row[measure.id]?.raw || ""}
-                </td>`).join("")}
-            </tr>
-          `).join("")}
-        </tbody>
-      `;
-      this._root.innerHTML = "";
-      this._root.appendChild(table);
+  if (!this._dataBinding.isPlanningEnabled) {
+    this._root.innerHTML = `<p>Planning is not enabled for this data source.</p>`;
+    console.log("Planning is disabled. Data binding details:", this._dataBinding);
+    return;
+  }
 
-      this.addPlanningListeners(dimensions, measures);
-    }
+  const dimensions = this.getDimensions();
+  const measures = this.getMeasures();
+
+  console.log("Dimensions:", dimensions);
+  console.log("Measures:", measures);
+
+  const table = document.createElement("table");
+  table.innerHTML = `
+    <thead>
+      <tr>
+        ${dimensions.map((dim) => `<th>${dim.id}</th>`).join("")}
+        ${measures.map((measure) => `<th>${measure.id}</th>`).join("")}
+      </tr>
+    </thead>
+    <tbody>
+      ${this._dataBinding.data.map((row, rowIndex) => `
+        <tr>
+          ${dimensions.map((dim) => `<td>${row[dim.id]?.label || ""}</td>`).join("")}
+          ${measures.map((measure) => `
+            <td contenteditable="true" data-row="${rowIndex}" data-measure="${measure.id}">
+              ${row[measure.id]?.raw || ""}
+            </td>`).join("")}
+        </tr>
+      `).join("")}
+    </tbody>
+  `;
+  this._root.innerHTML = "";
+  this._root.appendChild(table);
+
+  this.addPlanningListeners(dimensions, measures);
+}
+
 
     getDimensions() {
       return this._dataBinding.metadata.feeds.dimensions.values.map((dimKey) => ({

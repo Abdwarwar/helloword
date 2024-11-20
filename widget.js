@@ -214,7 +214,117 @@
           console.error("Error refreshing data source:", error);
         });
     }
+
+     // Open Model Dialog
+    openSelectModelDialog() {
+      if (this._dataBinding) {
+        this._dataBinding.openSelectModelDialog();
+      } else {
+        console.error("Data binding is not set. Cannot open model dialog.");
+      }
+    }
+
+    // Get Dimensions
+    getDimensions() {
+      if (!this._dataBinding) {
+        console.error("Data binding is not set.");
+        return [];
+      }
+
+      return this._dataBinding.metadata.feeds.dimensions.values.map((dimKey) => ({
+        id: dimKey,
+        ...this._dataBinding.metadata.dimensions[dimKey]
+      }));
+    }
+
+    // Get Measures
+    getMeasures() {
+      if (!this._dataBinding) {
+        console.error("Data binding is not set.");
+        return [];
+      }
+
+      return this._dataBinding.metadata.feeds.measures.values.map((measureKey) => ({
+        id: measureKey,
+        ...this._dataBinding.metadata.mainStructureMembers[measureKey]
+      }));
+    }
+
+    // Add Dimension
+    addDimension(dimensionId) {
+      console.log(`Adding dimension: ${dimensionId}`);
+      // Logic to add dimension if needed
+    }
+
+    // Add Measure
+    addMeasure(measureId) {
+      console.log(`Adding measure: ${measureId}`);
+      // Logic to add measure if needed
+    }
+
+    // Remove Dimension
+    removeDimension(dimensionId) {
+      console.log(`Removing dimension: ${dimensionId}`);
+      // Logic to remove dimension if needed
+    }
+
+    // Remove Measure
+    removeMeasure(measureId) {
+      console.log(`Removing measure: ${measureId}`);
+      // Logic to remove measure if needed
+    }
+
+    // Get Dimensions on Feed
+    getDimensionsOnFeed() {
+      if (!this._dataBinding) {
+        console.error("Data binding is not set.");
+        return [];
+      }
+
+      return this._dataBinding.metadata.feeds.dimensions.values;
+    }
+
+    // Get Measures on Feed
+    getMeasuresOnFeed() {
+      if (!this._dataBinding) {
+        console.error("Data binding is not set.");
+        return [];
+      }
+
+      return this._dataBinding.metadata.feeds.measures.values;
+    }
+
+    // Get Data Source
+    getDataSource() {
+      if (!this._dataBinding) {
+        console.error("Data binding is not set.");
+        return null;
+      }
+
+      return this._dataBinding.getDataSource();
+    }
+
+    // Set Model
+    setModel(modelId) {
+      if (this._dataBinding) {
+        this._dataBinding.setModel(modelId);
+        console.log(`Model set to: ${modelId}`);
+      } else {
+        console.error("Data binding is not set. Cannot set model.");
+      }
+    }
   }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);
 })();
+
+
+
+
+
+
+
+
+
+
+

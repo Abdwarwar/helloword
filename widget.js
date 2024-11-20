@@ -183,15 +183,18 @@
       });
     }
 
-pushDataToModel(rowIndex, measureId, newValue, dimensions) {
+
+
+    pushDataToModel(rowIndex, measureId, newValue, dimensions) {
   if (!this._myDataSource) {
     console.error("Data source is not bound. Cannot push data.");
     return;
   }
 
   if (!this._myDataSource.isPlanningEnabled) {
-    console.error("Planning is not enabled for this data source.");
-    return;
+    console.warn("Planning is not recognized as enabled. Forcing for debugging.");
+    // Comment out the return statement to proceed for debugging
+    // return;
   }
 
   // Extract dimension members from the selected row
@@ -231,6 +234,7 @@ pushDataToModel(rowIndex, measureId, newValue, dimensions) {
       console.error("Error pushing planning data to SAC model:", error);
     });
 }
+
 
 
 

@@ -6,6 +6,7 @@
       th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
       th { background-color: #f4f4f4; }
       tr:nth-child(even) { background-color: #f9f9f9; }
+      tr.selected { background-color: #ffeb3b; }
     </style>
     <div id="root" style="width: 100%; height: 100%; overflow: auto;"></div>
   `;
@@ -28,115 +29,87 @@
     }
 
     render() {
-      if (!this._myDataSource) {
-        this._root.innerHTML = `<p>Widget is initializing...</p>`;
-        return;
-      }
-
-      if (this._myDataSource.state !== "success") {
+      if (!this._myDataSource || this._myDataSource.state !== "success") {
         this._root.innerHTML = `<p>Loading data...</p>`;
         return;
       }
 
-      // Resolve dimensions and measures
       const dimensions = this.resolveDimensionMetadata();
       const measures = this.resolveMeasureMetadata();
 
       if (dimensions.length === 0 || measures.length === 0) {
-        this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
+        this._root.innerHTML = `<p>Please configure dimensions and measures.</p>`;
         return;
       }
 
-      const dimensionHeaders = dimensions.map((dim) => dim.description || dim.id);
-      const measureHeaders = measures.map((measure) => measure.description || measure.id);
+      const table = this.createTable(dimensions, measures);
+      this._root.innerHTML = "";
+      this._root.appendChild(table);
+      this.addRowSelectionListener();
+    }
 
-      const tableData = this._myDataSource.data.map((row) => {
-        const rowData = {};
-        dimensions.forEach((dim) => {
-          rowData[dim.id] = row[dim.key]?.label || "N/A";
-        });
-        measures.forEach((measure) => {
-          rowData[measure.id] = row[measure.key]?.raw || "N/A";
-        });
-        return rowData;
-      });
+    resolveDimensionMetadata() {
+      const dimensionKeys = this._myDataSource.metadata.feeds.dimensions.values;
+      return dimensionKeys.map((key) => ({
+        id: key,
+        key,
+        description: this._myDataSource.metadata.dimensions[key]?.description || key,
+      }));
+    }
 
-      if (tableData.length === 0) {
-        this._root.innerHTML = `<p>No data available to display.</p>`;
-        return;
-      }
+    resolveMeasureMetadata() {
+      const measureKeys = this._myDataSource.metadata.feeds.measures.values;
+      return measureKeys.map((key) => ({
+        id: key,
+        key,
+        description: this._myDataSource.metadata.mainStructureMembers[key]?.description || key,
+      }));
+    }
 
+    createTable(dimensions, measures) {
       const table = document.createElement("table");
-
-      const headerRow = `
-        <tr>${dimensionHeaders.map((dim) => `<th>${dim}</th>`).join("")}
-        ${measureHeaders.map((measure) => `<th>${measure}</th>`).join("")}</tr>
+      const headers = `
+        <thead>
+          <tr>
+            ${dimensions.map((dim) => `<th>${dim.description}</th>`).join("")}
+            ${measures.map((measure) => `<th>${measure.description}</th>`).join("")}
+          </tr>
+        </thead>
       `;
-
-      table.innerHTML = `
-        <thead>${headerRow}</thead>
+      const body = `
         <tbody>
-          ${tableData
+          ${this._myDataSource.data
             .map(
               (row) =>
                 `<tr>${dimensions
-                  .map((dim) => `<td>${row[dim.id]}</td>`)
+                  .map((dim) => `<td>${row[dim.key]?.label || "N/A"}</td>`)
                   .join("")}${measures
-                  .map((measure) => `<td>${row[measure.id]}</td>`)
+                  .map((measure) => `<td>${row[measure.key]?.raw || "0"}</td>`)
                   .join("")}</tr>`
             )
             .join("")}
         </tbody>
       `;
-
-      this._root.innerHTML = "";
-      this._root.appendChild(table);
+      table.innerHTML = headers + body;
+      return table;
     }
 
-    resolveDimensionMetadata() {
-      if (!this._myDataSource || !this._myDataSource.metadata) {
-        console.error("Metadata is not available.");
-        return [];
-      }
+    addRowSelectionListener() {
+      const rows = this._root.querySelectorAll("tbody tr");
+      rows.forEach((row, rowIndex) => {
+        row.addEventListener("click", () => {
+          console.log("Row selected:", rowIndex);
+          const selectedRowData = this._myDataSource.data[rowIndex];
+          console.log("Selected Row Data:", selectedRowData);
 
-      const dimensionKeys = this._myDataSource.metadata.feeds.dimensions.values;
-      const dimensions = dimensionKeys.map((key) => {
-        const resolvedDimension = this._myDataSource.metadata.dimensions[key];
-        if (!resolvedDimension) {
-          console.warn(`Dimension key '${key}' could not be resolved.`);
-          return { id: key, key };
-        }
-        return {
-          id: resolvedDimension.id,
-          key,
-          description: resolvedDimension.description || resolvedDimension.id,
-        };
+          const dimensions = this.resolveDimensionMetadata();
+          const selectedDimensions = dimensions.map((dim) => ({
+            id: dim.id,
+            value: selectedRowData[dim.key]?.label || null,
+          }));
+          console.log("Selected Dimensions:", selectedDimensions);
+        });
       });
-
-      return dimensions;
-    }
-
-    resolveMeasureMetadata() {
-      if (!this._myDataSource || !this._myDataSource.metadata) {
-        console.error("Metadata is not available.");
-        return [];
-      }
-
-      const measureKeys = this._myDataSource.metadata.feeds.measures.values;
-      const measures = measureKeys.map((key) => {
-        const resolvedMeasure = this._myDataSource.metadata.mainStructureMembers[key];
-        if (!resolvedMeasure) {
-          console.warn(`Measure key '${key}' could not be resolved.`);
-          return { id: key, key, description: key };
-        }
-        return {
-          id: resolvedMeasure.id,
-          key,
-          description: resolvedMeasure.description || resolvedMeasure.id,
-        };
-      });
-
-      return measures;
     }
   }
 

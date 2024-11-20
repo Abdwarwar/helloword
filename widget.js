@@ -38,6 +38,13 @@
     render() {
       console.log("Rendering Widget");
 
+      console.log("Full Data Source Object:", this._myDataSource);
+      console.log("Metadata:", this._myDataSource?.metadata);
+      console.log("Planning Properties:");
+      console.log("isPlanningEnabled:", this._myDataSource.isPlanningEnabled);
+      console.log("pushPlanningData Exists:", typeof this._myDataSource.pushPlanningData === "function");
+
+
       // Check if the data source is bound
       if (!this._myDataSource) {
         this._root.innerHTML = `<p>Widget is initializing...</p>`;
@@ -196,35 +203,20 @@ pushDataToModel(rowIndex, measureId, newValue, dimensions) {
     return;
   }
 
-  console.log("Available Methods:", Object.keys(this._myDataSource));
+  // Check if the data source supports planning
+  console.log("Planning Capabilities:");
   console.log("isPlanningEnabled:", this._myDataSource.isPlanningEnabled);
-  console.log("pushPlanningData Function Exists:", typeof this._myDataSource.pushPlanningData === "function");
-
-  // Log the entire data source object for debugging
-  console.log("Data Source Debugging:", this._myDataSource);
+  console.log("pushPlanningData Exists:", typeof this._myDataSource.pushPlanningData === "function");
 
   if (typeof this._myDataSource.pushPlanningData !== "function") {
-    console.error("The 'pushPlanningData' method is not available on the data source.");
+    console.error("Planning API 'pushPlanningData' is not available.");
     return;
   }
 
-  // Extract dimension members from the selected row
-  const dimensionValues = dimensions.map((dim) => {
-    const dimensionMember = this._myDataSource.data[rowIndex][dim.key];
-    return {
-      dimension: dim.id,
-      value: dimensionMember?.id || null, // Use the ID of the selected member
-    };
-  });
-
-  console.log("Resolved Dimension Values:", dimensionValues);
-
-  // Validate dimension values
-  const invalidDimensions = dimensionValues.filter((dim) => !dim.value);
-  if (invalidDimensions.length > 0) {
-    console.error("Invalid dimensions found:", invalidDimensions);
-    return;
-  }
+  const dimensionValues = dimensions.map((dim) => ({
+    dimension: dim.id,
+    value: this._myDataSource.data[rowIndex][dim.key]?.id || null,
+  }));
 
   const updatedData = {
     measure: measureId,
@@ -234,20 +226,17 @@ pushDataToModel(rowIndex, measureId, newValue, dimensions) {
 
   console.log("Attempting to Push Planning Data:", updatedData);
 
-  // Push planning data to SAC model
   this._myDataSource
     .pushPlanningData([updatedData])
     .then(() => {
-      console.log(`Successfully pushed planning data for row ${rowIndex}`);
+      console.log("Successfully pushed planning data.");
       this.refreshDataSource();
     })
     .catch((error) => {
-      console.error("Error pushing planning data to SAC model:", error);
+      console.error("Error pushing planning data:", error);
     });
-
-
-
 }
+
 
 
 

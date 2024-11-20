@@ -44,6 +44,11 @@
       console.log("isPlanningEnabled:", this._myDataSource.isPlanningEnabled);
       console.log("pushPlanningData Exists:", typeof this._myDataSource.pushPlanningData === "function");
 
+      console.log("Complete Data Source Object:", JSON.stringify(this._myDataSource, null, 2));
+      console.log("Full Metadata Details:", this._myDataSource?.metadata);
+      console.log("Is Planning Enabled:", this._myDataSource?.isPlanningEnabled);
+      console.log("Available Methods:", Object.keys(this._myDataSource || {}));
+
 
       // Check if the data source is bound
       if (!this._myDataSource) {
@@ -203,39 +208,33 @@ pushDataToModel(rowIndex, measureId, newValue, dimensions) {
     return;
   }
 
-  // Check if the data source supports planning
-  console.log("Planning Capabilities:");
-  console.log("isPlanningEnabled:", this._myDataSource.isPlanningEnabled);
-  console.log("pushPlanningData Exists:", typeof this._myDataSource.pushPlanningData === "function");
-
-  if (typeof this._myDataSource.pushPlanningData !== "function") {
-    console.error("Planning API 'pushPlanningData' is not available.");
-    return;
-  }
+  console.log("Attempting Fallback Planning API:");
 
   const dimensionValues = dimensions.map((dim) => ({
     dimension: dim.id,
     value: this._myDataSource.data[rowIndex][dim.key]?.id || null,
   }));
 
-  const updatedData = {
+  const planningPayload = {
     measure: measureId,
     value: newValue,
     dimensionValues,
   };
 
-  console.log("Attempting to Push Planning Data:", updatedData);
+  console.log("Fallback Planning Payload:", planningPayload);
 
+  // Example of a manual API push
   this._myDataSource
-    .pushPlanningData([updatedData])
+    .updatePlanningData(planningPayload)
     .then(() => {
-      console.log("Successfully pushed planning data.");
+      console.log("Fallback: Planning data pushed successfully.");
       this.refreshDataSource();
     })
     .catch((error) => {
-      console.error("Error pushing planning data:", error);
+      console.error("Fallback: Error pushing planning data:", error);
     });
 }
+
 
 
 

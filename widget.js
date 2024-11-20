@@ -6,8 +6,6 @@
       th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
       th { background-color: #f4f4f4; }
       tr:nth-child(even) { background-color: #f9f9f9; }
-      tr.selected { background-color: #ffeb3b; }
-      .button-cell button { padding: 5px 10px; cursor: pointer; }
     </style>
     <div id="root" style="width: 100%; height: 100%; overflow: auto;"></div>
   `;
@@ -18,26 +16,18 @@
       this._shadowRoot = this.attachShadow({ mode: "open" });
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
       this._root = this._shadowRoot.getElementById("root");
-
-      // Initialize default properties
-      this._props = {};
-      console.log("Widget initialized with default properties.");
     }
 
     connectedCallback() {
-      console.log("Widget Connected to DOM");
       this.render();
     }
 
     set myDataSource(dataBinding) {
       this._myDataSource = dataBinding;
-      console.log("Data source set:", this._myDataSource);
       this.render();
     }
 
     render() {
-      console.log("Rendering Widget");
-
       if (!this._myDataSource) {
         this._root.innerHTML = `<p>Widget is initializing...</p>`;
         return;
@@ -88,14 +78,11 @@
         <tbody>
           ${tableData
             .map(
-              (row, rowIndex) =>
+              (row) =>
                 `<tr>${dimensions
                   .map((dim) => `<td>${row[dim.id]}</td>`)
                   .join("")}${measures
-                  .map(
-                    (measure) =>
-                      `<td contenteditable="true" data-row="${rowIndex}" data-measure="${measure.id}">${row[measure.id]}</td>`
-                  )
+                  .map((measure) => `<td>${row[measure.id]}</td>`)
                   .join("")}</tr>`
             )
             .join("")}
@@ -104,9 +91,6 @@
 
       this._root.innerHTML = "";
       this._root.appendChild(table);
-
-      // Add event listeners for editable cells
-      this.addEditableListeners(dimensions, measures);
     }
 
     resolveDimensionMetadata() {
@@ -153,66 +137,6 @@
       });
 
       return measures;
-    }
-
-    addEditableListeners(dimensions, measures) {
-      const cells = this._root.querySelectorAll('td[contenteditable="true"]');
-      cells.forEach((cell) => {
-        cell.addEventListener("blur", (event) => {
-          const rowIndex = event.target.getAttribute("data-row");
-          const measureId = event.target.getAttribute("data-measure");
-          const newValue = parseFloat(event.target.textContent.trim());
-
-          console.log(
-            `Updating measure '${measureId}' for row ${rowIndex} with value: ${newValue}`
-          );
-
-          this.pushDataToModel(rowIndex, measureId, newValue, dimensions);
-        });
-      });
-    }
-
-    pushDataToModel(rowIndex, measureId, newValue, dimensions) {
-      if (!this._myDataSource || !this._myDataSource.isPlanningEnabled) {
-        console.error("Planning is not enabled or data source is not bound.");
-        return;
-      }
-
-      const dimensionValues = dimensions.map((dim) => ({
-        dimension: dim.id,
-        value: this._myDataSource.data[rowIndex][dim.key]?.id || null,
-      }));
-
-      const planningPayload = {
-        measure: measureId,
-        value: newValue,
-        dimensionValues,
-      };
-
-      this._myDataSource
-        .updatePlanningData(planningPayload)
-        .then(() => {
-          console.log("Planning data pushed successfully.");
-          this._myDataSource.submitPlanningData().then(() => {
-            console.log("Planning data submitted successfully.");
-            this.refreshDataSource();
-          });
-        })
-        .catch((error) => {
-          console.error("Error pushing planning data:", error);
-        });
-    }
-
-    refreshDataSource() {
-      this._myDataSource
-        .refresh()
-        .then(() => {
-          console.log("Data source refreshed successfully.");
-          this.render();
-        })
-        .catch((error) => {
-          console.error("Error refreshing data source:", error);
-        });
     }
   }
 

@@ -317,14 +317,3 @@
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);
 })();
-
-
-
-
-
-
-
-
-
-
-

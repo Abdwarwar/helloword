@@ -240,6 +240,11 @@ pushDataToModel(rowIndex, measureId, newValue, dimensions) {
     .catch((error) => {
       console.error("Error pushing planning data to SAC model:", error);
     });
+
+  console.log("Available Methods:", Object.keys(this._myDataSource));
+console.log("isPlanningEnabled:", this._myDataSource.isPlanningEnabled);
+console.log("pushPlanningData Function Exists:", typeof this._myDataSource.pushPlanningData === "function");
+
 }
 
 

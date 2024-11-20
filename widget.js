@@ -7,6 +7,7 @@
       th { background-color: #f4f4f4; }
       tr:nth-child(even) { background-color: #f9f9f9; }
       tr.selected { background-color: #ffeb3b; }
+      .button-cell button { padding: 5px 10px; cursor: pointer; }
     </style>
     <div id="root" style="width: 100%; height: 100%; overflow: auto;"></div>
   `;
@@ -17,98 +18,120 @@
       this._shadowRoot = this.attachShadow({ mode: "open" });
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
       this._root = this._shadowRoot.getElementById("root");
-    }
-
-    connectedCallback() {
-      this.render();
+      this._dataBinding = null; // Initialize the data binding
     }
 
     set myDataSource(dataBinding) {
-      this._myDataSource = dataBinding;
+      this._dataBinding = dataBinding;
       this.render();
     }
 
     render() {
-      if (!this._myDataSource || this._myDataSource.state !== "success") {
-        this._root.innerHTML = `<p>Loading data...</p>`;
+      if (!this._dataBinding || this._dataBinding.state !== "success") {
+        this._root.innerHTML = `<p>Loading data or data binding not ready...</p>`;
         return;
       }
 
-      const dimensions = this.resolveDimensionMetadata();
-      const measures = this.resolveMeasureMetadata();
-
-      if (dimensions.length === 0 || measures.length === 0) {
-        this._root.innerHTML = `<p>Please configure dimensions and measures.</p>`;
+      // Check if planning is enabled
+      if (!this._dataBinding.isPlanningEnabled) {
+        this._root.innerHTML = `<p>Planning is not enabled for this data source.</p>`;
         return;
       }
 
-      const table = this.createTable(dimensions, measures);
-      this._root.innerHTML = "";
-      this._root.appendChild(table);
-      this.addRowSelectionListener();
-    }
+      const dimensions = this.getDimensions();
+      const measures = this.getMeasures();
 
-    resolveDimensionMetadata() {
-      const dimensionKeys = this._myDataSource.metadata.feeds.dimensions.values;
-      return dimensionKeys.map((key) => ({
-        id: key,
-        key,
-        description: this._myDataSource.metadata.dimensions[key]?.description || key,
-      }));
-    }
-
-    resolveMeasureMetadata() {
-      const measureKeys = this._myDataSource.metadata.feeds.measures.values;
-      return measureKeys.map((key) => ({
-        id: key,
-        key,
-        description: this._myDataSource.metadata.mainStructureMembers[key]?.description || key,
-      }));
-    }
-
-    createTable(dimensions, measures) {
       const table = document.createElement("table");
-      const headers = `
+      table.innerHTML = `
         <thead>
           <tr>
-            ${dimensions.map((dim) => `<th>${dim.description}</th>`).join("")}
-            ${measures.map((measure) => `<th>${measure.description}</th>`).join("")}
+            ${dimensions.map((dim) => `<th>${dim.id}</th>`).join("")}
+            ${measures.map((measure) => `<th>${measure.id}</th>`).join("")}
           </tr>
         </thead>
-      `;
-      const body = `
         <tbody>
-          ${this._myDataSource.data
-            .map(
-              (row) =>
-                `<tr>${dimensions
-                  .map((dim) => `<td>${row[dim.key]?.label || "N/A"}</td>`)
-                  .join("")}${measures
-                  .map((measure) => `<td>${row[measure.key]?.raw || "0"}</td>`)
-                  .join("")}</tr>`
-            )
-            .join("")}
+          ${this._dataBinding.data.map((row, rowIndex) => `
+            <tr>
+              ${dimensions.map((dim) => `<td>${row[dim.id]?.label || ""}</td>`).join("")}
+              ${measures.map((measure) => `
+                <td contenteditable="true" data-row="${rowIndex}" data-measure="${measure.id}">
+                  ${row[measure.id]?.raw || ""}
+                </td>`).join("")}
+            </tr>
+          `).join("")}
         </tbody>
       `;
-      table.innerHTML = headers + body;
-      return table;
+      this._root.innerHTML = "";
+      this._root.appendChild(table);
+
+      this.addPlanningListeners(dimensions, measures);
     }
 
-    addRowSelectionListener() {
-      const rows = this._root.querySelectorAll("tbody tr");
-      rows.forEach((row, rowIndex) => {
-        row.addEventListener("click", () => {
-          console.log("Row selected:", rowIndex);
-          const selectedRowData = this._myDataSource.data[rowIndex];
-          console.log("Selected Row Data:", selectedRowData);
+    getDimensions() {
+      return this._dataBinding.metadata.feeds.dimensions.values.map((dimKey) => ({
+        id: dimKey,
+        ...this._dataBinding.metadata.dimensions[dimKey]
+      }));
+    }
 
-          const dimensions = this.resolveDimensionMetadata();
-          const selectedDimensions = dimensions.map((dim) => ({
-            id: dim.id,
-            value: selectedRowData[dim.key]?.label || null,
-          }));
-          console.log("Selected Dimensions:", selectedDimensions);
+    getMeasures() {
+      return this._dataBinding.metadata.feeds.measures.values.map((measureKey) => ({
+        id: measureKey,
+        ...this._dataBinding.metadata.mainStructureMembers[measureKey]
+      }));
+    }
+
+    addPlanningListeners(dimensions, measures) {
+      const cells = this._root.querySelectorAll('td[contenteditable="true"]');
+      cells.forEach((cell) => {
+        cell.addEventListener("blur", (event) => {
+          const rowIndex = event.target.getAttribute("data-row");
+          const measureId = event.target.getAttribute("data-measure");
+          const newValue = parseFloat(event.target.textContent.trim());
+
+          if (!isNaN(newValue)) {
+            this.pushPlanningData(rowIndex, measureId, newValue, dimensions);
+          }
         });
+      });
+    }
+
+    pushPlanningData(rowIndex, measureId, newValue, dimensions) {
+      if (!this._dataBinding) {
+        console.error("Data binding is not set.");
+        return;
+      }
+
+      const dimensionValues = dimensions.map((dim) => ({
+        dimension: dim.id,
+        value: this._dataBinding.data[rowIndex][dim.id]?.id || null,
+      }));
+
+      const payload = {
+        measure: measureId,
+        value: newValue,
+        dimensionValues,
+      };
+
+      this._dataBinding
+        .updatePlanningData(payload)
+        .then(() => {
+          console.log("Planning data updated successfully.");
+          return this._dataBinding.submitPlanningData();
+        })
+        .then(() => {
+          console.log("Planning data submitted successfully.");
+          this.refreshData();
+        })
+        .catch((error) => {
+          console.error("Error during planning:", error);
+        });
+    }
+
+    refreshData() {
+      this._dataBinding.refresh().then(() => {
+        console.log("Data refreshed successfully.");
+        this.render();
       });
     }
   }

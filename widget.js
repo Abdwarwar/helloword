@@ -194,11 +194,14 @@ pushDataToModel(rowIndex, measureId, newValue, dimensions) {
     return;
   }
 
-  // Use resolved dimension IDs for planning
-  const dimensionValues = dimensions.map((dim) => ({
-    dimension: dim.id,
-    value: this._myDataSource.data[rowIndex][dim.key]?.id || null,
-  }));
+  // Extract dimension members from the selected row
+  const dimensionValues = dimensions.map((dim) => {
+    const dimensionMember = this._myDataSource.data[rowIndex][dim.key];
+    return {
+      dimension: dim.id,
+      value: dimensionMember?.id || null, // Use the ID of the selected member
+    };
+  });
 
   console.log("Resolved Dimension Values:", dimensionValues);
 
@@ -217,6 +220,7 @@ pushDataToModel(rowIndex, measureId, newValue, dimensions) {
 
   console.log("Pushing Planning Data:", updatedData);
 
+  // Push planning data to SAC model
   this._myDataSource
     .pushPlanningData([updatedData])
     .then(() => {
@@ -227,6 +231,7 @@ pushDataToModel(rowIndex, measureId, newValue, dimensions) {
       console.error("Error pushing planning data to SAC model:", error);
     });
 }
+
 
 
     refreshDataSource() {

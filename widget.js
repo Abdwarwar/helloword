@@ -7,7 +7,6 @@
       th { background-color: #f4f4f4; }
       tr:nth-child(even) { background-color: #f9f9f9; }
       tr.selected { background-color: #ffeb3b; }
-      .button-cell button { padding: 5px 10px; cursor: pointer; }
     </style>
     <div id="root" style="width: 100%; height: 100%; overflow: auto;"></div>
   `;
@@ -18,28 +17,21 @@
       this._shadowRoot = this.attachShadow({ mode: "open" });
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
       this._root = this._shadowRoot.getElementById("root");
-      this._myDataSource = null; // Initialize the data source
+      this._selectedRows = new Set(); // Track selected rows
+      this._myDataSource = null;
     }
 
     connectedCallback() {
-      console.log("Widget Connected to DOM");
       this.render();
     }
 
-    // Bind Data Source
     set myDataSource(dataBinding) {
-      console.log("Data binding received:", dataBinding);
       this._myDataSource = dataBinding;
       this.render();
     }
 
     render() {
-      if (!this._myDataSource) {
-        this._root.innerHTML = `<p>Data source not yet initialized...</p>`;
-        return;
-      }
-
-      if (this._myDataSource.state !== "success") {
+      if (!this._myDataSource || this._myDataSource.state !== "success") {
         this._root.innerHTML = `<p>Loading data...</p>`;
         return;
       }
@@ -52,45 +44,34 @@
         return;
       }
 
-      const dimensionHeaders = dimensions.map((dim) => dim.description || dim.id);
-      const measureHeaders = measures.map((measure) => measure.description || measure.id);
-
-      const tableData = this._myDataSource.data.map((row) => {
-        const rowData = {};
-        dimensions.forEach((dim) => {
-          rowData[dim.id] = row[dim.key]?.label || "N/A";
-        });
-        measures.forEach((measure) => {
-          rowData[measure.id] = row[measure.key]?.raw || "N/A";
-        });
-        return rowData;
-      });
-
-      if (tableData.length === 0) {
-        this._root.innerHTML = `<p>No data available to display.</p>`;
-        return;
-      }
+      const tableData = this._myDataSource.data.map((row, index) => ({
+        index,
+        ...dimensions.reduce((acc, dim) => {
+          acc[dim.id] = row[dim.key]?.label || "N/A";
+          return acc;
+        }, {}),
+        ...measures.reduce((acc, measure) => {
+          acc[measure.id] = row[measure.key]?.raw || "N/A";
+          return acc;
+        }, {}),
+      }));
 
       const table = document.createElement("table");
       table.innerHTML = `
         <thead>
           <tr>
-            ${dimensionHeaders.map((dim) => `<th>${dim}</th>`).join("")}
-            ${measureHeaders.map((measure) => `<th>${measure}</th>`).join("")}
+            ${dimensions.map((dim) => `<th>${dim.description || dim.id}</th>`).join("")}
+            ${measures.map((measure) => `<th>${measure.description || measure.id}</th>`).join("")}
           </tr>
         </thead>
         <tbody>
           ${tableData
             .map(
-              (row, rowIndex) =>
-                `<tr>${dimensions
-                  .map((dim) => `<td>${row[dim.id]}</td>`)
-                  .join("")}${measures
-                  .map(
-                    (measure) =>
-                      `<td contenteditable="true" data-row="${rowIndex}" data-measure="${measure.id}">${row[measure.id]}</td>`
-                  )
-                  .join("")}</tr>`
+              (row) =>
+                `<tr data-row-index="${row.index}">
+                  ${dimensions.map((dim) => `<td>${row[dim.id]}</td>`).join("")}
+                  ${measures.map((measure) => `<td>${row[measure.id]}</td>`).join("")}
+                </tr>`
             )
             .join("")}
         </tbody>
@@ -99,103 +80,84 @@
       this._root.innerHTML = "";
       this._root.appendChild(table);
 
-      // Add event listeners for editable cells
-      this.addEditableListeners(dimensions, measures);
+      // Attach click event listeners for row selection
+      this.attachRowSelectionListeners();
     }
 
-    // Get Dimensions
+    attachRowSelectionListeners() {
+      const rows = this._root.querySelectorAll("tbody tr");
+      rows.forEach((row) => {
+        row.addEventListener("click", (event) => {
+          const rowIndex = event.currentTarget.getAttribute("data-row-index");
+          if (this._selectedRows.has(rowIndex)) {
+            this._selectedRows.delete(rowIndex);
+            event.currentTarget.classList.remove("selected");
+          } else {
+            this._selectedRows.add(rowIndex);
+            event.currentTarget.classList.add("selected");
+          }
+          console.log(`Selected rows:`, Array.from(this._selectedRows));
+        });
+      });
+    }
+
+    // Expose getDataSelections API
+    getDataSelections() {
+      if (!this._myDataSource) {
+        console.error("Data source is not bound.");
+        return [];
+      }
+
+      const dimensions = this.getDimensions();
+      const selectedData = Array.from(this._selectedRows).map((rowIndex) => {
+        const row = this._myDataSource.data[rowIndex];
+        const dataSelection = {};
+        dimensions.forEach((dim) => {
+          dataSelection[dim.id] = row[dim.key]?.id || null;
+        });
+        return dataSelection;
+      });
+
+      console.log("Data selections:", selectedData);
+      return selectedData;
+    }
+
+    // Implement getDataSource API
+    getDataSource() {
+      if (!this._myDataSource) {
+        console.error("Data source is not bound.");
+        return null;
+      }
+
+      // Return a structured data source object
+      return {
+        dimensions: this.getDimensions(),
+        measures: this.getMeasures(),
+        data: this._myDataSource.data,
+        state: this._myDataSource.state,
+      };
+    }
+
     getDimensions() {
       if (!this._myDataSource || !this._myDataSource.metadata) {
-        console.error("Data binding or metadata not available.");
         return [];
       }
-      const dimensionKeys = this._myDataSource.metadata.feeds.dimensions.values;
-      return dimensionKeys.map((key) => {
-        const dimension = this._myDataSource.metadata.dimensions[key];
-        return {
-          id: dimension.id,
-          key,
-          description: dimension.description || dimension.id,
-        };
-      });
+      return this._myDataSource.metadata.feeds.dimensions.values.map((key) => ({
+        id: key,
+        key,
+        description: this._myDataSource.metadata.dimensions[key]?.description || key,
+      }));
     }
 
-    // Get Measures
     getMeasures() {
       if (!this._myDataSource || !this._myDataSource.metadata) {
-        console.error("Data binding or metadata not available.");
         return [];
       }
-      const measureKeys = this._myDataSource.metadata.feeds.measures.values;
-      return measureKeys.map((key) => {
-        const measure = this._myDataSource.metadata.mainStructureMembers[key];
-        return {
-          id: measure.id,
-          key,
-          description: measure.description || measure.id,
-        };
-      });
-    }
-
-    // Add Editable Listeners for Cells
-    addEditableListeners(dimensions, measures) {
-      const cells = this._root.querySelectorAll('td[contenteditable="true"]');
-      cells.forEach((cell) => {
-        cell.addEventListener("blur", (event) => {
-          const rowIndex = event.target.getAttribute("data-row");
-          const measureId = event.target.getAttribute("data-measure");
-          const newValue = parseFloat(event.target.textContent.trim());
-          console.log(`Updating measure '${measureId}' for row ${rowIndex} with value: ${newValue}`);
-          // Push updated value to the model
-          this.pushDataToModel(rowIndex, measureId, newValue, dimensions);
-        });
-      });
-    }
-
-    // Push Data to Model
-    pushDataToModel(rowIndex, measureId, newValue, dimensions) {
-      if (!this._myDataSource || !this._myDataSource.isPlanningEnabled) {
-        console.error("Planning is not enabled or data source is not bound.");
-        return;
-      }
-
-      const dimensionValues = dimensions.map((dim) => ({
-        dimension: dim.id,
-        value: this._myDataSource.data[rowIndex][dim.key]?.id || null,
+      return this._myDataSource.metadata.feeds.measures.values.map((key) => ({
+        id: key,
+        key,
+        description: this._myDataSource.metadata.mainStructureMembers[key]?.description || key,
       }));
-
-      const planningPayload = {
-        measure: measureId,
-        value: newValue,
-        dimensionValues,
-      };
-
-      this._myDataSource
-        .updatePlanningData(planningPayload)
-        .then(() => {
-          console.log("Planning data pushed successfully.");
-          this._myDataSource.submitPlanningData().then(() => {
-            console.log("Planning data submitted successfully.");
-            this.refreshDataSource();
-          });
-        })
-        .catch((error) => {
-          console.error("Error pushing planning data:", error);
-        });
-    }
-
-    // Refresh Data Source
-    refreshDataSource() {
-      if (!this._myDataSource) return;
-      this._myDataSource
-        .refresh()
-        .then(() => {
-          console.log("Data source refreshed successfully.");
-          this.render();
-        })
-        .catch((error) => {
-          console.error("Error refreshing data source:", error);
-        });
     }
   }
 

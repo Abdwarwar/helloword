@@ -97,8 +97,20 @@
             event.currentTarget.classList.add("selected");
           }
           console.log(`Selected rows:`, Array.from(this._selectedRows));
+
+          // Fire the onSelect event
+          this.fireOnSelectEvent();
         });
       });
+    }
+
+    fireOnSelectEvent() {
+      const event = new CustomEvent("onSelect", {
+        detail: {
+          selectedRows: Array.from(this._selectedRows),
+        },
+      });
+      this.dispatchEvent(event);
     }
 
     // Expose getDataSelections API
@@ -120,22 +132,6 @@
 
       console.log("Data selections:", selectedData);
       return selectedData;
-    }
-
-    // Implement getDataSource API
-    getDataSource() {
-      if (!this._myDataSource) {
-        console.error("Data source is not bound.");
-        return null;
-      }
-
-      // Return a structured data source object
-      return {
-        dimensions: this.getDimensions(),
-        measures: this.getMeasures(),
-        data: this._myDataSource.data,
-        state: this._myDataSource.state,
-      };
     }
 
     getDimensions() {

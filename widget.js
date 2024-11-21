@@ -155,6 +155,9 @@
         description: this._myDataSource.metadata.mainStructureMembers[key]?.description || key,
       }));
     }
+      getSelections() {
+    return this.selectedRows.map((index) => this._myDataSource.data[index]);
+  }
   }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

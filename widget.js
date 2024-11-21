@@ -18,10 +18,7 @@
       this._shadowRoot = this.attachShadow({ mode: "open" });
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
       this._root = this._shadowRoot.getElementById("root");
-
-      // Initialize default properties
-      this._props = {};
-      console.log("Widget initialized with default properties.");
+      this._myDataSource = null; // Initialize the data source
     }
 
     connectedCallback() {
@@ -29,17 +26,16 @@
       this.render();
     }
 
+    // Bind Data Source
     set myDataSource(dataBinding) {
+      console.log("Data binding received:", dataBinding);
       this._myDataSource = dataBinding;
-      console.log("Data source set:", this._myDataSource);
       this.render();
     }
 
     render() {
-      console.log("Rendering Widget");
-
       if (!this._myDataSource) {
-        this._root.innerHTML = `<p>Widget is initializing...</p>`;
+        this._root.innerHTML = `<p>Data source not yet initialized...</p>`;
         return;
       }
 
@@ -48,9 +44,8 @@
         return;
       }
 
-      // Resolve dimensions and measures
-      const dimensions = this.resolveDimensionMetadata();
-      const measures = this.resolveMeasureMetadata();
+      const dimensions = this.getDimensions();
+      const measures = this.getMeasures();
 
       if (dimensions.length === 0 || measures.length === 0) {
         this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
@@ -77,14 +72,13 @@
       }
 
       const table = document.createElement("table");
-
-      const headerRow = `
-        <tr>${dimensionHeaders.map((dim) => `<th>${dim}</th>`).join("")}
-        ${measureHeaders.map((measure) => `<th>${measure}</th>`).join("")}</tr>
-      `;
-
       table.innerHTML = `
-        <thead>${headerRow}</thead>
+        <thead>
+          <tr>
+            ${dimensionHeaders.map((dim) => `<th>${dim}</th>`).join("")}
+            ${measureHeaders.map((measure) => `<th>${measure}</th>`).join("")}
+          </tr>
+        </thead>
         <tbody>
           ${tableData
             .map(
@@ -109,52 +103,41 @@
       this.addEditableListeners(dimensions, measures);
     }
 
-    resolveDimensionMetadata() {
+    // Get Dimensions
+    getDimensions() {
       if (!this._myDataSource || !this._myDataSource.metadata) {
-        console.error("Metadata is not available.");
+        console.error("Data binding or metadata not available.");
         return [];
       }
-
       const dimensionKeys = this._myDataSource.metadata.feeds.dimensions.values;
-      const dimensions = dimensionKeys.map((key) => {
-        const resolvedDimension = this._myDataSource.metadata.dimensions[key];
-        if (!resolvedDimension) {
-          console.warn(`Dimension key '${key}' could not be resolved.`);
-          return { id: key, key };
-        }
+      return dimensionKeys.map((key) => {
+        const dimension = this._myDataSource.metadata.dimensions[key];
         return {
-          id: resolvedDimension.id,
+          id: dimension.id,
           key,
-          description: resolvedDimension.description || resolvedDimension.id,
+          description: dimension.description || dimension.id,
         };
       });
-
-      return dimensions;
     }
 
-    resolveMeasureMetadata() {
+    // Get Measures
+    getMeasures() {
       if (!this._myDataSource || !this._myDataSource.metadata) {
-        console.error("Metadata is not available.");
+        console.error("Data binding or metadata not available.");
         return [];
       }
-
       const measureKeys = this._myDataSource.metadata.feeds.measures.values;
-      const measures = measureKeys.map((key) => {
-        const resolvedMeasure = this._myDataSource.metadata.mainStructureMembers[key];
-        if (!resolvedMeasure) {
-          console.warn(`Measure key '${key}' could not be resolved.`);
-          return { id: key, key, description: key };
-        }
+      return measureKeys.map((key) => {
+        const measure = this._myDataSource.metadata.mainStructureMembers[key];
         return {
-          id: resolvedMeasure.id,
+          id: measure.id,
           key,
-          description: resolvedMeasure.description || resolvedMeasure.id,
+          description: measure.description || measure.id,
         };
       });
-
-      return measures;
     }
 
+    // Add Editable Listeners for Cells
     addEditableListeners(dimensions, measures) {
       const cells = this._root.querySelectorAll('td[contenteditable="true"]');
       cells.forEach((cell) => {
@@ -162,16 +145,14 @@
           const rowIndex = event.target.getAttribute("data-row");
           const measureId = event.target.getAttribute("data-measure");
           const newValue = parseFloat(event.target.textContent.trim());
-
-          console.log(
-            `Updating measure '${measureId}' for row ${rowIndex} with value: ${newValue}`
-          );
-
+          console.log(`Updating measure '${measureId}' for row ${rowIndex} with value: ${newValue}`);
+          // Push updated value to the model
           this.pushDataToModel(rowIndex, measureId, newValue, dimensions);
         });
       });
     }
 
+    // Push Data to Model
     pushDataToModel(rowIndex, measureId, newValue, dimensions) {
       if (!this._myDataSource || !this._myDataSource.isPlanningEnabled) {
         console.error("Planning is not enabled or data source is not bound.");
@@ -203,7 +184,9 @@
         });
     }
 
+    // Refresh Data Source
     refreshDataSource() {
+      if (!this._myDataSource) return;
       this._myDataSource
         .refresh()
         .then(() => {
@@ -213,105 +196,6 @@
         .catch((error) => {
           console.error("Error refreshing data source:", error);
         });
-    }
-
-     // Open Model Dialog
-    openSelectModelDialog() {
-      if (this._dataBinding) {
-        this._dataBinding.openSelectModelDialog();
-      } else {
-        console.error("Data binding is not set. Cannot open model dialog.");
-      }
-    }
-
-    // Get Dimensions
-    getDimensions() {
-      if (!this._dataBinding) {
-        console.error("Data binding is not set.");
-        return [];
-      }
-
-      return this._dataBinding.metadata.feeds.dimensions.values.map((dimKey) => ({
-        id: dimKey,
-        ...this._dataBinding.metadata.dimensions[dimKey]
-      }));
-    }
-
-    // Get Measures
-    getMeasures() {
-      if (!this._dataBinding) {
-        console.error("Data binding is not set.");
-        return [];
-      }
-
-      return this._dataBinding.metadata.feeds.measures.values.map((measureKey) => ({
-        id: measureKey,
-        ...this._dataBinding.metadata.mainStructureMembers[measureKey]
-      }));
-    }
-
-    // Add Dimension
-    addDimension(dimensionId) {
-      console.log(`Adding dimension: ${dimensionId}`);
-      // Logic to add dimension if needed
-    }
-
-    // Add Measure
-    addMeasure(measureId) {
-      console.log(`Adding measure: ${measureId}`);
-      // Logic to add measure if needed
-    }
-
-    // Remove Dimension
-    removeDimension(dimensionId) {
-      console.log(`Removing dimension: ${dimensionId}`);
-      // Logic to remove dimension if needed
-    }
-
-    // Remove Measure
-    removeMeasure(measureId) {
-      console.log(`Removing measure: ${measureId}`);
-      // Logic to remove measure if needed
-    }
-
-    // Get Dimensions on Feed
-    getDimensionsOnFeed() {
-      if (!this._dataBinding) {
-        console.error("Data binding is not set.");
-        return [];
-      }
-
-      return this._dataBinding.metadata.feeds.dimensions.values;
-    }
-
-    // Get Measures on Feed
-    getMeasuresOnFeed() {
-      if (!this._dataBinding) {
-        console.error("Data binding is not set.");
-        return [];
-      }
-
-      return this._dataBinding.metadata.feeds.measures.values;
-    }
-
-    // Get Data Source
-    getDataSource() {
-      if (!this._dataBinding) {
-        console.error("Data binding is not set.");
-        return null;
-      }
-
-      return this._dataBinding.getDataSource();
-    }
-
-    // Set Model
-    setModel(modelId) {
-      if (this._dataBinding) {
-        this._dataBinding.setModel(modelId);
-        console.log(`Model set to: ${modelId}`);
-      } else {
-        console.error("Data binding is not set. Cannot set model.");
-      }
     }
   }
 

@@ -113,25 +113,14 @@
       this.dispatchEvent(event);
     }
 
-    // Expose getDataSelections API
-    getDataSelections() {
-      if (!this._myDataSource) {
-        console.error("Data source is not bound.");
+    // Expose getSelections API
+    getSelections() {
+      try {
+        return Array.from(this._selectedRows); // Return selected row indices
+      } catch (error) {
+        console.error("Error in getSelections:", error);
         return [];
       }
-
-      const dimensions = this.getDimensions();
-      const selectedData = Array.from(this._selectedRows).map((rowIndex) => {
-        const row = this._myDataSource.data[rowIndex];
-        const dataSelection = {};
-        dimensions.forEach((dim) => {
-          dataSelection[dim.id] = row[dim.key]?.id || null;
-        });
-        return dataSelection;
-      });
-
-      console.log("Data selections:", selectedData);
-      return selectedData;
     }
 
     getDimensions() {
@@ -155,11 +144,27 @@
         description: this._myDataSource.metadata.mainStructureMembers[key]?.description || key,
       }));
     }
-getSelections() {
-      // Return selected row keys as an array of strings
-      return Array.from(this.selectedRows);
-    }
 
+    // Expose getDataSelections API
+    getDataSelections() {
+      if (!this._myDataSource) {
+        console.error("Data source is not bound.");
+        return [];
+      }
+
+      const dimensions = this.getDimensions();
+      const selectedData = Array.from(this._selectedRows).map((rowIndex) => {
+        const row = this._myDataSource.data[rowIndex];
+        const dataSelection = {};
+        dimensions.forEach((dim) => {
+          dataSelection[dim.id] = row[dim.key]?.id || null;
+        });
+        return dataSelection;
+      });
+
+      console.log("Data selections:", selectedData);
+      return selectedData;
+    }
   }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

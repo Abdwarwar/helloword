@@ -146,25 +146,49 @@
     }
 
     // Expose getDataSelections API
-    getDataSelections() {
-      if (!this._myDataSource) {
-        console.error("Data source is not bound.");
-        return [];
-      }
+getSelections() {
+  try {
+    if (!this._myDataSource || !this._myDataSource.data) {
+      console.error("Data source is not bound or data is unavailable.");
+      return [];
+    }
 
-      const dimensions = this.getDimensions();
-      const selectedData = Array.from(this._selectedRows).map((rowIndex) => {
-        const row = this._myDataSource.data[rowIndex];
-        const dataSelection = {};
-        dimensions.forEach((dim) => {
-          dataSelection[dim.id] = row[dim.key]?.id || null;
-        });
-        return dataSelection;
+    // Retrieve dimensions metadata
+    const dimensions = this.getDimensions();
+
+    // Retrieve selected rows' data
+    const selectedData = Array.from(this._selectedRows).map((rowIndex) => {
+      const row = this._myDataSource.data[rowIndex];
+      if (!row) return null;
+
+      const rowData = {};
+
+      // Add dimension data
+      dimensions.forEach((dim) => {
+        rowData[dim.id] = {
+          id: row[dim.key]?.id || null,
+          label: row[dim.key]?.label || "N/A",
+        };
       });
 
-      console.log("Data selections:", selectedData);
-      return selectedData;
-    }
+      // Add measure data
+      Object.keys(row).forEach((key) => {
+        if (!dimensions.some((dim) => dim.key === key)) {
+          rowData[key] = row[key]?.raw || row[key]?.value || null;
+        }
+      });
+
+      return rowData;
+    });
+
+    console.log("Selected data:", selectedData);
+    return selectedData;
+  } catch (error) {
+    console.error("Error in getSelections:", error);
+    return [];
+  }
+}
+
   }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

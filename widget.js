@@ -155,26 +155,10 @@
         description: this._myDataSource.metadata.mainStructureMembers[key]?.description || key,
       }));
     }
-_getSelections() {
-  if (!this._root) {
-    console.error("Root element is not available.");
-    return [];
-  }
-
-  const selectedRows = [];
-  const rows = this._root.querySelectorAll("tr.selected"); // Find rows with the 'selected' class.
-
-  rows.forEach((row) => {
-    const rowIndex = Array.from(row.parentElement.children).indexOf(row);
-    if (this._myDataSource && this._myDataSource.data[rowIndex]) {
-      // Convert the selected row's data to a string or fetch a unique identifier.
-      const uniqueIdentifier = JSON.stringify(this._myDataSource.data[rowIndex]);
-      selectedRows.push(uniqueIdentifier);
+getSelections() {
+      // Return selected row keys as an array of strings
+      return Array.from(this.selectedRows);
     }
-  });
-
-  return selectedRows; // Return as string[].
-}
 
   }
 

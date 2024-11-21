@@ -155,9 +155,27 @@
         description: this._myDataSource.metadata.mainStructureMembers[key]?.description || key,
       }));
     }
-      getSelections() {
-    return this.selectedRows.map((index) => this._myDataSource.data[index]);
+_getSelections() {
+  if (!this._root) {
+    console.error("Root element is not available.");
+    return [];
   }
+
+  const selectedRows = [];
+  const rows = this._root.querySelectorAll("tr.selected"); // Find rows with the 'selected' class.
+
+  rows.forEach((row) => {
+    const rowIndex = Array.from(row.parentElement.children).indexOf(row);
+    if (this._myDataSource && this._myDataSource.data[rowIndex]) {
+      // Convert the selected row's data to a string or fetch a unique identifier.
+      const uniqueIdentifier = JSON.stringify(this._myDataSource.data[rowIndex]);
+      selectedRows.push(uniqueIdentifier);
+    }
+  });
+
+  return selectedRows; // Return as string[].
+}
+
   }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

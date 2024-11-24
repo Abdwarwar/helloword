@@ -211,6 +211,46 @@ getMeasures() {
   return measures;
 }
 
+    getSelectedRow() {
+  try {
+    if (!this._myDataSource || !this._myDataSource.data) {
+      console.error("Data source is not bound or data is unavailable.");
+      return [];
+    }
+
+    // Retrieve selected rows' data
+    const selectedRows = Array.from(this._selectedRows).map((rowIndex) => {
+      const row = this._myDataSource.data[rowIndex];
+      if (!row) return null;
+
+      const rowData = {};
+      const dimensions = this.getDimensions();
+      const measures = this.getMeasures();
+
+      // Add dimension data
+      dimensions.forEach((dim) => {
+        rowData[dim.id] = {
+          id: row[dim.key]?.id || null,
+          label: row[dim.key]?.label || "N/A",
+        };
+      });
+
+      // Add measure data
+      measures.forEach((measure) => {
+        rowData[measure.id] = row[measure.key]?.raw || null;
+      });
+
+      return JSON.stringify(rowData); // Encode each row as a JSON string
+    }).filter((row) => row !== null); // Remove any null rows
+
+    console.log("Selected row data as JSON strings:", selectedRows);
+    return selectedRows;
+  } catch (error) {
+    console.error("Error in getSelectedRow:", error);
+    return [];
+  }
+}
+
   }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

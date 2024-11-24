@@ -299,7 +299,7 @@
       }
     }
 
-getEditedMeasureValues(measureId) {
+getMeasureValues(measureId) {
   try {
     if (!this._myDataSource || !this._myDataSource.data) {
       console.error("Data source is not bound or data is unavailable.");

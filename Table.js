@@ -299,14 +299,13 @@
       }
     }
 
-getMeasureValues(measureId) {
+getEditedMeasureValues(measureId) {
   try {
     if (!this._myDataSource || !this._myDataSource.data) {
       console.error("Data source is not bound or data is unavailable.");
       return [];
     }
 
-    // Validate measure ID
     const measures = this.getMeasures();
     const selectedMeasure = measures.find((measure) => measure.id === measureId);
 
@@ -317,32 +316,51 @@ getMeasureValues(measureId) {
 
     console.log("Selected Measure Metadata:", selectedMeasure);
 
-    // Retrieve selected rows' measure values as strings
-    const selectedValues = Array.from(this._selectedRows).map((rowIndex) => {
-      const row = this._myDataSource.data[rowIndex];
+    // Access the table rows and cells to retrieve edited values
+    const table = this._root.querySelector("table");
+    if (!table) {
+      console.error("Table element not found in the widget.");
+      return [];
+    }
+
+    const rows = Array.from(table.querySelectorAll("tbody tr"));
+    const editedValues = Array.from(this._selectedRows).map((rowIndex) => {
+      const row = rows[rowIndex];
       if (!row) {
-        console.warn(`Row at index '${rowIndex}' is undefined.`);
+        console.warn(`Row at index '${rowIndex}' is undefined in the DOM.`);
         return null;
       }
 
-      // Access measure value
-      const value = row[selectedMeasure.key]?.raw || row[selectedMeasure.key]?.value || null;
-      if (value === null) {
-        console.warn(`Measure '${measureId}' not found in row '${rowIndex}'.`, row);
+      // Find the cell corresponding to the measure
+      const measureIndex = measures.findIndex((measure) => measure.id === measureId);
+      if (measureIndex === -1) {
+        console.warn(`Measure '${measureId}' not found in table headers.`);
+        return null;
       }
-      return value !== null ? value.toString() : null;
+
+      const cell = row.cells[measureIndex + this.getDimensions().length]; // Adjust for dimension columns
+      if (!cell) {
+        console.warn(`Cell for measure '${measureId}' not found in row '${rowIndex}'.`);
+        return null;
+      }
+
+      const editedValue = cell.textContent.trim(); // Get the edited value
+      console.log(`Edited value for measure '${measureId}' in row '${rowIndex}':`, editedValue);
+
+      return editedValue || null;
     });
 
-    // Filter out null values
-    const filteredValues = selectedValues.filter((value) => value !== null);
+    // Filter out null or empty values
+    const filteredValues = editedValues.filter((value) => value !== null);
 
-    console.log(`Selected values for measure '${measureId}' as strings:`, filteredValues);
+    console.log(`Edited values for measure '${measureId}' as strings:`, filteredValues);
     return filteredValues;
   } catch (error) {
-    console.error("Error in getMeasureValues:", error);
+    console.error("Error in getEditedMeasureValues:", error);
     return [];
   }
 }
+
 
   }
 

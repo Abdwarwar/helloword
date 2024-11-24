@@ -299,38 +299,39 @@
       }
     }
 
-    getMeasureValues(measureId) {
-      try {
-        if (!this._myDataSource || !this._myDataSource.data) {
-          console.error("Data source is not bound or data is unavailable.");
-          return [];
-        }
-
-        // Validate measure ID
-        const measures = this.getMeasures();
-        const selectedMeasure = measures.find((measure) => measure.id === measureId);
-
-        if (!selectedMeasure) {
-          console.error(`Measure with ID '${measureId}' not found.`);
-          return [];
-        }
-
-        // Retrieve selected rows' measure values
-        const selectedValues = Array.from(this._selectedRows).map((rowIndex) => {
-          const row = this._myDataSource.data[rowIndex];
-          return row[measureId]?.raw || null;
-        });
-
-        // Filter out null values
-        const filteredValues = selectedValues.filter((value) => value !== null);
-
-        console.log(`Selected values for measure '${measureId}':`, filteredValues);
-        return filteredValues;
-      } catch (error) {
-        console.error("Error in getMeasureValues:", error);
-        return [];
-      }
+getMeasureValues(measureId) {
+  try {
+    if (!this._myDataSource || !this._myDataSource.data) {
+      console.error("Data source is not bound or data is unavailable.");
+      return [];
     }
+
+    // Validate measure ID
+    const measures = this.getMeasures();
+    const selectedMeasure = measures.find((measure) => measure.id === measureId);
+
+    if (!selectedMeasure) {
+      console.error(`Measure with ID '${measureId}' not found.`);
+      return [];
+    }
+
+    // Retrieve selected rows' measure values as strings
+    const selectedValues = Array.from(this._selectedRows).map((rowIndex) => {
+      const row = this._myDataSource.data[rowIndex];
+      const value = row[measureId]?.raw || null;
+      return value !== null ? value.toString() : null;
+    });
+
+    // Filter out null values
+    const filteredValues = selectedValues.filter((value) => value !== null);
+
+    console.log(`Selected values for measure '${measureId}' as strings:`, filteredValues);
+    return filteredValues;
+  } catch (error) {
+    console.error("Error in getMeasureValues:", error);
+    return [];
+  }
+}
   }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

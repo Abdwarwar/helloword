@@ -117,49 +117,48 @@
     }
 
     // Expose getSelections API
-    getSelections() {
-      try {
-        if (!this._myDataSource || !this._myDataSource.data) {
-          console.error("Data source is not bound or data is unavailable.");
-          return [];
-        }
-
-        // Retrieve dimensions metadata
-        const dimensions = this.getDimensions();
-
-        // Retrieve selected rows' data
-        const selectedData = Array.from(this._selectedRows).map((rowIndex) => {
-          const row = this._myDataSource.data[rowIndex];
-          if (!row) return null;
-
-          const rowData = {};
-
-          // Add dimension data
-          dimensions.forEach((dim) => {
-            rowData[dim.id] = {
-              id: row[dim.key]?.id || null,
-              label: row[dim.key]?.label || "N/A",
-            };
-          });
-
-          // Add measure data
-          Object.keys(row).forEach((key) => {
-            if (!dimensions.some((dim) => dim.key === key)) {
-              rowData[key] = row[key]?.id || row[key]?.value || null;
-            }
-          });
-
-          return rowData;
-        });
-
-        console.log("Selected data:", selectedData);
-        return selectedData;
-      } catch (error) {
-        console.error("Error in getSelections:", error);
-        return [];
-      }
+getSelections() {
+  try {
+    if (!this._myDataSource || !this._myDataSource.data) {
+      console.error("Data source is not bound or data is unavailable.");
+      return [];
     }
 
+    // Retrieve dimensions metadata
+    const dimensions = this.getDimensions();
+    const measures = this.getMeasures();
+
+    // Retrieve selected rows' data
+    const selectedData = Array.from(this._selectedRows).map((rowIndex) => {
+      const row = this._myDataSource.data[rowIndex];
+      if (!row) return null;
+
+      const rowData = {};
+
+      // Add dimension data
+      dimensions.forEach((dim) => {
+        rowData[dim.id] = {
+          id: row[dim.key]?.id || null,
+          label: row[dim.key]?.label || "N/A",
+        };
+      });
+
+      // Add measure data with resolved names
+      measures.forEach((measure) => {
+        rowData[measure.id] = row[measure.key]?.raw || row[measure.key]?.value || null;
+      });
+
+      return rowData;
+    });
+
+    console.log("Selected data:", selectedData);
+    return selectedData;
+  } catch (error) {
+    console.error("Error in getSelections:", error);
+    return [];
+  }
+}
+    
 getDimensions() {
   if (!this._myDataSource || !this._myDataSource.metadata) {
     console.error("Data source metadata is unavailable.");

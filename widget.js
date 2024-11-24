@@ -61,7 +61,7 @@
         <thead>
           <tr>
             ${dimensions.map((dim) => `<th>${dim.description || dim.id}</th>`).join("")}
-            ${measures.map((measure) => `<th>${measure.description || measure.id}</th>`).join("")}
+            ${measures.map((measure) => `<th>${measure.id || measure.description}</th>`).join("")}
           </tr>
         </thead>
         <tbody>
@@ -116,7 +116,41 @@
     // Expose getSelections API
     getSelections() {
       try {
-        return Array.from(this._selectedRows); // Return selected row indices
+        if (!this._myDataSource || !this._myDataSource.data) {
+          console.error("Data source is not bound or data is unavailable.");
+          return [];
+        }
+
+        // Retrieve dimensions metadata
+        const dimensions = this.getDimensions();
+
+        // Retrieve selected rows' data
+        const selectedData = Array.from(this._selectedRows).map((rowIndex) => {
+          const row = this._myDataSource.data[rowIndex];
+          if (!row) return null;
+
+          const rowData = {};
+
+          // Add dimension data
+          dimensions.forEach((dim) => {
+            rowData[dim.id] = {
+              id: row[dim.key]?.id || null,
+              label: row[dim.key]?.label || "N/A",
+            };
+          });
+
+          // Add measure data
+          Object.keys(row).forEach((key) => {
+            if (!dimensions.some((dim) => dim.key === key)) {
+              rowData[key] = row[key]?.raw || row[key]?.value || null;
+            }
+          });
+
+          return rowData;
+        });
+
+        console.log("Selected data:", selectedData);
+        return selectedData;
       } catch (error) {
         console.error("Error in getSelections:", error);
         return [];
@@ -144,51 +178,6 @@
         description: this._myDataSource.metadata.mainStructureMembers[key]?.description || key,
       }));
     }
-
-    // Expose getDataSelections API
-getSelections() {
-  try {
-    if (!this._myDataSource || !this._myDataSource.data) {
-      console.error("Data source is not bound or data is unavailable.");
-      return [];
-    }
-
-    // Retrieve dimensions metadata
-    const dimensions = this.getDimensions();
-
-    // Retrieve selected rows' data
-    const selectedData = Array.from(this._selectedRows).map((rowIndex) => {
-      const row = this._myDataSource.data[rowIndex];
-      if (!row) return null;
-
-      const rowData = {};
-
-      // Add dimension data
-      dimensions.forEach((dim) => {
-        rowData[dim.id] = {
-          id: row[dim.key]?.id || null,
-          label: row[dim.key]?.label || "N/A",
-        };
-      });
-
-      // Add measure data
-      Object.keys(row).forEach((key) => {
-        if (!dimensions.some((dim) => dim.key === key)) {
-          rowData[key] = row[key]?.raw || row[key]?.value || null;
-        }
-      });
-
-      return rowData;
-    });
-
-    console.log("Selected data:", selectedData);
-    return selectedData;
-  } catch (error) {
-    console.error("Error in getSelections:", error);
-    return [];
-  }
-}
-
   }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

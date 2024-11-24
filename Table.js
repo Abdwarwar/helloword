@@ -160,27 +160,58 @@
       }
     }
 
-    getDimensions() {
-      if (!this._myDataSource || !this._myDataSource.metadata) {
-        return [];
-      }
-      return this._myDataSource.metadata.feeds.dimensions.values.map((key) => ({
-        id: key,
-        key,
-        description: this._myDataSource.metadata.dimensions[key]?.description || key,
-      }));
+getDimensions() {
+  if (!this._myDataSource || !this._myDataSource.metadata) {
+    console.error("Data source metadata is unavailable.");
+    return [];
+  }
+
+  const dimensionsKeys = this._myDataSource.metadata.feeds.dimensions.values;
+
+  const dimensions = dimensionsKeys.map((key) => {
+    const dimension = this._myDataSource.metadata.dimensions[key];
+    if (!dimension) {
+      console.warn(`Dimension with key '${key}' not found in metadata.`);
+      return { id: key, key, description: key }; // Fallback
     }
 
-    getMeasures() {
-      if (!this._myDataSource || !this._myDataSource.metadata) {
-        return [];
-      }
-      return this._myDataSource.metadata.feeds.measures.values.map((key) => ({
-        id: key,
-        key,
-        description: this._myDataSource.metadata.mainStructureMembers[key]?.description || key,
-      }));
+    return {
+      id: dimension.id || key, // Use actual dimension ID
+      key,
+      description: dimension.description || dimension.id || key, // Use actual description
+    };
+  });
+
+  console.log("Resolved Dimensions:", dimensions);
+  return dimensions;
+}
+
+getMeasures() {
+  if (!this._myDataSource || !this._myDataSource.metadata) {
+    console.error("Data source metadata is unavailable.");
+    return [];
+  }
+
+  const measuresKeys = this._myDataSource.metadata.feeds.measures.values;
+
+  const measures = measuresKeys.map((key) => {
+    const measure = this._myDataSource.metadata.mainStructureMembers[key];
+    if (!measure) {
+      console.warn(`Measure with key '${key}' not found in metadata.`);
+      return { id: key, key, description: key }; // Fallback
     }
+
+    return {
+      id: measure.id || key, // Use actual measure ID
+      key,
+      description: measure.description || measure.id || key, // Use actual description
+    };
+  });
+
+  console.log("Resolved Measures:", measures);
+  return measures;
+}
+
   }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

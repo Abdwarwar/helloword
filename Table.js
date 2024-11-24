@@ -223,6 +223,42 @@ getSelectedRow() {
   }
 }
 
+    getDimensionSelected(dimensionId) {
+  try {
+    if (!this._myDataSource || !this._myDataSource.data) {
+      console.error("Data source is not bound or data is unavailable.");
+      return [];
+    }
+
+    // Retrieve dimensions metadata
+    const dimensions = this.getDimensions();
+    const selectedDimension = dimensions.find(dim => dim.id === dimensionId);
+
+    if (!selectedDimension) {
+      console.error(`Dimension with ID '${dimensionId}' not found.`);
+      return [];
+    }
+
+    // Retrieve selected rows' data
+    const selectedMembers = Array.from(this._selectedRows).map(rowIndex => {
+      const row = this._myDataSource.data[rowIndex];
+      if (!row || !row[selectedDimension.key]) return null;
+
+      return row[selectedDimension.key]?.id || null;
+    });
+
+    // Filter out any null values
+    const filteredMembers = selectedMembers.filter(member => member !== null);
+
+    console.log(`Selected members for dimension '${dimensionId}':`, filteredMembers);
+    return filteredMembers;
+  } catch (error) {
+    console.error("Error in getDimensionSelected:", error);
+    return [];
+  }
+}
+
+
 
   }
 

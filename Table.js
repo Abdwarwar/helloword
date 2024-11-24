@@ -61,7 +61,7 @@
         <thead>
           <tr>
             ${dimensions.map((dim) => `<th>${dim.description || dim.id}</th>`).join("")}
-            ${measures.map((measure) => `<th>${measure.id || measure.description}</th>`).join("")}
+            ${measures.map((measure) => `<th>${measure.description || measure.id}</th>`).join("")}
           </tr>
         </thead>
         <tbody>

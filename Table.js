@@ -315,10 +315,21 @@ getMeasureValues(measureId) {
       return [];
     }
 
+    console.log("Selected Measure Metadata:", selectedMeasure);
+
     // Retrieve selected rows' measure values as strings
     const selectedValues = Array.from(this._selectedRows).map((rowIndex) => {
       const row = this._myDataSource.data[rowIndex];
-      const value = row[measureId]?.raw || null;
+      if (!row) {
+        console.warn(`Row at index '${rowIndex}' is undefined.`);
+        return null;
+      }
+
+      // Access measure value
+      const value = row[selectedMeasure.key]?.raw || row[selectedMeasure.key]?.value || null;
+      if (value === null) {
+        console.warn(`Measure '${measureId}' not found in row '${rowIndex}'.`, row);
+      }
       return value !== null ? value.toString() : null;
     });
 
@@ -332,6 +343,7 @@ getMeasureValues(measureId) {
     return [];
   }
 }
+
   }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

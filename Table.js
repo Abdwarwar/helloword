@@ -20,7 +20,6 @@
       this._selectedRows = new Set(); // Track selected rows
       this._myDataSource = null;
     }
-    
 
     connectedCallback() {
       this.render();
@@ -45,6 +44,9 @@
         return;
       }
 
+      console.log("Resolved Dimensions:", dimensions);
+      console.log("Resolved Measures:", measures);
+
       const tableData = this._myDataSource.data.map((row, index) => ({
         index,
         ...dimensions.reduce((acc, dim) => {
@@ -62,7 +64,7 @@
         <thead>
           <tr>
             ${dimensions.map((dim) => `<th>${dim.description || dim.id}</th>`).join("")}
-            ${measures.map((measure) => `<th>${measure.id || measure.id}</th>`).join("")}
+            ${measures.map((measure) => `<th>${measure.description || measure.id}</th>`).join("")}
           </tr>
         </thead>
         <tbody>

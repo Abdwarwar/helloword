@@ -145,7 +145,7 @@
           // Add measure data
           Object.keys(row).forEach((key) => {
             if (!dimensions.some((dim) => dim.key === key)) {
-              rowData[key] = row[key]?.raw || row[key]?.value || null;
+              rowData[key] = row[key]?.id || row[key]?.value || null;
             }
           });
 

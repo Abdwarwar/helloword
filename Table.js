@@ -120,44 +120,44 @@ makeMeasureCellsEditable() {
       const measureId = cell.getAttribute("data-measure-id");
       cell.contentEditable = "true";
 
-      cell.addEventListener("blur", async (event) => {
+      cell.addEventListener("blur", (event) => {
         const newValue = parseFloat(cell.textContent.trim());
 
         if (!isNaN(newValue)) {
           console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
 
-          // Retrieve dimensions and row data
-          const dimensions = this.getDimensions();
-          const rowData = this._myDataSource.data[rowIndex];
-          const dimensionData = dimensions.reduce((acc, dim) => {
-            acc[dim.id] = rowData[dim.key]?.id || null;
-            return acc;
-          }, {});
-
-          // Build the SAC planning input object
-          const userInput = {
-            "@MeasureDimension": measureId,
-            ...dimensionData,
-            Version: "public.Budget", // Adjust to your model's version
-          };
-
-          console.log("Attempting to set user input:", userInput);
-
-          // Safely access the planning API
+          // Retrieve the planning object
           const planning = this._myDataSource?.getPlanning?.();
           if (!planning) {
             console.error("Planning API is not available for this data source.");
             return;
           }
 
-          try {
-            await planning.setUserInput(userInput, newValue);
-            await planning.submitData();
-            console.log("Data successfully written back to the model.");
-            this._myDataSource.refreshData();
-          } catch (error) {
-            console.error("Error submitting data to the model:", error);
-          }
+          // Build the user input object
+          const dimensions = this.getDimensions();
+          const rowData = this._myDataSource.data[rowIndex];
+          const userInput = {
+            "@MeasureDimension": measureId,
+            ...dimensions.reduce((acc, dim) => {
+              acc[dim.id] = rowData[dim.key]?.id || null;
+              return acc;
+            }, {}),
+            Version: "public.Budget", // Adjust as needed
+          };
+
+          console.log("Attempting to set user input:", userInput);
+
+          // Set user input and submit data
+          planning
+            .setUserInput(userInput, newValue)
+            .then(() => planning.submitData())
+            .then(() => {
+              console.log("Data successfully written back to the model.");
+              this._myDataSource.refreshData();
+            })
+            .catch((error) => {
+              console.error("Error submitting data to the model:", error);
+            });
         } else {
           console.error("Invalid input, resetting value.");
           cell.textContent = this._myDataSource.data[rowIndex][measureId]?.raw || "N/A";
@@ -166,6 +166,7 @@ makeMeasureCellsEditable() {
     });
   });
 }
+
 
     getDimensions() {
       if (!this._myDataSource || !this._myDataSource.metadata) {

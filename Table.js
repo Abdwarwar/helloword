@@ -142,15 +142,13 @@ makeMeasureCellsEditable() {
 
           // Retrieve the dimensions for this row
           const dimensions = this.getDimensions();
-          const measures = this.getMeasures();
-
           const rowData = this._myDataSource.data[rowIndex];
           if (!rowData) {
             console.error("Row data not found for index:", rowIndex);
             return;
           }
 
-          // Build the SAC planning object
+          // Build the SAC planning input object
           const userInput = {
             "@MeasureDimension": measureId,
             ...dimensions.reduce((acc, dim) => {
@@ -159,10 +157,18 @@ makeMeasureCellsEditable() {
             }, {}),
           };
 
-          // Update the model
-          Table_1.getPlanning().setUserInput(userInput, newValue);
-          Table_1.getPlanning()
-            .submitData()
+          // Write back to the planning model
+          const planning = this._myDataSource.getPlanning();
+          if (!planning) {
+            console.error("Planning API is not available for this data source.");
+            return;
+          }
+
+          planning
+            .setUserInput(userInput, newValue)
+            .then(() => {
+              return planning.submitData();
+            })
             .then(() => {
               console.log("Data successfully written back to the model.");
               // Optionally refresh the data source to reflect changes
@@ -179,6 +185,7 @@ makeMeasureCellsEditable() {
     });
   });
 }
+
 
     updateMeasureValue(rowIndex, measureId, newValue) {
       if (!this._myDataSource || !this._myDataSource.data[rowIndex]) {

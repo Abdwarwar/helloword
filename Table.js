@@ -75,18 +75,19 @@ render() {
   ${tableData
     .map(
       (row) =>
-        `<tr>
+        `<tr data-row-index="${row.index}">
           ${dimensions.map((dim) => `<td>${row[dim.id]}</td>`).join("")}
           ${measures
             .map(
               (measure) =>
-                `<td class="editable" data-measure-id="${measure.id}">${row[measure.id]}</td>`
+                `<td class="editable" data-measure-id="${measure.id}" contenteditable="true">${row[measure.id]}</td>`
             )
             .join("")}
         </tr>`
     )
     .join("")}
 </tbody>
+
   `;
 
   this._root.innerHTML = "";
@@ -119,16 +120,16 @@ makeMeasureCellsEditable() {
     const cells = row.querySelectorAll("td.editable");
     cells.forEach((cell) => {
       const measureId = cell.getAttribute("data-measure-id");
-      cell.contentEditable = "true"; // Enable editing for the cell
+      cell.contentEditable = "true"; // Ensure the cell is editable
 
-      // Handle blur event to capture the new value
+      // Add blur event listener
       cell.addEventListener("blur", async (event) => {
         const newValue = parseFloat(cell.textContent.trim());
 
         if (!isNaN(newValue)) {
           console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
 
-          // Retrieve dimensions and row data
+          // Handle planning logic here
           const dimensions = this.getDimensions();
           const rowData = this._myDataSource.data[rowIndex];
           const userInput = {
@@ -137,25 +138,22 @@ makeMeasureCellsEditable() {
               acc[dim.id] = rowData[dim.key]?.id || null;
               return acc;
             }, {}),
-            Version: "public.Budget", // Adjust as per your model
+            Version: "public.Budget",
           };
 
-          console.log("Attempting to set user input:", userInput);
-
-          // Access the Planning API
           const planning = this._myDataSource?.getPlanning?.();
           if (!planning) {
-            console.error("Planning API is not available for this data source.");
+            console.error("Planning API is not available.");
             return;
           }
 
           try {
             await planning.setUserInput(userInput, newValue);
             await planning.submitData();
-            console.log("Data successfully written back to the model.");
+            console.log("Data successfully written back.");
             this._myDataSource.refreshData();
           } catch (error) {
-            console.error("Error submitting data to the model:", error);
+            console.error("Error submitting data:", error);
           }
         } else {
           console.error("Invalid input, resetting value.");
@@ -165,7 +163,6 @@ makeMeasureCellsEditable() {
     });
   });
 }
-
     getDimensions() {
       if (!this._myDataSource || !this._myDataSource.metadata) {
         console.error("Data source metadata is unavailable.");

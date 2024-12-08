@@ -126,14 +126,19 @@ makeMeasureCellsEditable() {
         if (!isNaN(newValue)) {
           console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
 
-          // Retrieve the planning object
+          // Add debugging here to inspect the data source
+          console.log("Full Data Source Object:", this._myDataSource);
+          console.log("Data Source State:", this._myDataSource?.state);
+          console.log("Data Source Metadata:", this._myDataSource?.metadata);
+          console.log("Planning Object:", this._myDataSource?.getPlanning?.());
+
           const planning = this._myDataSource?.getPlanning?.();
           if (!planning) {
             console.error("Planning API is not available for this data source.");
             return;
           }
 
-          // Build the user input object
+          // Build the user input object and interact with planning API
           const dimensions = this.getDimensions();
           const rowData = this._myDataSource.data[rowIndex];
           const userInput = {
@@ -145,19 +150,16 @@ makeMeasureCellsEditable() {
             Version: "public.Budget", // Adjust as needed
           };
 
-          console.log("Attempting to set user input:", userInput);
-
-          // Set user input and submit data
-          planning
-            .setUserInput(userInput, newValue)
-            .then(() => planning.submitData())
-            .then(() => {
+          try {
+            planning.setUserInput(userInput, newValue).then(() => {
+              return planning.submitData();
+            }).then(() => {
               console.log("Data successfully written back to the model.");
               this._myDataSource.refreshData();
-            })
-            .catch((error) => {
-              console.error("Error submitting data to the model:", error);
             });
+          } catch (error) {
+            console.error("Error submitting data to the model:", error);
+          }
         } else {
           console.error("Invalid input, resetting value.");
           cell.textContent = this._myDataSource.data[rowIndex][measureId]?.raw || "N/A";
@@ -166,6 +168,7 @@ makeMeasureCellsEditable() {
     });
   });
 }
+
 
 
     getDimensions() {

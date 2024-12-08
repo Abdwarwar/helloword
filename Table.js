@@ -31,68 +31,30 @@
       this.render();
     }
 
-    render() {
-      if (!this._myDataSource || this._myDataSource.state !== "success") {
-        this._root.innerHTML = `<p>Loading data...</p>`;
-        return;
-      }
+render() {
+  if (!this._myDataSource || this._myDataSource.state !== "success") {
+    this._root.innerHTML = `<p>Loading data...</p>`;
+    return;
+  }
 
-      const dimensions = this.getDimensions();
-      const measures = this.getMeasures();
+  // Debug logs to verify data source and planning object
+  console.log("Data Source Object:", this._myDataSource);
+  console.log("Planning Object:", this._myDataSource?.getPlanning?.());
+  
+  const dimensions = this.getDimensions();
+  const measures = this.getMeasures();
 
-      if (dimensions.length === 0 || measures.length === 0) {
-        this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
-        return;
-      }
+  if (dimensions.length === 0 || measures.length === 0) {
+    this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
+    return;
+  }
 
-      console.log("Resolved Dimensions:", dimensions);
-      console.log("Resolved Measures:", measures);
+  console.log("Resolved Dimensions:", dimensions);
+  console.log("Resolved Measures:", measures);
 
-      const tableData = this._myDataSource.data.map((row, index) => ({
-        index,
-        ...dimensions.reduce((acc, dim) => {
-          acc[dim.id] = row[dim.key]?.label || "N/A";
-          return acc;
-        }, {}),
-        ...measures.reduce((acc, measure) => {
-          acc[measure.id] = row[measure.key]?.raw || "N/A";
-          return acc;
-        }, {}),
-      }));
+  // Render the table...
+}
 
-      const table = document.createElement("table");
-      table.innerHTML = `
-        <thead>
-          <tr>
-            ${dimensions.map((dim) => `<th>${dim.description || dim.id}</th>`).join("")}
-            ${measures.map((measure) => `<th>${measure.description || measure.id}</th>`).join("")}
-          </tr>
-        </thead>
-        <tbody>
-          ${tableData
-            .map(
-              (row) =>
-                `<tr data-row-index="${row.index}">
-                  ${dimensions.map((dim) => `<td>${row[dim.id]}</td>`).join("")}
-                  ${measures
-                    .map(
-                      (measure) =>
-                        `<td class="editable" data-measure-id="${measure.id}">${row[measure.id]}</td>`
-                    )
-                    .join("")}
-                </tr>`
-            )
-            .join("")}
-        </tbody>
-      `;
-
-      this._root.innerHTML = "";
-      this._root.appendChild(table);
-
-      // Attach event listeners
-      this.attachRowSelectionListeners();
-      this.makeMeasureCellsEditable();
-    }
 
     attachRowSelectionListeners() {
       const rows = this._root.querySelectorAll("tbody tr");
@@ -126,21 +88,11 @@ makeMeasureCellsEditable() {
         if (!isNaN(newValue)) {
           console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
 
-          // Retrieve dimensions and row data
-          const dimensions = this.getDimensions();
-          const rowData = this._myDataSource.data[rowIndex];
-          const userInput = {
-            "@MeasureDimension": measureId,
-            ...dimensions.reduce((acc, dim) => {
-              acc[dim.id] = rowData[dim.key]?.id || null;
-              return acc;
-            }, {}),
-            Version: "public.Budget", // Adjust as needed
-          };
+          // Debug logs to check data source and planning object
+          console.log("Data Source Object:", this._myDataSource);
+          console.log("Planning Object:", this._myDataSource?.getPlanning?.());
 
-          console.log("Attempting to set user input:", userInput);
-
-          // Access the planning API
+          // Proceed with planning logic
           const planning = this._myDataSource?.getPlanning?.();
           if (!planning) {
             console.error("Planning API is not available for this data source.");
@@ -148,6 +100,17 @@ makeMeasureCellsEditable() {
           }
 
           try {
+            const dimensions = this.getDimensions();
+            const rowData = this._myDataSource.data[rowIndex];
+            const userInput = {
+              "@MeasureDimension": measureId,
+              ...dimensions.reduce((acc, dim) => {
+                acc[dim.id] = rowData[dim.key]?.id || null;
+                return acc;
+              }, {}),
+              Version: "public.Budget",
+            };
+
             await planning.setUserInput(userInput, newValue);
             await planning.submitData();
             console.log("Data successfully written back to the model.");

@@ -32,17 +32,7 @@
     }
 
 render() {
-  if (!this._myDataSource) {
-    console.error("Data source is not bound to the widget.");
-    this._root.innerHTML = `<p>Data source is not bound.</p>`;
-    return;
-  }
-
-  console.log("Data Source Object:", this._myDataSource);
-  console.log("Data Source State:", this._myDataSource.state);
-
-  if (this._myDataSource.state !== "success") {
-    console.error("Data source state is not 'success'. Current state:", this._myDataSource.state);
+  if (!this._myDataSource || this._myDataSource.state !== "success") {
     this._root.innerHTML = `<p>Loading data...</p>`;
     return;
   }
@@ -50,17 +40,54 @@ render() {
   const dimensions = this.getDimensions();
   const measures = this.getMeasures();
 
-  if (!dimensions.length || !measures.length) {
-    console.error("No dimensions or measures available in the data source.");
-    this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
+  if (dimensions.length === 0 || measures.length === 0) {
+    this._root.innerHTML = `<p>No dimensions or measures found.</p>`;
     return;
   }
 
   console.log("Resolved Dimensions:", dimensions);
   console.log("Resolved Measures:", measures);
 
-  // Continue rendering the table
+  const tableData = this._myDataSource.data.map((row, index) => ({
+    index,
+    ...dimensions.reduce((acc, dim) => {
+      acc[dim.id] = row[dim.key]?.label || "N/A";
+      return acc;
+    }, {}),
+    ...measures.reduce((acc, measure) => {
+      acc[measure.id] = row[measure.key]?.raw || "N/A";
+      return acc;
+    }, {}),
+  }));
+
+  console.log("Table Data:", tableData);
+
+  // Render the table
+  const table = document.createElement("table");
+  table.innerHTML = `
+    <thead>
+      <tr>
+        ${dimensions.map((dim) => `<th>${dim.description || dim.id}</th>`).join("")}
+        ${measures.map((measure) => `<th>${measure.description || measure.id}</th>`).join("")}
+      </tr>
+    </thead>
+    <tbody>
+      ${tableData
+        .map(
+          (row) =>
+            `<tr>
+              ${dimensions.map((dim) => `<td>${row[dim.id]}</td>`).join("")}
+              ${measures.map((measure) => `<td>${row[measure.id]}</td>`).join("")}
+            </tr>`
+        )
+        .join("")}
+    </tbody>
+  `;
+
+  this._root.innerHTML = "";
+  this._root.appendChild(table);
 }
+
 
 
     attachRowSelectionListeners() {

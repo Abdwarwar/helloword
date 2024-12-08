@@ -111,58 +111,61 @@
       });
     }
 
-    makeMeasureCellsEditable() {
-      const rows = this._root.querySelectorAll("tbody tr");
-      rows.forEach((row) => {
-        const rowIndex = row.getAttribute("data-row-index");
-        const cells = row.querySelectorAll("td.editable");
-        cells.forEach((cell) => {
-          const measureId = cell.getAttribute("data-measure-id");
-          cell.contentEditable = "true";
+makeMeasureCellsEditable() {
+  const rows = this._root.querySelectorAll("tbody tr");
+  rows.forEach((row) => {
+    const rowIndex = row.getAttribute("data-row-index");
+    const cells = row.querySelectorAll("td.editable");
+    cells.forEach((cell) => {
+      const measureId = cell.getAttribute("data-measure-id");
+      cell.contentEditable = "true";
 
-          // Handle cell value changes on blur
-          cell.addEventListener("blur", (event) => {
-            const newValue = parseFloat(cell.textContent.trim());
+      cell.addEventListener("blur", async (event) => {
+        const newValue = parseFloat(cell.textContent.trim());
 
-            if (!isNaN(newValue)) {
-              console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
+        if (!isNaN(newValue)) {
+          console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
 
-              // Collect dimension and measure data
-              const dimensions = this.getDimensions();
-              const rowData = this._myDataSource.data[rowIndex];
-              const dimensionData = dimensions.reduce((acc, dim) => {
-                acc[dim.id] = rowData[dim.key]?.id || null;
-                return acc;
-              }, {});
+          // Retrieve dimensions and row data
+          const dimensions = this.getDimensions();
+          const rowData = this._myDataSource.data[rowIndex];
+          const dimensionData = dimensions.reduce((acc, dim) => {
+            acc[dim.id] = rowData[dim.key]?.id || null;
+            return acc;
+          }, {});
 
-              // Build the SAC planning input object
-              const userInput = {
-                "@MeasureDimension": measureId,
-                ...dimensionData,
-                Version: "public.Budget", // Example version
-              };
+          // Build the SAC planning input object
+          const userInput = {
+            "@MeasureDimension": measureId,
+            ...dimensionData,
+            Version: "public.Budget", // Adjust to your model's version
+          };
 
-              // Write back to the planning model
-              this._myDataSource.getPlanning().setUserInput(userInput, newValue);
-              this._myDataSource
-                .getPlanning()
-                .submitData()
-                .then(() => {
-                  console.log("Data successfully written back to the model.");
-                  this._myDataSource.refreshData();
-                })
-                .catch((error) => {
-                  console.error("Error submitting data to the model:", error);
-                });
-            } else {
-              console.error("Invalid input, resetting value.");
-              const originalValue = this._myDataSource.data[rowIndex][measureId]?.raw || "N/A";
-              cell.textContent = originalValue;
-            }
-          });
-        });
+          console.log("Attempting to set user input:", userInput);
+
+          // Safely access the planning API
+          const planning = this._myDataSource?.getPlanning?.();
+          if (!planning) {
+            console.error("Planning API is not available for this data source.");
+            return;
+          }
+
+          try {
+            await planning.setUserInput(userInput, newValue);
+            await planning.submitData();
+            console.log("Data successfully written back to the model.");
+            this._myDataSource.refreshData();
+          } catch (error) {
+            console.error("Error submitting data to the model:", error);
+          }
+        } else {
+          console.error("Invalid input, resetting value.");
+          cell.textContent = this._myDataSource.data[rowIndex][measureId]?.raw || "N/A";
+        }
       });
-    }
+    });
+  });
+}
 
     getDimensions() {
       if (!this._myDataSource || !this._myDataSource.metadata) {

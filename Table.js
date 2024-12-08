@@ -71,17 +71,22 @@ render() {
         ${measures.map((measure) => `<th>${measure.description || measure.id}</th>`).join("")}
       </tr>
     </thead>
-    <tbody>
-      ${tableData
-        .map(
-          (row) =>
-            `<tr>
-              ${dimensions.map((dim) => `<td>${row[dim.id]}</td>`).join("")}
-              ${measures.map((measure) => `<td>${row[measure.id]}</td>`).join("")}
-            </tr>`
-        )
-        .join("")}
-    </tbody>
+<tbody>
+  ${tableData
+    .map(
+      (row) =>
+        `<tr>
+          ${dimensions.map((dim) => `<td>${row[dim.id]}</td>`).join("")}
+          ${measures
+            .map(
+              (measure) =>
+                `<td class="editable" data-measure-id="${measure.id}">${row[measure.id]}</td>`
+            )
+            .join("")}
+        </tr>`
+    )
+    .join("")}
+</tbody>
   `;
 
   this._root.innerHTML = "";

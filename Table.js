@@ -124,7 +124,7 @@
     }
 
     // Make measure cells editable
-makeMeasureCellsEditable() {
+    makeMeasureCellsEditable() {
   const rows = this._root.querySelectorAll("tbody tr");
   rows.forEach((row) => {
     const rowIndex = row.getAttribute("data-row-index");
@@ -134,7 +134,7 @@ makeMeasureCellsEditable() {
       cell.contentEditable = "true";
 
       // Handle cell value changes on blur
-      cell.addEventListener("blur", (event) => {
+      cell.addEventListener("blur", async (event) => {
         const newValue = parseFloat(cell.textContent.trim());
 
         if (!isNaN(newValue)) {
@@ -157,26 +157,24 @@ makeMeasureCellsEditable() {
             }, {}),
           };
 
-          // Write back to the planning model
-          const planning = this._myDataSource.getPlanning();
-          if (!planning) {
-            console.error("Planning API is not available for this data source.");
-            return;
-          }
+          try {
+            // Retrieve the planning object
+            const planning = await this._myDataSource.getPlanning();
+            if (!planning) {
+              console.error("Planning API is not available for this data source.");
+              return;
+            }
 
-          planning
-            .setUserInput(userInput, newValue)
-            .then(() => {
-              return planning.submitData();
-            })
-            .then(() => {
-              console.log("Data successfully written back to the model.");
-              // Optionally refresh the data source to reflect changes
-              this._myDataSource.refreshData();
-            })
-            .catch((error) => {
-              console.error("Error submitting data to the model:", error);
-            });
+            // Write back to the model
+            await planning.setUserInput(userInput, newValue);
+            await planning.submitData();
+            console.log("Data successfully written back to the model.");
+
+            // Optionally refresh the data source to reflect changes
+            this._myDataSource.refreshData();
+          } catch (error) {
+            console.error("Error submitting data to the model:", error);
+          }
         } else {
           console.error("Invalid input, resetting value.");
           cell.textContent = rowData[measureId]?.raw || "N/A";
@@ -185,7 +183,6 @@ makeMeasureCellsEditable() {
     });
   });
 }
-
 
     updateMeasureValue(rowIndex, measureId, newValue) {
       if (!this._myDataSource || !this._myDataSource.data[rowIndex]) {

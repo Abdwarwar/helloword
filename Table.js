@@ -120,40 +120,43 @@ makeMeasureCellsEditable() {
     const cells = row.querySelectorAll("td.editable");
     cells.forEach((cell) => {
       const measureId = cell.getAttribute("data-measure-id");
-      cell.contentEditable = "true"; // Ensure the cell is editable
+      cell.contentEditable = "true";
 
-      // Add blur event listener
       cell.addEventListener("blur", async (event) => {
         const newValue = parseFloat(cell.textContent.trim());
 
         if (!isNaN(newValue)) {
           console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
 
-          // Handle planning logic here
           const dimensions = this.getDimensions();
           const rowData = this._myDataSource.data[rowIndex];
+
           const userInput = {
             "@MeasureDimension": measureId,
             ...dimensions.reduce((acc, dim) => {
               acc[dim.id] = rowData[dim.key]?.id || null;
               return acc;
             }, {}),
-            Version: "public.Budget",
+            Version: "public.Budget", // Adjust as needed
           };
+
+          console.log("Constructed User Input:", userInput);
 
           const planning = this._myDataSource?.getPlanning?.();
           if (!planning) {
-            console.error("Planning API is not available.");
+            console.error("Planning API is not available for this data source.");
             return;
           }
 
           try {
             await planning.setUserInput(userInput, newValue);
+            console.log("User input set successfully:", userInput, "New Value:", newValue);
+
             await planning.submitData();
-            console.log("Data successfully written back.");
+            console.log("Data successfully written back to the model.");
             this._myDataSource.refreshData();
           } catch (error) {
-            console.error("Error submitting data:", error);
+            console.error("Error during setUserInput or submitData:", error);
           }
         } else {
           console.error("Invalid input, resetting value.");
@@ -163,6 +166,7 @@ makeMeasureCellsEditable() {
     });
   });
 }
+
     getDimensions() {
       if (!this._myDataSource || !this._myDataSource.metadata) {
         console.error("Data source metadata is unavailable.");

@@ -32,19 +32,26 @@
     }
 
 render() {
-  if (!this._myDataSource || this._myDataSource.state !== "success") {
+  if (!this._myDataSource) {
+    console.error("Data source is not bound to the widget.");
+    this._root.innerHTML = `<p>Data source is not bound.</p>`;
+    return;
+  }
+
+  console.log("Data Source Object:", this._myDataSource);
+  console.log("Data Source State:", this._myDataSource.state);
+
+  if (this._myDataSource.state !== "success") {
+    console.error("Data source state is not 'success'. Current state:", this._myDataSource.state);
     this._root.innerHTML = `<p>Loading data...</p>`;
     return;
   }
 
-  // Debug logs to verify data source and planning object
-  console.log("Data Source Object:", this._myDataSource);
-  console.log("Planning Object:", this._myDataSource?.getPlanning?.());
-  
   const dimensions = this.getDimensions();
   const measures = this.getMeasures();
 
-  if (dimensions.length === 0 || measures.length === 0) {
+  if (!dimensions.length || !measures.length) {
+    console.error("No dimensions or measures available in the data source.");
     this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
     return;
   }
@@ -52,7 +59,7 @@ render() {
   console.log("Resolved Dimensions:", dimensions);
   console.log("Resolved Measures:", measures);
 
-  // Render the table...
+  // Continue rendering the table
 }
 
 

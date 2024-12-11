@@ -1,3 +1,4 @@
+
 (function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `
@@ -10,7 +11,6 @@
       td.editable { background-color: #fff3e0; }
     </style>
     <div id="root" style="width: 100%; height: 100%; overflow: auto;"></div>
-    <button id="addRowButton" style="margin-bottom: 10px;">Add New Row</button>
   `;
 
   class CustomTableWidget extends HTMLElement {
@@ -21,8 +21,6 @@
       this._root = this._shadowRoot.getElementById("root");
       this._selectedRows = new Set(); // Track selected rows
       this._myDataSource = null;
-      this._addRowButton = this._shadowRoot.getElementById("addRowButton");
-      this._addRowButton.addEventListener("click", () => this.addEmptyRow());
     }
 
     connectedCallback() {
@@ -34,72 +32,68 @@
       this.render();
     }
 
-render() {
-  if (!this._myDataSource || this._myDataSource.state !== "success") {
-    this._root.innerHTML = `<p>Loading data...</p>`;
-    return;
-  }
+    render() {
+      if (!this._myDataSource || this._myDataSource.state !== "success") {
+        this._root.innerHTML = `<p>Loading data...</p>`;
+        return;
+      }
 
-  const dimensions = this.getDimensions();
-  const measures = this.getMeasures();
+      const dimensions = this.getDimensions();
+      const measures = this.getMeasures();
 
-  if (dimensions.length === 0 || measures.length === 0) {
-    this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
-    return;
-  }
+      if (dimensions.length === 0 || measures.length === 0) {
+        this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
+        return;
+      }
 
-  console.log("Resolved Dimensions:", dimensions);
-  console.log("Resolved Measures:", measures);
+      console.log("Resolved Dimensions:", dimensions);
+      console.log("Resolved Measures:", measures);
 
-  // Create a container for the button and table
-  const container = document.createElement("div");
-  container.style.display = "flex";
-  container.style.flexDirection = "column";
+      const tableData = this._myDataSource.data.map((row, index) => ({
+        index,
+        ...dimensions.reduce((acc, dim) => {
+          acc[dim.id] = row[dim.key]?.label || "N/A";
+          return acc;
+        }, {}),
+        ...measures.reduce((acc, measure) => {
+          acc[measure.id] = row[measure.key]?.raw || "N/A";
+          return acc;
+        }, {}),
+      }));
 
-  // Add the button
-  const button = document.createElement("button");
-  button.id = "addRowButton";
-  button.textContent = "Add New Row";
-  button.style.marginBottom = "10px";
-  button.addEventListener("click", () => this.addEmptyRow());
-  container.appendChild(button);
+      const table = document.createElement("table");
+      table.innerHTML = `
+        <thead>
+          <tr>
+            ${dimensions.map((dim) => `<th>${dim.description || dim.id}</th>`).join("")}
+            ${measures.map((measure) => `<th>${measure.description || measure.id}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${tableData
+            .map(
+              (row) =>
+                `<tr data-row-index="${row.index}">
+                  ${dimensions.map((dim) => `<td>${row[dim.id]}</td>`).join("")}
+                  ${measures
+                    .map(
+                      (measure) =>
+                        `<td class="editable" data-measure-id="${measure.id}">${row[measure.id]}</td>`
+                    )
+                    .join("")}
+                </tr>`
+            )
+            .join("")}
+        </tbody>
+      `;
 
-  // Create the table
-  const table = document.createElement("table");
-  table.innerHTML = `
-    <thead>
-      <tr>
-        ${dimensions.map((dim) => `<th>${dim.description || dim.id}</th>`).join("")}
-        ${measures.map((measure) => `<th>${measure.description || measure.id}</th>`).join("")}
-      </tr>
-    </thead>
-    <tbody>
-      ${this._myDataSource.data
-        .map(
-          (row, index) =>
-            `<tr data-row-index="${index}">
-              ${dimensions.map((dim) => `<td>${row[dim.id]}</td>`).join("")}
-              ${measures
-                .map(
-                  (measure) =>
-                    `<td class="editable" data-measure-id="${measure.id}">${row[measure.id]}</td>`
-                )
-                .join("")}
-            </tr>`
-        )
-        .join("")}
-    </tbody>
-  `;
-  container.appendChild(table);
+      this._root.innerHTML = "";
+      this._root.appendChild(table);
 
-  this._root.innerHTML = ""; // Clear the root element
-  this._root.appendChild(container);
-
-  // Attach event listeners
-  this.attachRowSelectionListeners();
-  this.makeMeasureCellsEditable();
-}
-
+      // Attach event listeners
+      this.attachRowSelectionListeners();
+      this.makeMeasureCellsEditable();
+    }
 
     attachRowSelectionListeners() {
       const rows = this._root.querySelectorAll("tbody tr");
@@ -130,6 +124,7 @@ render() {
       this.dispatchEvent(event);
     }
 
+    // Make measure cells editable
     makeMeasureCellsEditable() {
       const rows = this._root.querySelectorAll("tbody tr");
       rows.forEach((row) => {
@@ -188,59 +183,6 @@ render() {
           });
         });
       });
-    }
-
-    addEmptyRow() {
-      const table = this._root.querySelector("table tbody");
-      if (!table) {
-        console.error("Table body not found.");
-        return;
-      }
-
-      const dimensions = this.getDimensions();
-      const measures = this.getMeasures();
-      const newRowIndex = table.rows.length; // Calculate the new row index
-
-      // Create a new row
-      const newRow = document.createElement("tr");
-      newRow.setAttribute("data-row-index", newRowIndex);
-
-      // Add empty cells for dimensions
-      dimensions.forEach((dim) => {
-        const cell = document.createElement("td");
-        cell.classList.add("editable");
-        cell.setAttribute("data-dimension-id", dim.id);
-        cell.contentEditable = "true";
-        cell.addEventListener("blur", (event) => {
-          const value = event.target.textContent.trim();
-          console.log(`Updated Dimension ${dim.id}: ${value}`);
-          // Store the value as needed
-        });
-        newRow.appendChild(cell);
-      });
-
-      // Add empty cells for measures
-      measures.forEach((measure) => {
-        const cell = document.createElement("td");
-        cell.classList.add("editable");
-        cell.setAttribute("data-measure-id", measure.id);
-        cell.contentEditable = "true";
-        cell.addEventListener("blur", (event) => {
-          const value = parseFloat(event.target.textContent.trim());
-          if (!isNaN(value)) {
-            console.log(`Updated Measure ${measure.id}: ${value}`);
-            // Store the value as needed
-          } else {
-            console.error("Invalid value for measure.");
-            cell.textContent = ""; // Reset invalid value
-          }
-        });
-        newRow.appendChild(cell);
-      });
-
-      // Append the new row to the table
-      table.appendChild(newRow);
-      console.log("New row added:", newRow);
     }
 
     updateMeasureValue(rowIndex, measureId, newValue) {
@@ -395,69 +337,67 @@ render() {
       }
     }
 
-getMeasureValues(measureId) {
-  try {
-    if (!this._myDataSource || !this._myDataSource.data) {
-      console.error("Data source is not bound or data is unavailable.");
-      return [];
-    }
+    getMeasureValues(measureId) {
+      try {
+        if (!this._myDataSource || !this._myDataSource.data) {
+          console.error("Data source is not bound or data is unavailable.");
+          return [];
+        }
 
-    const measures = this.getMeasures();
-    const selectedMeasure = measures.find((measure) => measure.id === measureId);
+        const measures = this.getMeasures();
+        const selectedMeasure = measures.find((measure) => measure.id === measureId);
 
-    if (!selectedMeasure) {
-      console.error(`Measure with ID '${measureId}' not found.`);
-      return [];
-    }
+        if (!selectedMeasure) {
+          console.error(`Measure with ID '${measureId}' not found.`);
+          return [];
+        }
 
-    console.log("Selected Measure Metadata:", selectedMeasure);
+        console.log("Selected Measure Metadata:", selectedMeasure);
 
-    // Access the table rows and cells to retrieve edited values
-    const table = this._root.querySelector("table");
-    if (!table) {
-      console.error("Table element not found in the widget.");
-      return [];
-    }
+        // Access the table rows and cells to retrieve edited values
+        const table = this._root.querySelector("table");
+        if (!table) {
+          console.error("Table element not found in the widget.");
+          return [];
+        }
 
-    const rows = Array.from(table.querySelectorAll("tbody tr"));
-    const editedValues = Array.from(this._selectedRows).map((rowIndex) => {
-      const row = rows[rowIndex];
-      if (!row) {
-        console.warn(`Row at index '${rowIndex}' is undefined in the DOM.`);
-        return null;
+        const rows = Array.from(table.querySelectorAll("tbody tr"));
+        const editedValues = Array.from(this._selectedRows).map((rowIndex) => {
+          const row = rows[rowIndex];
+          if (!row) {
+            console.warn(`Row at index '${rowIndex}' is undefined in the DOM.`);
+            return null;
+          }
+
+          // Find the cell corresponding to the measure
+          const measureIndex = measures.findIndex((measure) => measure.id === measureId);
+          if (measureIndex === -1) {
+            console.warn(`Measure '${measureId}' not found in table headers.`);
+            return null;
+          }
+
+          const cell = row.cells[measureIndex + this.getDimensions().length]; // Adjust for dimension columns
+          if (!cell) {
+            console.warn(`Cell for measure '${measureId}' not found in row '${rowIndex}'.`);
+            return null;
+          }
+
+          const editedValue = cell.textContent.trim(); // Get the edited value
+          console.log(`Edited value for measure '${measureId}' in row '${rowIndex}':`, editedValue);
+
+          return editedValue || null;
+        });
+
+        // Filter out null or empty values
+        const filteredValues = editedValues.filter((value) => value !== null);
+
+        console.log(`Edited values for measure '${measureId}' as strings:`, filteredValues);
+        return filteredValues;
+      } catch (error) {
+        console.error("Error in getEditedMeasureValues:", error);
+        return [];
       }
-
-      // Find the cell corresponding to the measure
-      const measureIndex = measures.findIndex((measure) => measure.id === measureId);
-      if (measureIndex === -1) {
-        console.warn(`Measure '${measureId}' not found in table headers.`);
-        return null;
-      }
-
-      const cell = row.cells[measureIndex + this.getDimensions().length]; // Adjust for dimension columns
-      if (!cell) {
-        console.warn(`Cell for measure '${measureId}' not found in row '${rowIndex}'.`);
-        return null;
-      }
-
-      const editedValue = cell.textContent.trim(); // Get the edited value
-      console.log(`Edited value for measure '${measureId}' in row '${rowIndex}':`, editedValue);
-
-      return editedValue || null;
-    });
-
-    // Filter out null or empty values
-    const filteredValues = editedValues.filter((value) => value !== null);
-
-    console.log(`Edited values for measure '${measureId}' as strings:`, filteredValues);
-    return filteredValues;
-  } catch (error) {
-    console.error("Error in getEditedMeasureValues:", error);
-    return [];
-  }
-}
-
-
+    }
   }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

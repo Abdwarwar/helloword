@@ -59,14 +59,18 @@
       const tableData = this._myDataSource.data.map((row, index) => ({
         index,
         ...dimensions.reduce((acc, dim) => {
-          acc[dim.id] = row[dim.key]?.label || "N/A";
+          acc[dim.id] = row[dim.key]?.label || row[dim.key]?.id || "N/A";
           return acc;
         }, {}),
         ...measures.reduce((acc, measure) => {
-          acc[measure.id] = row[measure.key]?.raw || "N/A";
+          acc[measure.id] = row[measure.key]?.raw || row[measure.key]?.formatted || "N/A";
           return acc;
         }, {}),
       }));
+
+      const container = document.createElement("div");
+      container.style.display = "flex";
+      container.style.flexDirection = "column";
 
       const table = document.createElement("table");
       table.innerHTML = `
@@ -93,11 +97,11 @@
             .join("")}
         </tbody>
       `;
+      container.appendChild(table);
 
       this._root.innerHTML = "";
-      this._root.appendChild(table);
+      this._root.appendChild(container);
 
-      // Attach event listeners
       this.attachRowSelectionListeners();
       this.makeMeasureCellsEditable();
     }
@@ -116,7 +120,6 @@
           }
           console.log(`Selected rows:`, Array.from(this._selectedRows));
 
-          // Fire the onSelect event
           this.fireOnSelectEvent();
         });
       });
@@ -140,7 +143,6 @@
           const measureId = cell.getAttribute("data-measure-id");
           cell.contentEditable = "true";
 
-          // Handle cell value changes on blur
           cell.addEventListener("blur", async (event) => {
             const newValue = parseFloat(cell.textContent.trim());
 
@@ -199,6 +201,7 @@
 
       const newRow = document.createElement("tr");
       newRow.setAttribute("data-row-index", newRowIndex);
+      newRow.classList.add("selected");
 
       dimensions.forEach((dim) => {
         const cell = document.createElement("td");
@@ -227,6 +230,12 @@
           }
         });
         newRow.appendChild(cell);
+      });
+
+      newRow.addEventListener("click", (event) => {
+        table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
+        newRow.classList.add("selected");
+        console.log("New row selected:", newRowIndex);
       });
 
       table.appendChild(newRow);

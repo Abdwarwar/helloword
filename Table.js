@@ -198,12 +198,15 @@ async fetchDimensionMembers(dimensionId) {
       console.error(`Dimension with ID ${dimensionId} not found.`);
       return [];
     }
-    // Check for members in metadata
-    if (dimension.members && dimension.members.length > 0) {
+
+    console.log(`Fetched dimension metadata for ${dimensionId}:`, dimension);
+
+    if (dimension.members && Array.isArray(dimension.members) && dimension.members.length > 0) {
+      console.log(`Members for dimension ${dimensionId}:`, dimension.members);
       return dimension.members;
     } else {
-      console.warn(`No members found for dimension ${dimensionId}, providing fallback data.`);
-      // Fallback for testing
+      console.warn(`No members found for dimension ${dimensionId}.`);
+      // Provide fallback members for testing
       return [
         { id: "Fallback1", label: "Fallback Member 1" },
         { id: "Fallback2", label: "Fallback Member 2" },
@@ -214,6 +217,7 @@ async fetchDimensionMembers(dimensionId) {
     return [];
   }
 }
+
 
 
     async addEmptyRow() {

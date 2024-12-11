@@ -1,4 +1,3 @@
-
 (function () {
   const prepared = document.createElement("template");
   prepared.innerHTML = `
@@ -205,13 +204,20 @@
 
       dimensions.forEach((dim) => {
         const cell = document.createElement("td");
-        cell.classList.add("editable");
-        cell.setAttribute("data-dimension-id", dim.id);
-        cell.contentEditable = "true";
-        cell.addEventListener("blur", (event) => {
-          const value = event.target.textContent.trim();
-          console.log(`Updated Dimension ${dim.id}: ${value}`);
+        const dropdown = document.createElement("select");
+        const members = ["Member1", "Member2", "Member3"]; // Replace with real members
+        members.forEach((member) => {
+          const option = document.createElement("option");
+          option.value = member;
+          option.textContent = member;
+          dropdown.appendChild(option);
         });
+
+        dropdown.addEventListener("change", (event) => {
+          console.log(`Dimension ${dim.id} selected: ${event.target.value}`);
+        });
+
+        cell.appendChild(dropdown);
         newRow.appendChild(cell);
       });
 

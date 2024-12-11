@@ -187,7 +187,25 @@
       });
     }
 
-    addEmptyRow() {
+    async fetchDimensionMembers(dimensionId) {
+      if (!this._myDataSource) {
+        console.error("Data source not available.");
+        return [];
+      }
+      try {
+        const dimension = this._myDataSource.metadata.dimensions[dimensionId];
+        if (!dimension) {
+          console.error(`Dimension with ID ${dimensionId} not found.`);
+          return [];
+        }
+        return dimension.members || [];
+      } catch (error) {
+        console.error("Error fetching dimension members:", error);
+        return [];
+      }
+    }
+
+    async addEmptyRow() {
       const table = this._root.querySelector("table tbody");
       if (!table) {
         console.error("Table body not found.");
@@ -202,14 +220,15 @@
       newRow.setAttribute("data-row-index", newRowIndex);
       newRow.classList.add("selected");
 
-      dimensions.forEach((dim) => {
+      for (const dim of dimensions) {
         const cell = document.createElement("td");
         const dropdown = document.createElement("select");
-        const members = ["Member1", "Member2", "Member3"]; // Replace with real members
+
+        const members = await this.fetchDimensionMembers(dim.id);
         members.forEach((member) => {
           const option = document.createElement("option");
-          option.value = member;
-          option.textContent = member;
+          option.value = member.id || member.label || member;
+          option.textContent = member.label || member.id || member;
           dropdown.appendChild(option);
         });
 
@@ -219,7 +238,7 @@
 
         cell.appendChild(dropdown);
         newRow.appendChild(cell);
-      });
+      }
 
       measures.forEach((measure) => {
         const cell = document.createElement("td");
@@ -247,6 +266,7 @@
       table.appendChild(newRow);
       console.log("New row added:", newRow);
     }
+
 
     updateMeasureValue(rowIndex, measureId, newValue) {
       if (!this._myDataSource || !this._myDataSource.data[rowIndex]) {

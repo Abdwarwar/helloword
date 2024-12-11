@@ -92,6 +92,7 @@ render() {
 
   this._root.innerHTML = "";
   this._root.appendChild(table);
+  this.makeMeasureCellsEditable();
 }
 
 
@@ -146,7 +147,7 @@ makeMeasureCellsEditable() {
           }
 
           try {
-            await planning.setUserInput(userInput, newValue);
+            await planning.setUserInput(userInput, 4321);
             console.log("User input set successfully:", userInput);
 
             await planning.submitData();

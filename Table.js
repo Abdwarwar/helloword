@@ -118,10 +118,12 @@ makeMeasureCellsEditable() {
   rows.forEach((row) => {
     const rowIndex = row.getAttribute("data-row-index");
     const cells = row.querySelectorAll("td.editable");
+
     cells.forEach((cell) => {
       const measureId = cell.getAttribute("data-measure-id");
       cell.contentEditable = "true";
 
+      // Handle blur event to capture the new value
       cell.addEventListener("blur", async (event) => {
         const newValue = parseFloat(cell.textContent.trim());
 
@@ -130,17 +132,21 @@ makeMeasureCellsEditable() {
 
           const dimensions = this.getDimensions();
           const rowData = this._myDataSource.data[rowIndex];
+          const Projects = this.getDimensionSelected("DIM_RCU_PROJECT");
+          const Audit_Trail = this.getDimensionSelected("DIM_RCU_AUDIT_TRAIL");
 
-          const userInput = {
-            "@MeasureDimension": measureId,
-            ...dimensions.reduce((acc, dim) => {
-              acc[dim.id] = rowData[dim.key]?.id || null;
-              return acc;
-            }, {}),
-            Version: "public.Budget", // Adjust as needed
+          console.log("Projects:", Projects);
+          console.log("Audit_Trail:", Audit_Trail);
+
+          // Construct user input for planning
+          const cash = {
+            "@MeasureDimension": "Cash",
+            "DIM_RCU_PROJECT": Projects[rowIndex] || null,
+            "DIM_RCU_AUDIT_TRAIL": Audit_Trail[rowIndex] || null,
+            "Version": "public.Budget", // Adjust based on your model
           };
 
-          console.log("Constructed User Input:", userInput);
+          console.log("Constructed User Input for Planning:", cash);
 
           const planning = this._myDataSource?.getPlanning?.();
           if (!planning) {
@@ -149,11 +155,13 @@ makeMeasureCellsEditable() {
           }
 
           try {
-            await planning.setUserInput(userInput, newValue);
-            console.log("User input set successfully:", userInput, "New Value:", newValue);
+            // Set user input and submit data
+            await planning.setUserInput(cash, newValue);
+            console.log("User input set successfully:", cash, "New Value:", newValue);
 
             await planning.submitData();
             console.log("Data successfully written back to the model.");
+
             this._myDataSource.refreshData();
           } catch (error) {
             console.error("Error during setUserInput or submitData:", error);
@@ -166,6 +174,37 @@ makeMeasureCellsEditable() {
     });
   });
 }
+
+// Helper function to get selected rows for a given dimension
+getDimensionSelected(dimensionId) {
+  try {
+    if (!this._myDataSource || !this._myDataSource.data) {
+      console.error("Data source is not bound or data is unavailable.");
+      return [];
+    }
+
+    const dimensions = this.getDimensions();
+    const selectedDimension = dimensions.find((dim) => dim.id === dimensionId);
+
+    if (!selectedDimension) {
+      console.error(`Dimension with ID '${dimensionId}' not found.`);
+      return [];
+    }
+
+    // Retrieve selected rows' data
+    const selectedMembers = this._myDataSource.data.map((row) => {
+      if (!row || !row[selectedDimension.key]) return null;
+      return row[selectedDimension.key]?.id || null;
+    });
+
+    console.log(`Selected members for dimension '${dimensionId}':`, selectedMembers);
+    return selectedMembers.filter((member) => member !== null);
+  } catch (error) {
+    console.error("Error in getDimensionSelected:", error);
+    return [];
+  }
+}
+
 
     getDimensions() {
       if (!this._myDataSource || !this._myDataSource.metadata) {

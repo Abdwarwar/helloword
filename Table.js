@@ -131,7 +131,7 @@ makeMeasureCellsEditable() {
           const userInput = {
             "@MeasureDimension": "Cash", // Use your model's actual measure ID
             "DIM_RCU_PROJECT": "PROJECT001", // Replace with the actual dimension ID and member
-            "DIM_RCU_AUDIT_TRAIL": "AUDIT001", // Replace with the actual dimension ID and member
+            "DIM_RCU_AUDIT_TRAIL": "INPUT", // Replace with the actual dimension ID and member
             "Version": "public.Budget", // Replace with your actual model version
           };
 

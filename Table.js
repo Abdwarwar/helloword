@@ -139,10 +139,10 @@ makeMeasureCellsEditable() {
 
           // Access Planning API
           const planning = this._myDataSource?.getPlanning?.();
-            Table_1.planning.setUserInput(userInput, newValue);
+            Table_1.getplanning().setUserInput(userInput, newValue);
             console.log("User input set successfully:", userInput);
 
-            Table_1.planning.submitData();
+            Table_1.getplanning().submitData();
             console.log("Data successfully written back to the model.");
             this._myDataSource.refreshData();
 

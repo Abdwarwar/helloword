@@ -115,13 +115,10 @@ render() {
     }
 
 makeMeasureCellsEditable() {
-  console.log("Initializing editable cells...");
-
   const rows = this._root.querySelectorAll("tbody tr");
   rows.forEach((row) => {
     const rowIndex = row.getAttribute("data-row-index");
     const cells = row.querySelectorAll("td.editable");
-
     cells.forEach((cell) => {
       const measureId = cell.getAttribute("data-measure-id");
       cell.contentEditable = "true";
@@ -132,39 +129,33 @@ makeMeasureCellsEditable() {
         if (!isNaN(newValue)) {
           console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
 
-          const dimensions = this.getDimensions();
-          const rowData = this._myDataSource.data[rowIndex];
+          // Construct the userInput object here
           const userInput = {
-            "@MeasureDimension": measureId,
-            ...dimensions.reduce((acc, dim) => {
-              acc[dim.id] = rowData[dim.key]?.id || null;
-              return acc;
-            }, {}),
-            "Version": "public.Budget", // Replace with your model version
+            "@MeasureDimension": "Cash", // Use your model's actual measure ID
+            "DIM_RCU_PROJECT": "PROJECT001", // Replace with the actual dimension ID and member
+            "DIM_RCU_AUDIT_TRAIL": "INPUT", // Replace with the actual dimension ID and member
+            "Version": "public.Budget", // Replace with your actual model version
           };
 
           console.log("Constructed User Input:", userInput);
 
-          // Use the Planning API
+          // Access Planning API
+          const planning = this._myDataSource?.getPlanning?.();
+
+
           try {
             await this._myDataSource.getPlanning().setUserInput(userInput, newValue);
-            console.log("User input set successfully:", userInput, "New Value:", newValue);
+            console.log("User input set successfully:", userInput);
 
             await this._myDataSource.getPlanning().submitData();
             console.log("Data successfully written back to the model.");
-
             this._myDataSource.refreshData();
-          } catch (error) {
-            console.error("Error during setUserInput or submitData:", error);
           }
-        } else {
-          console.error("Invalid input, resetting value.");
-          cell.textContent = this._myDataSource.data[rowIndex][measureId]?.raw || "N/A";
-        }
       });
     });
   });
 }
+
 
 
 

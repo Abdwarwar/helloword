@@ -34,68 +34,72 @@
       this.render();
     }
 
-    render() {
-      if (!this._myDataSource || this._myDataSource.state !== "success") {
-        this._root.innerHTML = `<p>Loading data...</p>`;
-        return;
-      }
+render() {
+  if (!this._myDataSource || this._myDataSource.state !== "success") {
+    this._root.innerHTML = `<p>Loading data...</p>`;
+    return;
+  }
 
-      const dimensions = this.getDimensions();
-      const measures = this.getMeasures();
+  const dimensions = this.getDimensions();
+  const measures = this.getMeasures();
 
-      if (dimensions.length === 0 || measures.length === 0) {
-        this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
-        return;
-      }
+  if (dimensions.length === 0 || measures.length === 0) {
+    this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
+    return;
+  }
 
-      console.log("Resolved Dimensions:", dimensions);
-      console.log("Resolved Measures:", measures);
+  console.log("Resolved Dimensions:", dimensions);
+  console.log("Resolved Measures:", measures);
 
-      const tableData = this._myDataSource.data.map((row, index) => ({
-        index,
-        ...dimensions.reduce((acc, dim) => {
-          acc[dim.id] = row[dim.key]?.label || "N/A";
-          return acc;
-        }, {}),
-        ...measures.reduce((acc, measure) => {
-          acc[measure.id] = row[measure.key]?.raw || "N/A";
-          return acc;
-        }, {}),
-      }));
+  // Create a container for the button and table
+  const container = document.createElement("div");
+  container.style.display = "flex";
+  container.style.flexDirection = "column";
 
-      const table = document.createElement("table");
-      table.innerHTML = `
-        <thead>
-          <tr>
-            ${dimensions.map((dim) => `<th>${dim.description || dim.id}</th>`).join("")}
-            ${measures.map((measure) => `<th>${measure.description || measure.id}</th>`).join("")}
-          </tr>
-        </thead>
-        <tbody>
-          ${tableData
-            .map(
-              (row) =>
-                `<tr data-row-index="${row.index}">
-                  ${dimensions.map((dim) => `<td>${row[dim.id]}</td>`).join("")}
-                  ${measures
-                    .map(
-                      (measure) =>
-                        `<td class="editable" data-measure-id="${measure.id}">${row[measure.id]}</td>`
-                    )
-                    .join("")}
-                </tr>`
-            )
-            .join("")}
-        </tbody>
-      `;
+  // Add the button
+  const button = document.createElement("button");
+  button.id = "addRowButton";
+  button.textContent = "Add New Row";
+  button.style.marginBottom = "10px";
+  button.addEventListener("click", () => this.addEmptyRow());
+  container.appendChild(button);
 
-      this._root.innerHTML = "";
-      this._root.appendChild(table);
+  // Create the table
+  const table = document.createElement("table");
+  table.innerHTML = `
+    <thead>
+      <tr>
+        ${dimensions.map((dim) => `<th>${dim.description || dim.id}</th>`).join("")}
+        ${measures.map((measure) => `<th>${measure.description || measure.id}</th>`).join("")}
+      </tr>
+    </thead>
+    <tbody>
+      ${this._myDataSource.data
+        .map(
+          (row, index) =>
+            `<tr data-row-index="${index}">
+              ${dimensions.map((dim) => `<td>${row[dim.id]}</td>`).join("")}
+              ${measures
+                .map(
+                  (measure) =>
+                    `<td class="editable" data-measure-id="${measure.id}">${row[measure.id]}</td>`
+                )
+                .join("")}
+            </tr>`
+        )
+        .join("")}
+    </tbody>
+  `;
+  container.appendChild(table);
 
-      // Attach event listeners
-      this.attachRowSelectionListeners();
-      this.makeMeasureCellsEditable();
-    }
+  this._root.innerHTML = ""; // Clear the root element
+  this._root.appendChild(container);
+
+  // Attach event listeners
+  this.attachRowSelectionListeners();
+  this.makeMeasureCellsEditable();
+}
+
 
     attachRowSelectionListeners() {
       const rows = this._root.querySelectorAll("tbody tr");

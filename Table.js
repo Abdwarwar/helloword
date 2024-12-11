@@ -141,10 +141,10 @@ makeMeasureCellsEditable() {
 
           // Access Planning API
           const planning = this._myDataSource?.getPlanning?.();
-          if (!planning) {
-            console.error("Planning API is not available for this data source.");
-            return;
-          }
+          // if (!planning) {
+          //   console.error("Planning API is not available for this data source.");
+          //   return;
+          // }
 
           try {
             await planning.setUserInput(userInput, 4321);

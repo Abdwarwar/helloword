@@ -115,10 +115,13 @@ render() {
     }
 
 makeMeasureCellsEditable() {
+  console.log("Initializing editable cells...");
+
   const rows = this._root.querySelectorAll("tbody tr");
   rows.forEach((row) => {
     const rowIndex = row.getAttribute("data-row-index");
     const cells = row.querySelectorAll("td.editable");
+
     cells.forEach((cell) => {
       const measureId = cell.getAttribute("data-measure-id");
       cell.contentEditable = "true";
@@ -129,41 +132,41 @@ makeMeasureCellsEditable() {
         if (!isNaN(newValue)) {
           console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
 
-          // Construct the userInput object here
+          const dimensions = this.getDimensions();
+          const rowData = this._myDataSource.data[rowIndex];
           const userInput = {
-            "@MeasureDimension": "Cash", // Use your model's actual measure ID
-            "DIM_RCU_PROJECT": "PROJECT001", // Replace with the actual dimension ID and member
-            "DIM_RCU_AUDIT_TRAIL": "INPUT", // Replace with the actual dimension ID and member
-            "Version": "public.Budget", // Replace with your actual model version
+            "@MeasureDimension": measureId,
+            ...dimensions.reduce((acc, dim) => {
+              acc[dim.id] = rowData[dim.key]?.id || null;
+              return acc;
+            }, {}),
+            "Version": "public.Budget", // Replace with your model version
           };
 
           console.log("Constructed User Input:", userInput);
 
-          // Access Planning API
           const planning = this._myDataSource?.getPlanning?.();
-          // if (!planning) {
-          //   console.error("Planning API is not available for this data source.");
-          //   return;
-          // }
-
-          try {
-            await planning.setUserInput(userInput, 4321);
-            console.log("User input set successfully:", userInput);
-
-            await planning.submitData();
-            console.log("Data successfully written back to the model.");
-            this._myDataSource.refreshData();
-          } catch (error) {
-            console.error("Error during setUserInput or submitData:", error);
+          if (planning) {
+            try {
+              await planning.setUserInput(userInput, newValue);
+              await planning.submitData();
+              console.log("Data written back successfully.");
+              this._myDataSource.refreshData();
+            } catch (error) {
+              console.error("Error during planning update:", error);
+            }
+          } else {
+            console.error("Planning API unavailable.");
           }
         } else {
-          console.error("Invalid input, resetting value.");
+          console.error("Invalid input detected.");
           cell.textContent = this._myDataSource.data[rowIndex][measureId]?.raw || "N/A";
         }
       });
     });
   });
 }
+
 
 
 // Helper function to get selected rows for a given dimension

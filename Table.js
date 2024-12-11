@@ -187,23 +187,34 @@
       });
     }
 
-    async fetchDimensionMembers(dimensionId) {
-      if (!this._myDataSource) {
-        console.error("Data source not available.");
-        return [];
-      }
-      try {
-        const dimension = this._myDataSource.metadata.dimensions[dimensionId];
-        if (!dimension) {
-          console.error(`Dimension with ID ${dimensionId} not found.`);
-          return [];
-        }
-        return dimension.members || [];
-      } catch (error) {
-        console.error("Error fetching dimension members:", error);
-        return [];
-      }
+async fetchDimensionMembers(dimensionId) {
+  if (!this._myDataSource) {
+    console.error("Data source not available.");
+    return [];
+  }
+  try {
+    const dimension = this._myDataSource.metadata.dimensions[dimensionId];
+    if (!dimension) {
+      console.error(`Dimension with ID ${dimensionId} not found.`);
+      return [];
     }
+    // Check for members in metadata
+    if (dimension.members && dimension.members.length > 0) {
+      return dimension.members;
+    } else {
+      console.warn(`No members found for dimension ${dimensionId}, providing fallback data.`);
+      // Fallback for testing
+      return [
+        { id: "Fallback1", label: "Fallback Member 1" },
+        { id: "Fallback2", label: "Fallback Member 2" },
+      ];
+    }
+  } catch (error) {
+    console.error("Error fetching dimension members:", error);
+    return [];
+  }
+}
+
 
     async addEmptyRow() {
       const table = this._root.querySelector("table tbody");

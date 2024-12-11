@@ -9,7 +9,11 @@
       tr:nth-child(even) { background-color: #f9f9f9; }
       tr.selected { background-color: #ffeb3b; }
       td.editable { background-color: #fff3e0; }
+      button { margin-bottom: 10px; padding: 5px 10px; cursor: pointer; }
     </style>
+    <div id="controls">
+      <button id="addRowButton">Add New Row</button>
+    </div>
     <div id="root" style="width: 100%; height: 100%; overflow: auto;"></div>
   `;
 
@@ -21,6 +25,9 @@
       this._root = this._shadowRoot.getElementById("root");
       this._selectedRows = new Set(); // Track selected rows
       this._myDataSource = null;
+
+      const addRowButton = this._shadowRoot.getElementById("addRowButton");
+      addRowButton.addEventListener("click", () => this.addEmptyRow());
     }
 
     connectedCallback() {
@@ -124,7 +131,6 @@
       this.dispatchEvent(event);
     }
 
-    // Make measure cells editable
     makeMeasureCellsEditable() {
       const rows = this._root.querySelectorAll("tbody tr");
       rows.forEach((row) => {
@@ -141,7 +147,6 @@
             if (!isNaN(newValue)) {
               console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
 
-              // Retrieve the dimensions for this row
               const dimensions = this.getDimensions();
               const rowData = this._myDataSource.data[rowIndex];
               if (!rowData) {
@@ -149,7 +154,6 @@
                 return;
               }
 
-              // Build the SAC planning input object
               const userInput = {
                 "@MeasureDimension": measureId,
                 ...dimensions.reduce((acc, dim) => {
@@ -159,19 +163,16 @@
               };
 
               try {
-                // Retrieve the planning object
                 const planning = await this._myDataSource.getPlanning();
                 if (!planning) {
                   console.error("Planning API is not available for this data source.");
                   return;
                 }
 
-                // Write back to the model
                 await planning.setUserInput(userInput, newValue);
                 await planning.submitData();
                 console.log("Data successfully written back to the model.");
 
-                // Optionally refresh the data source to reflect changes
                 this._myDataSource.refreshData();
               } catch (error) {
                 console.error("Error submitting data to the model:", error);
@@ -183,6 +184,53 @@
           });
         });
       });
+    }
+
+    addEmptyRow() {
+      const table = this._root.querySelector("table tbody");
+      if (!table) {
+        console.error("Table body not found.");
+        return;
+      }
+
+      const dimensions = this.getDimensions();
+      const measures = this.getMeasures();
+      const newRowIndex = table.rows.length;
+
+      const newRow = document.createElement("tr");
+      newRow.setAttribute("data-row-index", newRowIndex);
+
+      dimensions.forEach((dim) => {
+        const cell = document.createElement("td");
+        cell.classList.add("editable");
+        cell.setAttribute("data-dimension-id", dim.id);
+        cell.contentEditable = "true";
+        cell.addEventListener("blur", (event) => {
+          const value = event.target.textContent.trim();
+          console.log(`Updated Dimension ${dim.id}: ${value}`);
+        });
+        newRow.appendChild(cell);
+      });
+
+      measures.forEach((measure) => {
+        const cell = document.createElement("td");
+        cell.classList.add("editable");
+        cell.setAttribute("data-measure-id", measure.id);
+        cell.contentEditable = "true";
+        cell.addEventListener("blur", (event) => {
+          const value = parseFloat(event.target.textContent.trim());
+          if (!isNaN(value)) {
+            console.log(`Updated Measure ${measure.id}: ${value}`);
+          } else {
+            console.error("Invalid value for measure.");
+            cell.textContent = "";
+          }
+        });
+        newRow.appendChild(cell);
+      });
+
+      table.appendChild(newRow);
+      console.log("New row added:", newRow);
     }
 
     updateMeasureValue(rowIndex, measureId, newValue) {

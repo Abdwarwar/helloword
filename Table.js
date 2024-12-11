@@ -37,6 +37,10 @@ render() {
     return;
   }
 
+  console.log("Data Source Object:", this._myDataSource);
+  console.log("Data Source Metadata:", this._myDataSource?.metadata);
+  console.log("Available Methods on Data Source:", Object.keys(this._myDataSource || {}));
+
   const dimensions = this.getDimensions();
   const measures = this.getMeasures();
 
@@ -140,27 +144,29 @@ makeMeasureCellsEditable() {
               acc[dim.id] = rowData[dim.key]?.id || null;
               return acc;
             }, {}),
-            "Version": "public.Budget", // Adjust based on your model version
+            "Version": "public.Budget", // Replace with your model version
           };
 
           console.log("Constructed User Input:", userInput);
 
-          try {
-            const planning = this._myDataSource.getPlanning();
-            if (!planning) {
-              console.error("Planning API is not available for this data source.");
-              return;
+          const planning = this._myDataSource?.getPlanning?.();
+
+          if (planning) {
+            try {
+              await planning.setUserInput(userInput, newValue);
+              console.log("User input set successfully:", userInput);
+
+              await planning.submitData();
+              console.log("Data successfully written back to the model.");
+
+              this._myDataSource.refreshData();
+            } catch (error) {
+              console.error("Error during setUserInput or submitData:", error);
             }
-
-            await planning.setUserInput(userInput, newValue);
-            console.log("User input set successfully:", userInput, "New Value:", newValue);
-
-            await planning.submitData();
-            console.log("Data successfully written back to the model.");
-
-            this._myDataSource.refreshData();
-          } catch (error) {
-            console.error("Error during setUserInput or submitData:", error);
+          } else {
+            console.error(
+              "Planning API is not available. Please verify the widget's data source and model configuration."
+            );
           }
         } else {
           console.error("Invalid input, resetting value.");
@@ -170,6 +176,7 @@ makeMeasureCellsEditable() {
     });
   });
 }
+
 
 
 // Helper function to get selected rows for a given dimension

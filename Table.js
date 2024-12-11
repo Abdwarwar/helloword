@@ -10,6 +10,7 @@
       td.editable { background-color: #fff3e0; }
     </style>
     <div id="root" style="width: 100%; height: 100%; overflow: auto;"></div>
+    <button id="addRowButton" style="margin-bottom: 10px;">Add New Row</button>
   `;
 
   class CustomTableWidget extends HTMLElement {
@@ -20,6 +21,8 @@
       this._root = this._shadowRoot.getElementById("root");
       this._selectedRows = new Set(); // Track selected rows
       this._myDataSource = null;
+      this._addRowButton = this._shadowRoot.getElementById("addRowButton");
+      this._addRowButton.addEventListener("click", () => this.addEmptyRow());
     }
 
     connectedCallback() {
@@ -123,66 +126,118 @@
       this.dispatchEvent(event);
     }
 
-    // Make measure cells editable
     makeMeasureCellsEditable() {
-  const rows = this._root.querySelectorAll("tbody tr");
-  rows.forEach((row) => {
-    const rowIndex = row.getAttribute("data-row-index");
-    const cells = row.querySelectorAll("td.editable");
-    cells.forEach((cell) => {
-      const measureId = cell.getAttribute("data-measure-id");
-      cell.contentEditable = "true";
+      const rows = this._root.querySelectorAll("tbody tr");
+      rows.forEach((row) => {
+        const rowIndex = row.getAttribute("data-row-index");
+        const cells = row.querySelectorAll("td.editable");
+        cells.forEach((cell) => {
+          const measureId = cell.getAttribute("data-measure-id");
+          cell.contentEditable = "true";
 
-      // Handle cell value changes on blur
-      cell.addEventListener("blur", async (event) => {
-        const newValue = parseFloat(cell.textContent.trim());
+          // Handle cell value changes on blur
+          cell.addEventListener("blur", async (event) => {
+            const newValue = parseFloat(cell.textContent.trim());
 
-        if (!isNaN(newValue)) {
-          console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
+            if (!isNaN(newValue)) {
+              console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
 
-          // Retrieve the dimensions for this row
-          const dimensions = this.getDimensions();
-          const rowData = this._myDataSource.data[rowIndex];
-          if (!rowData) {
-            console.error("Row data not found for index:", rowIndex);
-            return;
-          }
+              // Retrieve the dimensions for this row
+              const dimensions = this.getDimensions();
+              const rowData = this._myDataSource.data[rowIndex];
+              if (!rowData) {
+                console.error("Row data not found for index:", rowIndex);
+                return;
+              }
 
-          // Build the SAC planning input object
-          const userInput = {
-            "@MeasureDimension": measureId,
-            ...dimensions.reduce((acc, dim) => {
-              acc[dim.id] = rowData[dim.key]?.id || "N/A";
-              return acc;
-            }, {}),
-          };
+              // Build the SAC planning input object
+              const userInput = {
+                "@MeasureDimension": measureId,
+                ...dimensions.reduce((acc, dim) => {
+                  acc[dim.id] = rowData[dim.key]?.id || "N/A";
+                  return acc;
+                }, {}),
+              };
 
-          try {
-            // Retrieve the planning object
-            const planning = await this._myDataSource.getPlanning();
-            if (!planning) {
-              console.error("Planning API is not available for this data source.");
-              return;
+              try {
+                // Retrieve the planning object
+                const planning = await this._myDataSource.getPlanning();
+                if (!planning) {
+                  console.error("Planning API is not available for this data source.");
+                  return;
+                }
+
+                // Write back to the model
+                await planning.setUserInput(userInput, newValue);
+                await planning.submitData();
+                console.log("Data successfully written back to the model.");
+
+                // Optionally refresh the data source to reflect changes
+                this._myDataSource.refreshData();
+              } catch (error) {
+                console.error("Error submitting data to the model:", error);
+              }
+            } else {
+              console.error("Invalid input, resetting value.");
+              cell.textContent = rowData[measureId]?.raw || "N/A";
             }
-
-            // Write back to the model
-            await planning.setUserInput(userInput, newValue);
-            await planning.submitData();
-            console.log("Data successfully written back to the model.");
-
-            // Optionally refresh the data source to reflect changes
-            this._myDataSource.refreshData();
-          } catch (error) {
-            console.error("Error submitting data to the model:", error);
-          }
-        } else {
-          console.error("Invalid input, resetting value.");
-          cell.textContent = rowData[measureId]?.raw || "N/A";
-        }
+          });
+        });
       });
-    });
-  });
-}
+    }
+
+    addEmptyRow() {
+      const table = this._root.querySelector("table tbody");
+      if (!table) {
+        console.error("Table body not found.");
+        return;
+      }
+
+      const dimensions = this.getDimensions();
+      const measures = this.getMeasures();
+      const newRowIndex = table.rows.length; // Calculate the new row index
+
+      // Create a new row
+      const newRow = document.createElement("tr");
+      newRow.setAttribute("data-row-index", newRowIndex);
+
+      // Add empty cells for dimensions
+      dimensions.forEach((dim) => {
+        const cell = document.createElement("td");
+        cell.classList.add("editable");
+        cell.setAttribute("data-dimension-id", dim.id);
+        cell.contentEditable = "true";
+        cell.addEventListener("blur", (event) => {
+          const value = event.target.textContent.trim();
+          console.log(`Updated Dimension ${dim.id}: ${value}`);
+          // Store the value as needed
+        });
+        newRow.appendChild(cell);
+      });
+
+      // Add empty cells for measures
+      measures.forEach((measure) => {
+        const cell = document.createElement("td");
+        cell.classList.add("editable");
+        cell.setAttribute("data-measure-id", measure.id);
+        cell.contentEditable = "true";
+        cell.addEventListener("blur", (event) => {
+          const value = parseFloat(event.target.textContent.trim());
+          if (!isNaN(value)) {
+            console.log(`Updated Measure ${measure.id}: ${value}`);
+            // Store the value as needed
+          } else {
+            console.error("Invalid value for measure.");
+            cell.textContent = ""; // Reset invalid value
+          }
+        });
+        newRow.appendChild(cell);
+      });
+
+      // Append the new row to the table
+      table.appendChild(newRow);
+      console.log("New row added:", newRow);
+    }
 
     updateMeasureValue(rowIndex, measureId, newValue) {
       if (!this._myDataSource || !this._myDataSource.data[rowIndex]) {

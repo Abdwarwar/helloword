@@ -192,16 +192,18 @@ async fetchDimensionMembers(dimensionId) {
     console.error("Data source not available or data is missing.");
     return [];
   }
-  
+
   try {
-    const membersSet = new Set(); // Use a set to avoid duplicates
+    // Use a Set to collect unique values for the dimension
+    const membersSet = new Set();
     this._myDataSource.data.forEach((row) => {
-      const dimensionValue = row[dimensionId]?.label || row[dimensionId]?.id || "N/A";
-      if (dimensionValue !== "N/A") {
-        membersSet.add(dimensionValue);
+      const value = row[dimensionId]?.label || row[dimensionId]?.id || "N/A";
+      if (value !== "N/A") {
+        membersSet.add(value);
       }
     });
 
+    // Convert the Set into an array of objects for the dropdown
     const members = Array.from(membersSet).map((member) => ({
       id: member,
       label: member,
@@ -214,6 +216,7 @@ async fetchDimensionMembers(dimensionId) {
     return [];
   }
 }
+
 
 
 
@@ -233,15 +236,17 @@ async addEmptyRow() {
   newRow.setAttribute("data-row-index", newRowIndex);
   newRow.classList.add("selected");
 
+  // Populate dropdowns for dimensions
   for (const dim of dimensions) {
     const cell = document.createElement("td");
     const dropdown = document.createElement("select");
 
-    const members = await this.fetchDimensionMembers(dim.id); // Use the updated logic
+    // Fetch dimension members dynamically
+    const members = await this.fetchDimensionMembers(dim.key);
     members.forEach((member) => {
       const option = document.createElement("option");
-      option.value = member.id || member.label || member;
-      option.textContent = member.label || member.id || member;
+      option.value = member.id;
+      option.textContent = member.label;
       dropdown.appendChild(option);
     });
 
@@ -253,6 +258,7 @@ async addEmptyRow() {
     newRow.appendChild(cell);
   }
 
+  // Add editable cells for measures
   measures.forEach((measure) => {
     const cell = document.createElement("td");
     cell.classList.add("editable");
@@ -270,7 +276,8 @@ async addEmptyRow() {
     newRow.appendChild(cell);
   });
 
-  newRow.addEventListener("click", (event) => {
+  // Attach row click event for selection highlighting
+  newRow.addEventListener("click", () => {
     table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
     newRow.classList.add("selected");
     console.log("New row selected:", newRowIndex);
@@ -279,6 +286,7 @@ async addEmptyRow() {
   table.appendChild(newRow);
   console.log("New row added:", newRow);
 }
+
 
 
 

@@ -216,6 +216,9 @@
       }
     }
 
+
+
+    
     async addEmptyRow() {
       const table = this._root.querySelector("table tbody");
       if (!table) {

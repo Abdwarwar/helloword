@@ -24,6 +24,7 @@
       this._root = this._shadowRoot.getElementById("root");
       this._selectedRows = new Set(); // Track selected rows
       this._myDataSource = null;
+      this._newRowsData = []; // Track newly added rows
 
       const addRowButton = this._shadowRoot.getElementById("addRowButton");
       addRowButton.addEventListener("click", () => this.addEmptyRow());
@@ -187,105 +188,104 @@
       });
     }
 
-async fetchDimensionMembers(dimensionId) {
-  if (!this._myDataSource || !this._myDataSource.data) {
-    console.error("Data source not available or data is missing.");
-    return [];
-  }
-
-  try {
-    // Use a Set to collect unique values for the dimension
-    const membersSet = new Set();
-    this._myDataSource.data.forEach((row) => {
-      const value = row[dimensionId]?.label || row[dimensionId]?.id || "N/A";
-      if (value !== "N/A") {
-        membersSet.add(value);
+    async fetchDimensionMembers(dimensionId) {
+      if (!this._myDataSource || !this._myDataSource.data) {
+        console.error("Data source not available or data is missing.");
+        return [];
       }
-    });
 
-    // Convert the Set into an array of objects for the dropdown
-    const members = Array.from(membersSet).map((member) => ({
-      id: member,
-      label: member,
-    }));
+      try {
+        const membersSet = new Set();
+        this._myDataSource.data.forEach((row) => {
+          const value = row[dimensionId]?.label || row[dimensionId]?.id || "N/A";
+          if (value !== "N/A") {
+            membersSet.add(value);
+          }
+        });
 
-    console.log(`Fetched members for dimension ${dimensionId}:`, members);
-    return members;
-  } catch (error) {
-    console.error("Error fetching dimension members:", error);
-    return [];
-  }
-}
+        const members = Array.from(membersSet).map((member) => ({
+          id: member,
+          label: member,
+        }));
 
-
-
-
-
-async addEmptyRow() {
-  const table = this._root.querySelector("table tbody");
-  if (!table) {
-    console.error("Table body not found.");
-    return;
-  }
-
-  const dimensions = this.getDimensions();
-  const measures = this.getMeasures();
-  const newRowIndex = table.rows.length;
-
-  const newRow = document.createElement("tr");
-  newRow.setAttribute("data-row-index", newRowIndex);
-  newRow.classList.add("selected");
-
-  // Populate dropdowns for dimensions
-  for (const dim of dimensions) {
-    const cell = document.createElement("td");
-    const dropdown = document.createElement("select");
-
-    // Fetch dimension members dynamically
-    const members = await this.fetchDimensionMembers(dim.key);
-    members.forEach((member) => {
-      const option = document.createElement("option");
-      option.value = member.id;
-      option.textContent = member.label;
-      dropdown.appendChild(option);
-    });
-
-    dropdown.addEventListener("change", (event) => {
-      console.log(`Dimension ${dim.id} selected: ${event.target.value}`);
-    });
-
-    cell.appendChild(dropdown);
-    newRow.appendChild(cell);
-  }
-
-  // Add editable cells for measures
-  measures.forEach((measure) => {
-    const cell = document.createElement("td");
-    cell.classList.add("editable");
-    cell.setAttribute("data-measure-id", measure.id);
-    cell.contentEditable = "true";
-    cell.addEventListener("blur", (event) => {
-      const value = parseFloat(event.target.textContent.trim());
-      if (!isNaN(value)) {
-        console.log(`Updated Measure ${measure.id}: ${value}`);
-      } else {
-        console.error("Invalid value for measure.");
-        cell.textContent = "";
+        console.log(`Fetched members for dimension ${dimensionId}:`, members);
+        return members;
+      } catch (error) {
+        console.error("Error fetching dimension members:", error);
+        return [];
       }
-    });
-    newRow.appendChild(cell);
-  });
+    }
 
-  // Attach row click event for selection highlighting
-  newRow.addEventListener("click", () => {
-    table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
-    newRow.classList.add("selected");
-    console.log("New row selected:", newRowIndex);
-  });
+    async addEmptyRow() {
+      const table = this._root.querySelector("table tbody");
+      if (!table) {
+        console.error("Table body not found.");
+        return;
+      }
 
-  table.appendChild(newRow);
-  console.log("New row added:", newRow);
-}
+      const dimensions = this.getDimensions();
+      const measures = this.getMeasures();
+      const newRowIndex = this._myDataSource.data.length + this._newRowsData.length;
+
+      const newRowData = {
+        index: newRowIndex,
+        dimensions: {},
+        measures: {},
+      };
+
+      const newRow = document.createElement("tr");
+      newRow.setAttribute("data-row-index", newRowIndex);
+      newRow.classList.add("selected");
+
+      for (const dim of dimensions) {
+        const cell = document.createElement("td");
+        const dropdown = document.createElement("select");
+
+        const members = await this.fetchDimensionMembers(dim.key);
+        members.forEach((member) => {
+          const option = document.createElement("option");
+          option.value = member.id;
+          option.textContent = member.label;
+          dropdown.appendChild(option);
+        });
+
+        dropdown.addEventListener("change", (event) => {
+          newRowData.dimensions[dim.id] = event.target.value;
+          console.log(`Dimension ${dim.id} selected: ${event.target.value}`);
+        });
+
+        cell.appendChild(dropdown);
+        newRow.appendChild(cell);
+      }
+
+      measures.forEach((measure) => {
+        const cell = document.createElement("td");
+        cell.classList.add("editable");
+        cell.setAttribute("data-measure-id", measure.id);
+        cell.contentEditable = "true";
+        cell.addEventListener("blur", (event) => {
+          const value = parseFloat(event.target.textContent.trim());
+          if (!isNaN(value)) {
+            newRowData.measures[measure.id] = value;
+            console.log(`Updated Measure ${measure.id}: ${value}`);
+          } else {
+            console.error("Invalid value for measure.");
+            cell.textContent = "";
+          }
+        });
+        newRow.appendChild(cell);
+      });
+
+      newRow.addEventListener("click", () => {
+        table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
+        newRow.classList.add("selected");
+        console.log("New row selected:", newRowIndex);
+      });
+
+      table.appendChild(newRow);
+      this._newRowsData.push(newRowData);
+      console.log("New row added:", newRow);
+    }
 
 
 

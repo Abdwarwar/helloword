@@ -457,52 +457,40 @@ getDimensionSelected(dimensionId) {
 
 getMeasureValues(measureId) {
   try {
-    if (!this._myDataSource || !this._myDataSource.data) {
-      console.error("Data source is not bound or data is unavailable.");
+    const table = this._root.querySelector("table");
+    if (!table) {
+      console.error("Table element not found.");
       return [];
     }
 
-    const measures = this.getMeasures();
-    const selectedMeasure = measures.find((measure) => measure.id === measureId);
-
-    if (!selectedMeasure) {
-      console.error(`Measure with ID '${measureId}' not found.`);
-      return [];
-    }
-
-    console.log("Selected Measure Metadata:", selectedMeasure);
-
-    // Collect values from both existing rows and new rows
+    const rows = table.querySelectorAll("tbody tr");
     const measureValues = Array.from(this._selectedRows).map((rowIndex) => {
-      if (rowIndex < this._myDataSource.data.length) {
-        // Existing rows
-        const existingRow = this._myDataSource.data[rowIndex];
-        if (!existingRow) {
-          console.warn(`Row ${rowIndex} not found in existing data.`);
-          return null;
-        }
-        return existingRow[selectedMeasure.key]?.raw || existingRow[selectedMeasure.key]?.formatted || null;
-      } else {
-        // New rows
-        const newRowIndex = rowIndex - this._myDataSource.data.length;
-        const newRow = this._newRowsData[newRowIndex];
-        if (!newRow) {
-          console.warn(`New row ${newRowIndex} not found.`);
-          return null;
-        }
-        return newRow.measures[measureId] || null;
+      const row = rows[rowIndex];
+      if (!row) {
+        console.warn(`Row at index '${rowIndex}' not found in the DOM.`);
+        return null;
       }
+
+      const cell = row.querySelector(`td[data-measure-id="${measureId}"]`);
+      if (!cell) {
+        console.warn(`Cell for measure '${measureId}' not found in row '${rowIndex}'.`);
+        return null;
+      }
+
+      const editedValue = parseFloat(cell.textContent.trim());
+      console.log(`Measure '${measureId}' in row '${rowIndex}' has value: ${editedValue}`);
+      return isNaN(editedValue) ? null : editedValue;
     });
 
-    // Filter and log valid measure values
-    const filteredValues = measureValues.filter((value) => value !== null && value !== undefined);
-    console.log(`Values for measure '${measureId}':`, filteredValues);
+    const filteredValues = measureValues.filter((value) => value !== null);
+    console.log(`Filtered measure values for '${measureId}':`, filteredValues);
     return filteredValues;
   } catch (error) {
     console.error("Error in getMeasureValues:", error);
     return [];
   }
 }
+
 
 
 

@@ -472,30 +472,36 @@ getMeasureValues(measureId) {
 
     console.log("Selected Measure Metadata:", selectedMeasure);
 
-    const table = this._root.querySelector("table");
-    if (!table) {
-      console.error("Table element not found in the widget.");
-      return [];
-    }
-
-    const editedValues = Array.from(this._selectedRows).map((rowIndex) => {
-      const isExistingRow = rowIndex < this._myDataSource.data.length;
-      const row = isExistingRow ? this._myDataSource.data[rowIndex] : this._newRowsData[rowIndex - this._myDataSource.data.length];
-
-      if (!row) return null;
-      return isExistingRow
-        ? row[measureId]?.raw || null
-        : row.measures[measureId] || null;
+    const measureValues = Array.from(this._selectedRows).map((rowIndex) => {
+      if (rowIndex < this._myDataSource.data.length) {
+        // Existing rows
+        const existingRow = this._myDataSource.data[rowIndex];
+        if (!existingRow) {
+          console.warn(`Row ${rowIndex} not found in existing data.`);
+          return null;
+        }
+        return existingRow[measureId]?.raw || existingRow[measureId]?.formatted || null;
+      } else {
+        // New rows
+        const newRowIndex = rowIndex - this._myDataSource.data.length;
+        const newRow = this._newRowsData[newRowIndex];
+        if (!newRow) {
+          console.warn(`New row ${newRowIndex} not found.`);
+          return null;
+        }
+        return newRow.measures[measureId] || null;
+      }
     });
 
-    const filteredValues = editedValues.filter((value) => value !== null);
-    console.log(`Edited values for measure '${measureId}':`, filteredValues);
+    const filteredValues = measureValues.filter((value) => value !== null);
+    console.log(`Values for measure '${measureId}':`, filteredValues);
     return filteredValues;
   } catch (error) {
     console.error("Error in getMeasureValues:", error);
     return [];
   }
 }
+
 
   }
 

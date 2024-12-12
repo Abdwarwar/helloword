@@ -230,22 +230,21 @@ async addEmptyRow() {
   const measures = this.getMeasures();
   const newRowIndex = this._myDataSource.data.length + this._newRowsData.length;
 
-  const newRow = document.createElement("tr");
-  newRow.setAttribute("data-row-index", newRowIndex);
-  newRow.classList.add("selected");
-
   const newRowData = {
     index: newRowIndex,
     dimensions: {},
     measures: {},
   };
 
-  // Add dimension dropdowns
+  const newRow = document.createElement("tr");
+  newRow.setAttribute("data-row-index", newRowIndex);
+  newRow.classList.add("selected");
+
+  // Populate dropdowns for dimensions
   for (const dim of dimensions) {
     const cell = document.createElement("td");
     const dropdown = document.createElement("select");
 
-    // Fetch dimension members dynamically
     const members = await this.fetchDimensionMembers(dim.key);
     members.forEach((member) => {
       const option = document.createElement("option");
@@ -255,8 +254,9 @@ async addEmptyRow() {
     });
 
     dropdown.addEventListener("change", (event) => {
-      console.log(`Dimension ${dim.id} selected: ${event.target.value}`);
-      newRowData.dimensions[dim.id] = event.target.value;
+      const selectedValue = event.target.value;
+      console.log(`Dimension ${dim.id} selected: ${selectedValue}`);
+      newRowData.dimensions[dim.id] = selectedValue;
     });
 
     cell.appendChild(dropdown);
@@ -284,19 +284,17 @@ async addEmptyRow() {
     newRow.appendChild(cell);
   });
 
-  // Attach row click event for selection highlighting
   newRow.addEventListener("click", () => {
     table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
     newRow.classList.add("selected");
-    this._selectedRows.add(newRowIndex);
     console.log("New row selected:", newRowIndex);
-    this.fireOnSelectEvent();
   });
 
   table.appendChild(newRow);
-  this._newRowsData.push(newRowData);
-  console.log("New row added:", newRow);
+  this._newRowsData.push(newRowData); // Add to new rows data
+  console.log("New row added:", newRowData);
 }
+
 
 
 
@@ -355,57 +353,59 @@ async addEmptyRow() {
       }
     }
 
-    getDimensions() {
-      if (!this._myDataSource || !this._myDataSource.metadata) {
-        console.error("Data source metadata is unavailable.");
-        return [];
-      }
+getDimensions() {
+  if (!this._myDataSource || !this._myDataSource.metadata) {
+    console.error("Data source metadata is unavailable.");
+    return [];
+  }
 
-      const dimensionsKeys = this._myDataSource.metadata.feeds.dimensions.values;
+  const dimensionsKeys = this._myDataSource.metadata.feeds.dimensions.values;
 
-      const dimensions = dimensionsKeys.map((key) => {
-        const dimension = this._myDataSource.metadata.dimensions[key];
-        if (!dimension) {
-          console.warn(`Dimension with key '${key}' not found in metadata.`);
-          return { id: key, key, description: key }; // Fallback
-        }
-
-        return {
-          id: dimension.id || key, // Use actual dimension ID
-          key,
-          description: dimension.description || dimension.id || key, // Use actual description
-        };
-      });
-
-      console.log("Resolved Dimensions:", dimensions);
-      return dimensions;
+  const dimensions = dimensionsKeys.map((key) => {
+    const dimension = this._myDataSource.metadata.dimensions[key];
+    if (!dimension) {
+      console.warn(`Dimension with key '${key}' not found in metadata.`);
+      return { id: key, key, description: key }; // Fallback
     }
 
-    getMeasures() {
-      if (!this._myDataSource || !this._myDataSource.metadata) {
-        console.error("Data source metadata is unavailable.");
-        return [];
-      }
+    return {
+      id: dimension.id || key, // Use actual dimension ID
+      key,
+      description: dimension.description || dimension.id || key, // Use actual description
+    };
+  });
 
-      const measuresKeys = this._myDataSource.metadata.feeds.measures.values;
+  console.log("Resolved Dimensions:", dimensions);
+  return dimensions;
+}
 
-      const measures = measuresKeys.map((key) => {
-        const measure = this._myDataSource.metadata.mainStructureMembers[key];
-        if (!measure) {
-          console.warn(`Measure with key '${key}' not found in metadata.`);
-          return { id: key, key, description: key }; // Fallback
-        }
 
-        return {
-          id: measure.id || key, // Use actual measure ID
-          key,
-          description: measure.description || measure.id || key, // Use actual description
-        };
-      });
+getMeasures() {
+  if (!this._myDataSource || !this._myDataSource.metadata) {
+    console.error("Data source metadata is unavailable.");
+    return [];
+  }
 
-      console.log("Resolved Measures:", measures);
-      return measures;
+  const measuresKeys = this._myDataSource.metadata.feeds.measures.values;
+
+  const measures = measuresKeys.map((key) => {
+    const measure = this._myDataSource.metadata.mainStructureMembers[key];
+    if (!measure) {
+      console.warn(`Measure with key '${key}' not found in metadata.`);
+      return { id: key, key, description: key }; // Fallback
     }
+
+    return {
+      id: measure.id || key, // Use actual measure ID
+      key,
+      description: measure.description || measure.id || key, // Use actual description
+    };
+  });
+
+  console.log("Resolved Measures:", measures);
+  return measures;
+}
+
 
     getSelectedRow() {
       try {
@@ -472,6 +472,7 @@ getMeasureValues(measureId) {
 
     console.log("Selected Measure Metadata:", selectedMeasure);
 
+    // Collect values from both existing rows and new rows
     const measureValues = Array.from(this._selectedRows).map((rowIndex) => {
       if (rowIndex < this._myDataSource.data.length) {
         // Existing rows
@@ -480,7 +481,7 @@ getMeasureValues(measureId) {
           console.warn(`Row ${rowIndex} not found in existing data.`);
           return null;
         }
-        return existingRow[measureId]?.raw || existingRow[measureId]?.formatted || null;
+        return existingRow[selectedMeasure.key]?.raw || existingRow[selectedMeasure.key]?.formatted || null;
       } else {
         // New rows
         const newRowIndex = rowIndex - this._myDataSource.data.length;
@@ -493,7 +494,8 @@ getMeasureValues(measureId) {
       }
     });
 
-    const filteredValues = measureValues.filter((value) => value !== null);
+    // Filter and log valid measure values
+    const filteredValues = measureValues.filter((value) => value !== null && value !== undefined);
     console.log(`Values for measure '${measureId}':`, filteredValues);
     return filteredValues;
   } catch (error) {
@@ -501,6 +503,7 @@ getMeasureValues(measureId) {
     return [];
   }
 }
+
 
 
   }

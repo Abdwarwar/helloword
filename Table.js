@@ -188,50 +188,40 @@
       });
     }
 
-async fetchDimensionMembers(dimensionKey) {
-  if (!this._myDataSource || !this._myDataSource.metadata) {
-    console.error("Data source or metadata is unavailable.");
+async fetchDimensionMembers(dimensionId, returnType = "id") {
+  if (!this._myDataSource || !this._myDataSource.data) {
+    console.error("Data source not available or data is missing.");
     return [];
   }
 
-  console.log("Attempting to fetch members for dimension:", dimensionKey);
-
   try {
-    // Try using the API if available
-    const planning = await this._myDataSource.getPlanning();
-    if (planning?.getDimensionMembers) {
-      const dimensionMembers = await planning.getDimensionMembers(dimensionKey);
-      console.log(`Fetched dimension members via API for '${dimensionKey}':`, dimensionMembers);
-      return dimensionMembers.map(member => ({ id: member.id, label: member.label }));
-    }
-  } catch (apiError) {
-    console.warn(`getDimensionMembers API unavailable for '${dimensionKey}'. Attempting fallback.`, apiError);
+    const membersSet = new Set();
+    this._myDataSource.data.forEach((row) => {
+      const value = row[dimensionId]?.[returnType] || null;
+      if (value) {
+        membersSet.add(value);
+      }
+    });
+
+    const members = Array.from(membersSet).map((member) => ({
+      id: member,
+      label: member, // For dropdowns, we can show `id` or `label`
+    }));
+
+    console.log(`Fetched members for dimension '${dimensionId}' (${returnType}):`, members);
+    return members;
+  } catch (error) {
+    console.error("Error fetching dimension members:", error);
+    return [];
   }
-
-  // Fallback to metadata members
-  const metadataDimension = this._myDataSource.metadata.dimensions[dimensionKey];
-  if (metadataDimension?.values) {
-    console.log(`Fetched dimension members from metadata for '${dimensionKey}':`, metadataDimension.values);
-    return metadataDimension.values.map(value => ({ id: value.id || value, label: value.label || value }));
-  }
-
-  // Fallback to data source rows
-  const fallbackMembers = new Set();
-  this._myDataSource.data.forEach(row => {
-    const value = row[dimensionKey]?.id || row[dimensionKey]?.label || null;
-    if (value) fallbackMembers.add(value);
-  });
-
-  const membersArray = Array.from(fallbackMembers).map(id => ({ id, label: id }));
-  console.log(`Manually fetched members for '${dimensionKey}':`, membersArray);
-
-  return membersArray;
 }
-
 
 async addEmptyRow() {
   const table = this._root.querySelector("table tbody");
-  if (!table) return;
+  if (!table) {
+    console.error("Table body not found.");
+    return;
+  }
 
   const dimensions = this.getDimensions();
   const measures = this.getMeasures();
@@ -241,36 +231,58 @@ async addEmptyRow() {
   newRow.setAttribute("data-row-index", newRowIndex);
   newRow.classList.add("selected");
 
+  // Populate dropdowns for dimensions
   for (const dim of dimensions) {
     const cell = document.createElement("td");
+    cell.setAttribute("data-dimension-id", dim.id);
+
     const dropdown = document.createElement("select");
 
-    const members = await this.fetchDimensionMembers(dim.key);
-    members.forEach(member => {
+    // Fetch dimension members dynamically with `id` as default type
+    const members = await this.fetchDimensionMembers(dim.key, "id");
+    members.forEach((member) => {
       const option = document.createElement("option");
       option.value = member.id;
-      option.textContent = member.label;
+      option.textContent = member.label; // Show label (or description) in dropdown
       dropdown.appendChild(option);
     });
 
-    dropdown.addEventListener("change", event => {
-      cell.setAttribute("data-dimension-value", event.target.value);
+    dropdown.addEventListener("change", (event) => {
+      console.log(`Dimension '${dim.id}' selected as ID: ${event.target.value}`);
+      cell.setAttribute("data-dimension-value", event.target.value); // Store selected ID
     });
 
     cell.appendChild(dropdown);
     newRow.appendChild(cell);
   }
 
-  measures.forEach(measure => {
+  // Add editable cells for measures
+  measures.forEach((measure) => {
     const cell = document.createElement("td");
     cell.classList.add("editable");
+    cell.setAttribute("data-measure-id", measure.id);
+
     cell.contentEditable = "true";
+    cell.addEventListener("blur", (event) => {
+      const value = parseFloat(event.target.textContent.trim());
+      console.log(`Measure '${measure.id}' for new row updated to: ${value}`);
+      cell.setAttribute("data-measure-value", isNaN(value) ? null : value); // Store edited value
+    });
+
     newRow.appendChild(cell);
   });
 
-  table.appendChild(newRow);
-}
+  // Attach row click event for selection highlighting
+  newRow.addEventListener("click", () => {
+    table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
+    newRow.classList.add("selected");
+    this._selectedRows.add(newRowIndex);
+    console.log(`New row selected: ${newRowIndex}`);
+  });
 
+  table.appendChild(newRow);
+  console.log(`New row added: ${newRowIndex}`);
+}
 
     updateMeasureValue(rowIndex, measureId, newValue) {
       if (!this._myDataSource || !this._myDataSource.data[rowIndex]) {

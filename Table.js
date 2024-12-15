@@ -189,8 +189,8 @@
     }
 
 async fetchDimensionMembers(dimensionId) {
-  if (!this._myDataSource || !this._myDataSource.metadata) {
-    console.error("Data source metadata is not available.");
+  if (!this._myDataSource || !this._myDataSource.metadata || !this._myDataSource.data) {
+    console.error("Data source or metadata is not available.");
     return [];
   }
 
@@ -201,38 +201,39 @@ async fetchDimensionMembers(dimensionId) {
     // Find the dimension in metadata using its ID
     const dimension = Object.values(allDimensions).find((dim) => dim.id === dimensionId);
     if (!dimension) {
-      console.warn(`Dimension '${dimensionId}' not found in metadata. Available keys:`, Object.keys(allDimensions));
+      console.warn(
+        `Dimension '${dimensionId}' not found in metadata. Available keys:`,
+        Object.keys(allDimensions)
+      );
       return [];
     }
 
-    // Attempt to fetch members for the dimension
-    if (dimension.memberKeys) {
-      const members = dimension.memberKeys.map((key) => ({
-        id: key,
-        label: dimension.memberDescriptions?.[key] || key, // Use description if available
-      }));
-      console.log(`Fetched members for '${dimensionId}':`, members);
-      return members;
-    }
-
-    // Use data source rows to fetch dimension members if not available in metadata
+    // Fallback: Collect dimension members from rows
     const membersSet = new Set();
     this._myDataSource.data.forEach((row) => {
-      const value = row[dimension.key]?.id || row[dimension.key]?.label || "N/A";
-      if (value !== "N/A") {
-        membersSet.add(value);
+      if (row[dimension.key]) {
+        const id = row[dimension.key]?.id || "N/A";
+        const label = row[dimension.key]?.label || id;
+        if (id !== "N/A") {
+          membersSet.add(JSON.stringify({ id, label }));
+        }
       }
     });
 
-    const members = Array.from(membersSet).map((id) => ({ id, label: id }));
-    console.log(`Fallback members for '${dimensionId}':`, members);
-    return members;
+    // Convert Set back to Array
+    const members = Array.from(membersSet).map((member) => JSON.parse(member));
+    if (members.length > 0) {
+      console.log(`Fallback members for '${dimensionId}':`, members);
+      return members;
+    }
+
+    console.warn(`No members found for dimension '${dimensionId}'.`);
+    return [];
   } catch (error) {
     console.error(`Error fetching members for dimension '${dimensionId}':`, error);
     return [];
   }
 }
-
 
 
 

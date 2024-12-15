@@ -188,33 +188,58 @@
       });
     }
 
-async fetchAllDimensionMembers(dimensionId) {
+async fetchDimensionMembers(dimensionId) {
   if (!this._myDataSource || !this._myDataSource.metadata) {
     console.error("Data source metadata not available.");
     return [];
   }
 
   try {
-    // Fetch all dimension members from metadata
     const dimensionMetadata = this._myDataSource.metadata.dimensions[dimensionId];
     if (!dimensionMetadata) {
       console.error(`Dimension '${dimensionId}' not found in metadata.`);
       return [];
     }
 
-    const allMembers = dimensionMetadata.members || [];
-    const members = allMembers.map((member) => ({
-      id: member.id,
-      label: member.description || member.id,
-    }));
+    // Fetch unbooked members from metadata
+    const unbookedMembers = dimensionMetadata.members || [];
 
-    console.log(`Fetched ALL members for dimension '${dimensionId}':`, members);
-    return members;
+    // Fetch booked members from data
+    const bookedMembersSet = new Set();
+    this._myDataSource.data.forEach((row) => {
+      const value = row[dimensionId]?.id || row[dimensionId]?.label || "N/A";
+      if (value !== "N/A") {
+        bookedMembersSet.add(value);
+      }
+    });
+
+    const bookedMembers = Array.from(bookedMembersSet).map((memberId) => {
+      const unbookedMember = unbookedMembers.find((m) => m.id === memberId);
+      return {
+        id: memberId,
+        label: unbookedMember?.description || memberId,
+      };
+    });
+
+    // Merge booked and unbooked members
+    const allMembers = [...bookedMembers];
+    unbookedMembers.forEach((member) => {
+      if (!bookedMembersSet.has(member.id)) {
+        allMembers.push({
+          id: member.id,
+          label: member.description || member.id,
+        });
+      }
+    });
+
+    console.log(`Fetched all members for dimension '${dimensionId}':`, allMembers);
+    return allMembers;
   } catch (error) {
-    console.error("Error fetching all dimension members:", error);
+    console.error("Error fetching dimension members:", error);
     return [];
   }
 }
+
 
 
 
@@ -233,13 +258,13 @@ async addEmptyRow() {
   newRow.setAttribute("data-row-index", newRowIndex);
   newRow.classList.add("selected");
 
-  // Populate dropdowns for dimensions with ALL members
+  // Populate dropdowns for dimensions
   for (const dim of dimensions) {
     const cell = document.createElement("td");
     const dropdown = document.createElement("select");
 
-    // Fetch all dimension members dynamically
-    const members = await this.fetchAllDimensionMembers(dim.key);
+    // Fetch dimension members (both booked and unbooked)
+    const members = await this.fetchDimensionMembers(dim.id);
     members.forEach((member) => {
       const option = document.createElement("option");
       option.value = member.id;
@@ -288,6 +313,7 @@ async addEmptyRow() {
   table.appendChild(newRow);
   console.log("New row added:", newRow);
 }
+
 
 
 

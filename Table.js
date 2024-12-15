@@ -189,42 +189,46 @@
     }
 
 async fetchDimensionMembers(dimensionId) {
-  if (!this._myDataSource || !this._myDataSource.data) {
-    console.error("Data source not available or data is missing.");
+  if (!this._myDataSource) {
+    console.error("Data source is not available.");
     return [];
   }
 
   try {
-    const dimensions = this._myDataSource.metadata.dimensions || {};
-    const dimensionMetadata = dimensions[dimensionId];
+    // Check if the data source API supports fetching members
+    if (typeof this._myDataSource.getMembers === "function") {
+      // Fetch all members (including unbooked) using SAC API
+      const members = await this._myDataSource.getMembers(dimensionId);
+      console.log(`Fetched all members for dimension '${dimensionId}':`, members);
 
-    // Check if metadata exists, otherwise fallback
-    if (!dimensionMetadata) {
-      console.warn(`Dimension '${dimensionId}' not found in metadata. Falling back to data keys.`);
+      return members.map((member) => ({
+        id: member.id,
+        label: member.description || member.id,
+      }));
+    } else {
+      console.warn("Data source does not support getMembers API. Falling back to data extraction.");
+
+      // Fallback: Extract members directly from the data source (only booked)
+      const membersSet = new Set();
+      this._myDataSource.data.forEach((row) => {
+        const value = row[dimensionId]?.id || row[dimensionId]?.label || "N/A";
+        if (value !== "N/A") membersSet.add(value);
+      });
+
+      const members = Array.from(membersSet).map((id) => ({
+        id,
+        label: id,
+      }));
+
+      console.log(`Fetched fallback members for dimension '${dimensionId}':`, members);
+      return members;
     }
-
-    // Attempt to retrieve members directly from the data
-    const membersSet = new Set();
-    this._myDataSource.data.forEach((row) => {
-      const value = row[dimensionId]?.id || row[dimensionId]?.label || "N/A";
-      if (value !== "N/A") {
-        membersSet.add(value);
-      }
-    });
-
-    // Build the member list
-    const members = Array.from(membersSet).map((member) => ({
-      id: member,
-      label: member,
-    }));
-
-    console.log(`Fetched members for dimension '${dimensionId}':`, members);
-    return members;
   } catch (error) {
-    console.error(`Error fetching dimension members for '${dimensionId}':`, error);
+    console.error(`Error fetching members for dimension '${dimensionId}':`, error);
     return [];
   }
 }
+
 
 
 
@@ -245,22 +249,26 @@ async addEmptyRow() {
   newRow.setAttribute("data-row-index", newRowIndex);
   newRow.classList.add("selected");
 
+  // Populate dropdowns for dimensions
   for (const dim of dimensions) {
     const cell = document.createElement("td");
     const dropdown = document.createElement("select");
 
-    // Fetch members with fallback
+    // Fetch members dynamically for each dimension
     const members = await this.fetchDimensionMembers(dim.id);
-    if (members.length === 0) {
-      console.warn(`No members found for dimension '${dim.id}'.`);
-    }
-
-    members.forEach((member) => {
+    if (members.length > 0) {
+      members.forEach((member) => {
+        const option = document.createElement("option");
+        option.value = member.id;
+        option.textContent = member.label;
+        dropdown.appendChild(option);
+      });
+    } else {
       const option = document.createElement("option");
-      option.value = member.id;
-      option.textContent = member.label;
+      option.value = "";
+      option.textContent = "No members available";
       dropdown.appendChild(option);
-    });
+    }
 
     dropdown.addEventListener("change", (event) => {
       console.log(`Dimension ${dim.id} selected: ${event.target.value}`);
@@ -270,6 +278,7 @@ async addEmptyRow() {
     newRow.appendChild(cell);
   }
 
+  // Add editable cells for measures
   measures.forEach((measure) => {
     const cell = document.createElement("td");
     cell.classList.add("editable");
@@ -296,6 +305,7 @@ async addEmptyRow() {
   table.appendChild(newRow);
   console.log("New row added:", newRow);
 }
+
 
 
 

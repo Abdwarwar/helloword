@@ -190,35 +190,33 @@
 
 async fetchDimensionMembers(dimensionId) {
   if (!this._myDataSource || !this._myDataSource.metadata) {
-    console.error("Data source metadata not available.");
+    console.error("Data source metadata is not available.");
     return [];
   }
 
   try {
     const dimension = this._myDataSource.metadata.dimensions[dimensionId];
-    if (!dimension) {
-      console.warn(`Dimension metadata for '${dimensionId}' not found.`);
+    if (!dimension || !dimension.memberKeys) {
+      console.warn(`Dimension '${dimensionId}' has no metadata or memberKeys.`);
       return [];
     }
 
-    const membersSet = new Set();
-    this._myDataSource.data.forEach((row) => {
-      const value = row[dimensionId]?.id || row[dimensionId]?.label || "N/A";
-      if (value !== "N/A") membersSet.add(value);
+    // Retrieve all members (booked + unbooked) from metadata
+    const members = dimension.memberKeys.map((key) => {
+      return {
+        id: key,
+        label: dimension.memberDescriptions?.[key] || key,
+      };
     });
 
-    const members = Array.from(membersSet).map((member) => ({
-      id: member,
-      label: member,
-    }));
-
-    console.log(`Fetched members for dimension '${dimensionId}':`, members);
+    console.log(`Fetched all members for dimension '${dimensionId}':`, members);
     return members;
   } catch (error) {
     console.error(`Error fetching members for dimension '${dimensionId}':`, error);
     return [];
   }
 }
+
 
 
 
@@ -239,7 +237,7 @@ async addEmptyRow() {
   newRow.setAttribute("data-row-index", newRowIndex);
   newRow.classList.add("selected");
 
-  // Populate dropdowns for dimensions
+  // Populate dropdowns for dimensions (all members)
   for (const dim of dimensions) {
     const cell = document.createElement("td");
     const dropdown = document.createElement("select");
@@ -288,7 +286,7 @@ async addEmptyRow() {
     newRow.appendChild(cell);
   });
 
-  // Add row click functionality for selection
+  // Add row selection functionality
   newRow.addEventListener("click", () => {
     table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
     newRow.classList.add("selected");
@@ -298,6 +296,7 @@ async addEmptyRow() {
   table.appendChild(newRow);
   console.log("New row added:", newRow);
 }
+
 
 
 

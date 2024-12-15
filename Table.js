@@ -188,31 +188,46 @@
       });
     }
 
-async fetchDimensionMembers(dimensionKey, returnType = "id") {
+async fetchDimensionMembers(dimensionId, returnType = "id") {
   try {
     if (!this._myDataSource || !this._myDataSource.getDimensionMembers) {
       console.error("The 'getDimensionMembers' API is not available for this data source.");
       return [];
     }
 
-    // Fetch all members for the dimension (include unbooked data)
-    const dimensionMembers = await this._myDataSource.getDimensionMembers(dimensionKey, { includeUnbooked: true });
+    // Match the dimensionKey from metadata
+    const dimensionMeta = Object.values(this._myDataSource.metadata.dimensions).find(
+      (dim) => dim.id === dimensionId
+    );
 
-    if (!dimensionMembers || dimensionMembers.length === 0) {
-      console.warn(`No members found for dimension '${dimensionKey}'.`);
+    if (!dimensionMeta) {
+      console.error(`Dimension '${dimensionId}' not found in metadata.`);
       return [];
     }
 
-    // Map to desired format (id and label)
+    const dimensionKey = dimensionMeta.key;
+    console.log(`Resolved Dimension ID '${dimensionId}' to Key '${dimensionKey}'`);
+
+    // Fetch all members with unbooked data
+    const dimensionMembers = await this._myDataSource.getDimensionMembers(dimensionKey, {
+      includeUnbooked: true,
+    });
+
+    if (!dimensionMembers || dimensionMembers.length === 0) {
+      console.warn(`No members found for dimension '${dimensionId}'.`);
+      return [];
+    }
+
+    // Map to desired format
     const members = dimensionMembers.map((member) => ({
       id: member.id,
       label: member.description || member.id,
     }));
 
-    console.log(`Fetched members for '${dimensionKey}':`, members);
+    console.log(`Fetched members for '${dimensionId}':`, members);
     return members;
   } catch (error) {
-    console.error(`Error fetching dimension members for '${dimensionKey}':`, error);
+    console.error(`Error fetching dimension members for '${dimensionId}':`, error);
     return [];
   }
 }
@@ -242,8 +257,7 @@ for (const dim of dimensions) {
   const dropdown = document.createElement("select");
 
   // Fetch dimension members dynamically
-  const members = await this.fetchDimensionMembers(dim.key, "id");
-
+  const members = await this.fetchDimensionMembers(dim.id, "id");
   if (members.length > 0) {
     members.forEach((member) => {
       const option = document.createElement("option");

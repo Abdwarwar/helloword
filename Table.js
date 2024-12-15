@@ -195,46 +195,41 @@ async fetchDimensionMembers(dimensionId) {
   }
 
   try {
+    // Step 1: Resolve the correct key for the given dimensionId
     const allDimensions = this._myDataSource.metadata.dimensions;
     console.log("All Available Dimensions:", allDimensions);
 
-    // Find the dimension in metadata using its ID
-    const dimension = Object.values(allDimensions).find((dim) => dim.id === dimensionId);
-    if (!dimension) {
-      console.warn(
-        `Dimension '${dimensionId}' not found in metadata. Available keys:`,
-        Object.keys(allDimensions)
-      );
+    // Map through keys to find the dimension matching the ID
+    const dimensionKey = Object.keys(allDimensions).find(
+      (key) => allDimensions[key].id === dimensionId
+    );
+
+    if (!dimensionKey) {
+      console.warn(`Dimension '${dimensionId}' not found in metadata.`);
       return [];
     }
 
-    // Fallback: Collect dimension members from rows
+    console.log(`Resolved Dimension Key for '${dimensionId}':`, dimensionKey);
+
+    // Step 2: Fetch all members (booked or unbooked) from data rows
     const membersSet = new Set();
     this._myDataSource.data.forEach((row) => {
-      if (row[dimension.key]) {
-        const id = row[dimension.key]?.id || "N/A";
-        const label = row[dimension.key]?.label || id;
-        if (id !== "N/A") {
-          membersSet.add(JSON.stringify({ id, label }));
-        }
+      const dimensionValue = row[dimensionKey]?.id || row[dimensionKey]?.label || null;
+      if (dimensionValue) {
+        membersSet.add(dimensionValue);
       }
     });
 
-    // Convert Set back to Array
-    const members = Array.from(membersSet).map((member) => JSON.parse(member));
-    if (members.length > 0) {
-      console.log(`Fallback members for '${dimensionId}':`, members);
-      return members;
-    }
+    // Step 3: Return unique members
+    const members = Array.from(membersSet).map((id) => ({ id, label: id }));
+    console.log(`Fetched members for '${dimensionId}':`, members);
 
-    console.warn(`No members found for dimension '${dimensionId}'.`);
-    return [];
+    return members;
   } catch (error) {
     console.error(`Error fetching members for dimension '${dimensionId}':`, error);
     return [];
   }
 }
-
 
 
 async addEmptyRow() {

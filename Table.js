@@ -429,8 +429,8 @@ getDimensionSelected(dimensionId) {
       }
 
       // Check for existing rows from the data source
-      const dataRow = this._myDataSource?.data[rowIndex];
-      if (dataRow && dataRow[dimensionId]) {
+      if (this._myDataSource?.data[rowIndex]) {
+        const dataRow = this._myDataSource.data[rowIndex];
         const value = dataRow[dimensionId]?.id || dataRow[dimensionId]?.label || null;
         console.log(`Dimension '${dimensionId}' for data source row '${rowIndex}' has value: ${value}`);
         return value;
@@ -447,8 +447,6 @@ getDimensionSelected(dimensionId) {
     return [];
   }
 }
-
-
     
 getMeasureValues(measureId) {
   try {
@@ -476,8 +474,8 @@ getMeasureValues(measureId) {
       }
 
       // Check for existing rows from the data source
-      const dataRow = this._myDataSource?.data[rowIndex];
-      if (dataRow && dataRow[measureId]) {
+      if (this._myDataSource?.data[rowIndex]) {
+        const dataRow = this._myDataSource.data[rowIndex];
         const value = dataRow[measureId]?.raw || dataRow[measureId]?.formatted || null;
         console.log(`Measure '${measureId}' for data source row '${rowIndex}' has value: ${value}`);
         return value;
@@ -494,7 +492,6 @@ getMeasureValues(measureId) {
     return [];
   }
 }
-
     }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

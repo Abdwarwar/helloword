@@ -189,32 +189,34 @@
     }
 
 async fetchDimensionMembers(dimensionId, returnType = "id") {
-  if (!this._myDataSource || !this._myDataSource.data) {
-    console.error("Data source not available or data is missing.");
-    return [];
-  }
-
   try {
-    const membersSet = new Set();
-    this._myDataSource.data.forEach((row) => {
-      const value = row[dimensionId]?.[returnType] || null;
-      if (value) {
-        membersSet.add(value);
-      }
-    });
+    if (!this._myDataSource || !this._myDataSource.getDimensionMembers) {
+      console.error("The 'getDimensionMembers' API is not available.");
+      return [];
+    }
 
-    const members = Array.from(membersSet).map((member) => ({
-      id: member,
-      label: member, // For dropdowns, we can show `id` or `label`
+    // Fetch all dimension members (booked and unbooked)
+    const dimensionMembers = await this._myDataSource.getDimensionMembers(dimensionId, { includeUnbooked: true });
+
+    if (!dimensionMembers || dimensionMembers.length === 0) {
+      console.warn(`No members found for dimension '${dimensionId}'.`);
+      return [];
+    }
+
+    // Map members to the appropriate format
+    const formattedMembers = dimensionMembers.map((member) => ({
+      id: member.id,
+      label: member.description || member.id,
     }));
 
-    console.log(`Fetched members for dimension '${dimensionId}' (${returnType}):`, members);
-    return members;
+    console.log(`Fetched ALL (booked + unbooked) members for dimension '${dimensionId}':`, formattedMembers);
+    return formattedMembers;
   } catch (error) {
-    console.error("Error fetching dimension members:", error);
+    console.error(`Error fetching members for dimension '${dimensionId}':`, error);
     return [];
   }
 }
+
 
 async addEmptyRow() {
   const table = this._root.querySelector("table tbody");

@@ -189,27 +189,13 @@
     }
 
 async fetchDimensionMembers(dimensionId) {
-  if (!this._myDataSource) {
-    console.error("Data source is not available.");
+  if (!this._myDataSource || !this._myDataSource.data) {
+    console.error("Data source is not available or missing.");
     return [];
   }
 
   try {
-    // Step 1: Use getMembers API if available
-    if (typeof this._myDataSource.getMembers === "function") {
-      const members = await this._myDataSource.getMembers(dimensionId);
-      console.log(`Fetched ALL members for dimension '${dimensionId}'`, members);
-
-      if (members && members.length > 0) {
-        return members.map((member) => ({
-          id: member.id,
-          label: member.description || member.id,
-        }));
-      }
-    }
-
-    // Step 2: Fallback logic for booked data
-    console.warn(`getMembers API unavailable. Fallback to booked members for '${dimensionId}'.`);
+    // Use booked data only (previous logic that worked)
     const membersSet = new Set();
     this._myDataSource.data.forEach((row) => {
       const value = row[dimensionId]?.id || row[dimensionId]?.label || "N/A";
@@ -218,17 +204,19 @@ async fetchDimensionMembers(dimensionId) {
       }
     });
 
-    const fallbackMembers = Array.from(membersSet).map((id) => ({
-      id,
-      label: id,
+    const members = Array.from(membersSet).map((member) => ({
+      id: member,
+      label: member,
     }));
-    console.log(`Fallback members for dimension '${dimensionId}':`, fallbackMembers);
-    return fallbackMembers;
+
+    console.log(`Fetched (booked) members for dimension '${dimensionId}':`, members);
+    return members;
   } catch (error) {
     console.error(`Error fetching members for dimension '${dimensionId}':`, error);
     return [];
   }
 }
+
 
 
 
@@ -254,19 +242,12 @@ async addEmptyRow() {
 
     try {
       const members = await this.fetchDimensionMembers(dim.id);
-      if (members.length > 0) {
-        members.forEach((member) => {
-          const option = document.createElement("option");
-          option.value = member.id;
-          option.textContent = member.label;
-          dropdown.appendChild(option);
-        });
-      } else {
+      members.forEach((member) => {
         const option = document.createElement("option");
-        option.value = "";
-        option.textContent = "No members available";
+        option.value = member.id;
+        option.textContent = member.label;
         dropdown.appendChild(option);
-      }
+      });
     } catch (error) {
       console.error(`Error populating dropdown for dimension '${dim.id}':`, error);
     }
@@ -297,6 +278,7 @@ async addEmptyRow() {
     newRow.appendChild(cell);
   });
 
+  // Add selection functionality
   newRow.addEventListener("click", () => {
     table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
     newRow.classList.add("selected");
@@ -306,6 +288,7 @@ async addEmptyRow() {
   table.appendChild(newRow);
   console.log("New row added:", newRow);
 }
+
 
 
 

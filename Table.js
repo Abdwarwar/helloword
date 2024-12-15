@@ -189,48 +189,35 @@
     }
 
 async fetchDimensionMembers(dimensionId) {
-  if (!this._myDataSource || !this._myDataSource.metadata) {
-    console.error("Data source or metadata is not available.");
-    return [];
-  }
-
   try {
-    // Step 1: Resolve the correct key for the given dimensionId
-    const allDimensions = this._myDataSource.metadata.dimensions;
-    console.log("All Available Dimensions:", allDimensions);
-
-    const dimensionKey = Object.keys(allDimensions).find(
-      (key) => allDimensions[key].id === dimensionId
-    );
-
-    if (!dimensionKey) {
-      console.warn(`Dimension '${dimensionId}' not found in metadata.`);
+    // Step 1: Validate the data source and planning interface
+    if (!this._myDataSource || !this._myDataSource.getDimensionMembers) {
+      console.error("Data source or the 'getDimensionMembers' API is not available.");
       return [];
     }
 
-    console.log(`Resolved Dimension Key for '${dimensionId}':`, dimensionKey);
+    // Step 2: Fetch all members for the given dimension
+    const members = await this._myDataSource.getDimensionMembers(dimensionId);
 
-    // Step 2: Fetch all available members (booked and unbooked) for the dimension
-    const allMembers = await this._myDataSource.getDimensionMembers(dimensionId);
-
-    if (!allMembers || allMembers.length === 0) {
+    if (!members || members.length === 0) {
       console.warn(`No members found for dimension '${dimensionId}'.`);
       return [];
     }
 
-    // Step 3: Format members to include IDs and labels
-    const members = allMembers.map((member) => ({
+    // Step 3: Format the members with ID and label
+    const formattedMembers = members.map((member) => ({
       id: member.id || member.key,
       label: member.label || member.id,
     }));
 
-    console.log(`Fetched all members (booked and unbooked) for '${dimensionId}':`, members);
-    return members;
+    console.log(`Successfully fetched members for '${dimensionId}':`, formattedMembers);
+    return formattedMembers;
   } catch (error) {
     console.error(`Error fetching members for dimension '${dimensionId}':`, error);
     return [];
   }
 }
+
 
 
 async addEmptyRow() {
@@ -253,7 +240,7 @@ async addEmptyRow() {
     const cell = document.createElement("td");
     const dropdown = document.createElement("select");
 
-    // Fetch dimension members with error handling
+    // Fetch dimension members dynamically
     const members = await this.fetchDimensionMembers(dim.id);
     if (members.length === 0) {
       console.warn(`No members found for dimension '${dim.id}'.`);
@@ -279,27 +266,30 @@ async addEmptyRow() {
     const cell = document.createElement("td");
     cell.classList.add("editable");
     cell.setAttribute("data-measure-id", measure.id);
-
     cell.contentEditable = "true";
     cell.addEventListener("blur", (event) => {
       const value = parseFloat(event.target.textContent.trim());
-      console.log(`Measure '${measure.id}' for new row updated to: ${value}`);
-      cell.setAttribute("data-measure-value", isNaN(value) ? null : value);
+      if (!isNaN(value)) {
+        console.log(`Updated Measure ${measure.id}: ${value}`);
+      } else {
+        console.error("Invalid value for measure.");
+        cell.textContent = "";
+      }
     });
-
     newRow.appendChild(cell);
   });
 
-  // Highlight new row on click
+  // Highlight row on selection
   newRow.addEventListener("click", () => {
     table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
     newRow.classList.add("selected");
-    console.log(`New row selected: ${newRowIndex}`);
+    console.log("New row selected:", newRowIndex);
   });
 
   table.appendChild(newRow);
-  console.log(`New row added at index: ${newRowIndex}`);
+  console.log("New row added:", newRow);
 }
+
 
 
 

@@ -216,9 +216,6 @@
       }
     }
 
-
-
-    
 async addEmptyRow() {
   const table = this._root.querySelector("table tbody");
   if (!table) {
@@ -228,18 +225,18 @@ async addEmptyRow() {
 
   const dimensions = this.getDimensions();
   const measures = this.getMeasures();
-  const newRowIndex = table.rows.length; // New row index in DOM
+  const newRowIndex = table.rows.length;
 
   const newRow = document.createElement("tr");
   newRow.setAttribute("data-row-index", newRowIndex);
   newRow.classList.add("selected");
 
-  // Add dropdowns for dimensions
+  // Populate dropdowns for dimensions
   dimensions.forEach((dim) => {
     const cell = document.createElement("td");
-    const dropdown = document.createElement("select");
+    cell.setAttribute("data-dimension-id", dim.id); // Add dimension ID for tracking
 
-    // Populate dropdown with members dynamically
+    const dropdown = document.createElement("select");
     this.fetchDimensionMembers(dim.key).then((members) => {
       members.forEach((member) => {
         const option = document.createElement("option");
@@ -250,31 +247,31 @@ async addEmptyRow() {
     });
 
     dropdown.addEventListener("change", (event) => {
-      console.log(`Dimension ${dim.id} selected for new row: ${event.target.value}`);
-      cell.setAttribute("data-dimension-value", event.target.value); // Store selected dimension
+      console.log(`Dimension '${dim.id}' selected: ${event.target.value}`);
+      cell.setAttribute("data-dimension-value", event.target.value); // Store selection
     });
 
     cell.appendChild(dropdown);
     newRow.appendChild(cell);
   });
 
-  // Add editable measure cells
+  // Add editable cells for measures
   measures.forEach((measure) => {
     const cell = document.createElement("td");
     cell.classList.add("editable");
     cell.setAttribute("data-measure-id", measure.id);
-    cell.contentEditable = "true";
 
+    cell.contentEditable = "true";
     cell.addEventListener("blur", (event) => {
       const value = parseFloat(event.target.textContent.trim());
       console.log(`Measure '${measure.id}' for new row updated to: ${value}`);
-      cell.setAttribute("data-measure-value", isNaN(value) ? "" : value); // Store edited measure
+      cell.setAttribute("data-measure-value", isNaN(value) ? null : value); // Store edited value
     });
 
     newRow.appendChild(cell);
   });
 
-  // Add click handler for selection
+  // Attach selection highlighting
   newRow.addEventListener("click", () => {
     table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
     newRow.classList.add("selected");
@@ -283,8 +280,9 @@ async addEmptyRow() {
   });
 
   table.appendChild(newRow);
-  console.log(`New row added at index: ${newRowIndex}`);
+  console.log(`New row added: ${newRowIndex}`);
 }
+
 
 
     updateMeasureValue(rowIndex, measureId, newValue) {
@@ -423,14 +421,20 @@ getDimensionSelected(dimensionId) {
       }
 
       const cell = row.querySelector(`td[data-dimension-id="${dimensionId}"]`);
-      if (!cell) {
-        console.warn(`Dimension '${dimensionId}' not found for row '${rowIndex}'.`);
-        return null;
+      if (cell) {
+        // For dynamically added rows, retrieve data from attributes
+        const value = cell.getAttribute("data-dimension-value") || null;
+        console.log(`Dimension '${dimensionId}' for row '${rowIndex}' (new row) has value: ${value}`);
+        return value;
+      } else if (this._myDataSource) {
+        // For rows from the data source
+        const rowData = this._myDataSource.data[rowIndex];
+        const value = rowData?.[dimensionId]?.id || rowData?.[dimensionId]?.label || null;
+        console.log(`Dimension '${dimensionId}' for row '${rowIndex}' (data source) has value: ${value}`);
+        return value;
       }
 
-      const value = cell.getAttribute("data-dimension-value") || "N/A";
-      console.log(`Dimension '${dimensionId}' for row '${rowIndex}' has value: ${value}`);
-      return value !== "N/A" ? value : null;
+      return null;
     });
 
     const filteredValues = dimensionValues.filter((value) => value !== null);
@@ -441,6 +445,8 @@ getDimensionSelected(dimensionId) {
     return [];
   }
 }
+
+    
 getMeasureValues(measureId) {
   try {
     const table = this._root.querySelector("table tbody");
@@ -458,14 +464,20 @@ getMeasureValues(measureId) {
       }
 
       const cell = row.querySelector(`td[data-measure-id="${measureId}"]`);
-      if (!cell) {
-        console.warn(`Measure '${measureId}' not found for row '${rowIndex}'.`);
-        return null;
+      if (cell) {
+        // Retrieve value from dynamically added rows
+        const value = parseFloat(cell.getAttribute("data-measure-value")) || null;
+        console.log(`Measure '${measureId}' for row '${rowIndex}' (new row) has value: ${value}`);
+        return value;
+      } else if (this._myDataSource) {
+        // Retrieve value from rows in the data source
+        const rowData = this._myDataSource.data[rowIndex];
+        const value = rowData?.[measureId]?.raw || rowData?.[measureId]?.formatted || null;
+        console.log(`Measure '${measureId}' for row '${rowIndex}' (data source) has value: ${value}`);
+        return value;
       }
 
-      const value = parseFloat(cell.getAttribute("data-measure-value") || "N/A");
-      console.log(`Measure '${measureId}' for row '${rowIndex}' has value: ${value}`);
-      return !isNaN(value) ? value : null;
+      return null;
     });
 
     const filteredValues = measureValues.filter((value) => value !== null);
@@ -476,6 +488,7 @@ getMeasureValues(measureId) {
     return [];
   }
 }
+
 
 
 

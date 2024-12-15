@@ -188,33 +188,34 @@
       });
     }
 
-async fetchDimensionMembers(dimensionId, returnType = "id") {
-  if (!this._myDataSource || !this._myDataSource.data) {
-    console.error("Data source not available or data is missing.");
+async fetchAllDimensionMembers(dimensionId) {
+  if (!this._myDataSource || !this._myDataSource.metadata) {
+    console.error("Data source metadata not available.");
     return [];
   }
 
   try {
-    const membersSet = new Set();
-    this._myDataSource.data.forEach((row) => {
-      const value = row[dimensionId]?.[returnType] || null;
-      if (value) {
-        membersSet.add(value);
-      }
-    });
+    // Fetch all dimension members from metadata
+    const dimensionMetadata = this._myDataSource.metadata.dimensions[dimensionId];
+    if (!dimensionMetadata) {
+      console.error(`Dimension '${dimensionId}' not found in metadata.`);
+      return [];
+    }
 
-    const members = Array.from(membersSet).map((member) => ({
-      id: member,
-      label: member, // For dropdowns, we can show `id` or `label`
+    const allMembers = dimensionMetadata.members || [];
+    const members = allMembers.map((member) => ({
+      id: member.id,
+      label: member.description || member.id,
     }));
 
-    console.log(`Fetched members for dimension '${dimensionId}' (${returnType}):`, members);
+    console.log(`Fetched ALL members for dimension '${dimensionId}':`, members);
     return members;
   } catch (error) {
-    console.error("Error fetching dimension members:", error);
+    console.error("Error fetching all dimension members:", error);
     return [];
   }
 }
+
 
 
 async addEmptyRow() {
@@ -232,15 +233,13 @@ async addEmptyRow() {
   newRow.setAttribute("data-row-index", newRowIndex);
   newRow.classList.add("selected");
 
-  // Populate dropdowns for dimensions
+  // Populate dropdowns for dimensions with ALL members
   for (const dim of dimensions) {
     const cell = document.createElement("td");
-    cell.setAttribute("data-dimension-id", dim.id);
-
     const dropdown = document.createElement("select");
 
-    // Fetch dimension members dynamically with `id` as default type
-    const members = await this.fetchDimensionMembers(dim.key, "id");
+    // Fetch all dimension members dynamically
+    const members = await this.fetchAllDimensionMembers(dim.key);
     members.forEach((member) => {
       const option = document.createElement("option");
       option.value = member.id;
@@ -249,7 +248,7 @@ async addEmptyRow() {
     });
 
     dropdown.addEventListener("change", (event) => {
-      console.log(`Dimension '${dim.id}' selected as ID: ${event.target.value}`);
+      console.log(`Dimension '${dim.id}' selected: ${event.target.value}`);
       cell.setAttribute("data-dimension-value", event.target.value); // Store selected ID
     });
 
@@ -266,8 +265,13 @@ async addEmptyRow() {
     cell.contentEditable = "true";
     cell.addEventListener("blur", (event) => {
       const value = parseFloat(event.target.textContent.trim());
-      console.log(`Measure '${measure.id}' for new row updated to: ${value}`);
-      cell.setAttribute("data-measure-value", isNaN(value) ? null : value); // Store edited value
+      if (!isNaN(value)) {
+        console.log(`Updated Measure '${measure.id}' to: ${value}`);
+        cell.setAttribute("data-measure-value", value); // Store edited value
+      } else {
+        console.error("Invalid value for measure.");
+        cell.textContent = "";
+      }
     });
 
     newRow.appendChild(cell);
@@ -282,8 +286,9 @@ async addEmptyRow() {
   });
 
   table.appendChild(newRow);
-  console.log(`New row added: ${newRowIndex}`);
+  console.log("New row added:", newRow);
 }
+
 
 
 

@@ -412,6 +412,9 @@ getDimensionSelected(dimensionId) {
       return [];
     }
 
+    console.log("Selected Rows:", Array.from(this._selectedRows));
+    console.log("Data Source Structure:", this._myDataSource?.data);
+
     const dimensionValues = Array.from(this._selectedRows).map((rowIndex) => {
       const row = table.querySelector(`tr[data-row-index="${rowIndex}"]`);
       if (!row) {
@@ -428,9 +431,11 @@ getDimensionSelected(dimensionId) {
       }
 
       // Handle data source rows
-      if (this._myDataSource?.data && this._myDataSource.data[rowIndex]) {
+      if (this._myDataSource?.data?.[rowIndex]) {
         const dataRow = this._myDataSource.data[rowIndex];
-        const value = dataRow?.[dimensionId]?.id || dataRow?.[dimensionId]?.label || null;
+        console.log(`Data Row for '${rowIndex}':`, dataRow);
+
+        const value = dataRow[dimensionId]?.id || dataRow[dimensionId]?.label || null;
         console.log(`Dimension '${dimensionId}' for data source row '${rowIndex}' has value: ${value}`);
         return value;
       }
@@ -459,6 +464,9 @@ getMeasureValues(measureId) {
       return [];
     }
 
+    console.log("Selected Rows:", Array.from(this._selectedRows));
+    console.log("Data Source Structure:", this._myDataSource?.data);
+
     const measureValues = Array.from(this._selectedRows).map((rowIndex) => {
       const row = table.querySelector(`tr[data-row-index="${rowIndex}"]`);
       if (!row) {
@@ -475,9 +483,11 @@ getMeasureValues(measureId) {
       }
 
       // Handle data source rows
-      if (this._myDataSource?.data && this._myDataSource.data[rowIndex]) {
+      if (this._myDataSource?.data?.[rowIndex]) {
         const dataRow = this._myDataSource.data[rowIndex];
-        const value = dataRow?.[measureId]?.raw || dataRow?.[measureId]?.formatted || null;
+        console.log(`Data Row for '${rowIndex}':`, dataRow);
+
+        const value = dataRow[measureId]?.raw || dataRow[measureId]?.formatted || null;
         console.log(`Measure '${measureId}' for data source row '${rowIndex}' has value: ${value}`);
         return value;
       }
@@ -494,6 +504,7 @@ getMeasureValues(measureId) {
     return [];
   }
 }
+
 
 
 

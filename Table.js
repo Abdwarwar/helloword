@@ -189,19 +189,22 @@
     }
 
 async fetchDimensionMembers(dimensionId) {
-  if (!this._myDataSource || !this._myDataSource.data) {
-    console.error("Data source is not available or missing.");
+  if (!this._myDataSource || !this._myDataSource.metadata) {
+    console.error("Data source metadata not available.");
     return [];
   }
 
   try {
-    // Use booked data only (previous logic that worked)
+    const dimension = this._myDataSource.metadata.dimensions[dimensionId];
+    if (!dimension) {
+      console.warn(`Dimension metadata for '${dimensionId}' not found.`);
+      return [];
+    }
+
     const membersSet = new Set();
     this._myDataSource.data.forEach((row) => {
       const value = row[dimensionId]?.id || row[dimensionId]?.label || "N/A";
-      if (value !== "N/A") {
-        membersSet.add(value);
-      }
+      if (value !== "N/A") membersSet.add(value);
     });
 
     const members = Array.from(membersSet).map((member) => ({
@@ -209,13 +212,14 @@ async fetchDimensionMembers(dimensionId) {
       label: member,
     }));
 
-    console.log(`Fetched (booked) members for dimension '${dimensionId}':`, members);
+    console.log(`Fetched members for dimension '${dimensionId}':`, members);
     return members;
   } catch (error) {
     console.error(`Error fetching members for dimension '${dimensionId}':`, error);
     return [];
   }
 }
+
 
 
 
@@ -242,18 +246,24 @@ async addEmptyRow() {
 
     try {
       const members = await this.fetchDimensionMembers(dim.id);
-      members.forEach((member) => {
-        const option = document.createElement("option");
-        option.value = member.id;
-        option.textContent = member.label;
-        dropdown.appendChild(option);
-      });
+      if (members.length === 0) {
+        const emptyOption = document.createElement("option");
+        emptyOption.textContent = "No Members Available";
+        dropdown.appendChild(emptyOption);
+      } else {
+        members.forEach((member) => {
+          const option = document.createElement("option");
+          option.value = member.id;
+          option.textContent = member.label;
+          dropdown.appendChild(option);
+        });
+      }
     } catch (error) {
       console.error(`Error populating dropdown for dimension '${dim.id}':`, error);
     }
 
     dropdown.addEventListener("change", (event) => {
-      console.log(`Dimension ${dim.id} selected: ${event.target.value}`);
+      console.log(`Dimension '${dim.id}' selected: ${event.target.value}`);
     });
 
     cell.appendChild(dropdown);
@@ -269,7 +279,7 @@ async addEmptyRow() {
     cell.addEventListener("blur", (event) => {
       const value = parseFloat(event.target.textContent.trim());
       if (!isNaN(value)) {
-        console.log(`Updated Measure ${measure.id}: ${value}`);
+        console.log(`Updated Measure '${measure.id}': ${value}`);
       } else {
         console.error("Invalid value for measure.");
         cell.textContent = "";
@@ -278,7 +288,7 @@ async addEmptyRow() {
     newRow.appendChild(cell);
   });
 
-  // Add selection functionality
+  // Add row click functionality for selection
   newRow.addEventListener("click", () => {
     table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
     newRow.classList.add("selected");
@@ -288,6 +298,7 @@ async addEmptyRow() {
   table.appendChild(newRow);
   console.log("New row added:", newRow);
 }
+
 
 
 

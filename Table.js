@@ -190,7 +190,7 @@
 
 async fetchDimensionMembers(dimensionId) {
   if (!this._myDataSource || !this._myDataSource.metadata) {
-    console.error("Data source metadata not available.");
+    console.error("Data source or metadata not available.");
     return [];
   }
 
@@ -207,21 +207,21 @@ async fetchDimensionMembers(dimensionId) {
     // Fetch booked members from data
     const bookedMembersSet = new Set();
     this._myDataSource.data.forEach((row) => {
-      const value = row[dimensionId]?.id || row[dimensionId]?.label || "N/A";
-      if (value !== "N/A") {
+      const value = row[dimensionId]?.id || row[dimensionId]?.label || null;
+      if (value) {
         bookedMembersSet.add(value);
       }
     });
 
-    const bookedMembers = Array.from(bookedMembersSet).map((memberId) => {
-      const unbookedMember = unbookedMembers.find((m) => m.id === memberId);
+    const bookedMembers = Array.from(bookedMembersSet).map((id) => {
+      const unbookedMatch = unbookedMembers.find((m) => m.id === id);
       return {
-        id: memberId,
-        label: unbookedMember?.description || memberId,
+        id: id,
+        label: unbookedMatch?.description || id,
       };
     });
 
-    // Merge booked and unbooked members
+    // Merge booked and unbooked members, avoiding duplicates
     const allMembers = [...bookedMembers];
     unbookedMembers.forEach((member) => {
       if (!bookedMembersSet.has(member.id)) {
@@ -232,15 +232,13 @@ async fetchDimensionMembers(dimensionId) {
       }
     });
 
-    console.log(`Fetched all members for dimension '${dimensionId}':`, allMembers);
+    console.log(`Fetched members for dimension '${dimensionId}':`, allMembers);
     return allMembers;
   } catch (error) {
     console.error("Error fetching dimension members:", error);
     return [];
   }
 }
-
-
 
 
 async addEmptyRow() {
@@ -265,12 +263,16 @@ async addEmptyRow() {
 
     // Fetch dimension members (both booked and unbooked)
     const members = await this.fetchDimensionMembers(dim.id);
-    members.forEach((member) => {
-      const option = document.createElement("option");
-      option.value = member.id;
-      option.textContent = member.label; // Show label (or description) in dropdown
-      dropdown.appendChild(option);
-    });
+    if (members.length === 0) {
+      dropdown.innerHTML = `<option value="" disabled>No members available</option>`;
+    } else {
+      members.forEach((member) => {
+        const option = document.createElement("option");
+        option.value = member.id;
+        option.textContent = member.label; // Use label for display
+        dropdown.appendChild(option);
+      });
+    }
 
     dropdown.addEventListener("change", (event) => {
       console.log(`Dimension '${dim.id}' selected: ${event.target.value}`);
@@ -286,13 +288,13 @@ async addEmptyRow() {
     const cell = document.createElement("td");
     cell.classList.add("editable");
     cell.setAttribute("data-measure-id", measure.id);
-
     cell.contentEditable = "true";
+
     cell.addEventListener("blur", (event) => {
       const value = parseFloat(event.target.textContent.trim());
       if (!isNaN(value)) {
         console.log(`Updated Measure '${measure.id}' to: ${value}`);
-        cell.setAttribute("data-measure-value", value); // Store edited value
+        cell.setAttribute("data-measure-value", value); // Store the updated value
       } else {
         console.error("Invalid value for measure.");
         cell.textContent = "";
@@ -313,8 +315,6 @@ async addEmptyRow() {
   table.appendChild(newRow);
   console.log("New row added:", newRow);
 }
-
-
 
 
 
@@ -520,15 +520,9 @@ getMeasureValues(measureId) {
   } catch (error) {
     console.error("Error in getMeasureValues:", error);
     return [];
+    }
   }
-}
-
-
-
-
-
-
-  }
+    }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);
 })();

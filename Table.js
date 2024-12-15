@@ -189,61 +189,43 @@
     }
 
 async fetchDimensionMembers(dimensionId) {
-  if (!this._myDataSource || !this._myDataSource.metadata) {
-    console.error("Data source or metadata not available.");
+  if (!this._myDataSource || !this._myDataSource.data) {
+    console.error("Data source not available or data is missing.");
     return [];
   }
 
   try {
-    // Log the dimension metadata
-    const dimensionMetadata = this._myDataSource.metadata.dimensions[dimensionId];
-    console.log(`Dimension Metadata for ${dimensionId}:`, dimensionMetadata);
+    const dimensions = this._myDataSource.metadata.dimensions || {};
+    const dimensionMetadata = dimensions[dimensionId];
 
+    // Check if metadata exists, otherwise fallback
     if (!dimensionMetadata) {
-      console.warn(`Dimension '${dimensionId}' not found in metadata.`);
-      return [];
+      console.warn(`Dimension '${dimensionId}' not found in metadata. Falling back to data keys.`);
     }
 
-    // Retrieve unbooked members
-    const unbookedMembers = dimensionMetadata.members || [];
-    console.log(`Unbooked members for ${dimensionId}:`, unbookedMembers);
-
-    // Retrieve booked members
-    const bookedMembersSet = new Set();
+    // Attempt to retrieve members directly from the data
+    const membersSet = new Set();
     this._myDataSource.data.forEach((row) => {
-      const member = row[dimensionId]?.id || row[dimensionId]?.label || null;
-      if (member) {
-        bookedMembersSet.add(member);
+      const value = row[dimensionId]?.id || row[dimensionId]?.label || "N/A";
+      if (value !== "N/A") {
+        membersSet.add(value);
       }
     });
 
-    console.log(`Booked members for ${dimensionId}:`, Array.from(bookedMembersSet));
+    // Build the member list
+    const members = Array.from(membersSet).map((member) => ({
+      id: member,
+      label: member,
+    }));
 
-    // Merge booked and unbooked members
-    const mergedMembers = [...Array.from(bookedMembersSet).map((id) => {
-      const match = unbookedMembers.find((m) => m.id === id);
-      return {
-        id: id,
-        label: match?.description || id,
-      };
-    })];
-
-    unbookedMembers.forEach((member) => {
-      if (!bookedMembersSet.has(member.id)) {
-        mergedMembers.push({
-          id: member.id,
-          label: member.description || member.id,
-        });
-      }
-    });
-
-    console.log(`Merged members for ${dimensionId}:`, mergedMembers);
-    return mergedMembers;
+    console.log(`Fetched members for dimension '${dimensionId}':`, members);
+    return members;
   } catch (error) {
-    console.error("Error fetching dimension members:", error);
+    console.error(`Error fetching dimension members for '${dimensionId}':`, error);
     return [];
   }
 }
+
 
 
 
@@ -263,69 +245,58 @@ async addEmptyRow() {
   newRow.setAttribute("data-row-index", newRowIndex);
   newRow.classList.add("selected");
 
-  // Populate dropdowns for dimensions
   for (const dim of dimensions) {
     const cell = document.createElement("td");
     const dropdown = document.createElement("select");
 
-    try {
-      const members = await this.fetchDimensionMembers(dim.id);
-      if (members.length === 0) {
-        dropdown.innerHTML = `<option value="" disabled>No members available</option>`;
-      } else {
-        members.forEach((member) => {
-          const option = document.createElement("option");
-          option.value = member.id;
-          option.textContent = member.label;
-          dropdown.appendChild(option);
-        });
-      }
-
-      dropdown.addEventListener("change", (event) => {
-        console.log(`Dimension '${dim.id}' selected: ${event.target.value}`);
-        cell.setAttribute("data-dimension-value", event.target.value); // Store selected ID
-      });
-
-      cell.appendChild(dropdown);
-    } catch (error) {
-      console.error(`Error populating dropdown for dimension '${dim.id}':`, error);
-      cell.innerHTML = `<p>Error loading members</p>`;
+    // Fetch members with fallback
+    const members = await this.fetchDimensionMembers(dim.id);
+    if (members.length === 0) {
+      console.warn(`No members found for dimension '${dim.id}'.`);
     }
 
+    members.forEach((member) => {
+      const option = document.createElement("option");
+      option.value = member.id;
+      option.textContent = member.label;
+      dropdown.appendChild(option);
+    });
+
+    dropdown.addEventListener("change", (event) => {
+      console.log(`Dimension ${dim.id} selected: ${event.target.value}`);
+    });
+
+    cell.appendChild(dropdown);
     newRow.appendChild(cell);
   }
 
-  // Add editable cells for measures
   measures.forEach((measure) => {
     const cell = document.createElement("td");
     cell.classList.add("editable");
     cell.setAttribute("data-measure-id", measure.id);
     cell.contentEditable = "true";
-
     cell.addEventListener("blur", (event) => {
       const value = parseFloat(event.target.textContent.trim());
       if (!isNaN(value)) {
-        console.log(`Updated Measure '${measure.id}' to: ${value}`);
-        cell.setAttribute("data-measure-value", value); // Store the updated value
+        console.log(`Updated Measure ${measure.id}: ${value}`);
       } else {
         console.error("Invalid value for measure.");
         cell.textContent = "";
       }
     });
-
     newRow.appendChild(cell);
   });
 
-  // Attach row click event for selection highlighting
   newRow.addEventListener("click", () => {
     table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
     newRow.classList.add("selected");
-    console.log(`New row selected: ${newRowIndex}`);
+    console.log("New row selected:", newRowIndex);
   });
 
   table.appendChild(newRow);
   console.log("New row added:", newRow);
 }
+
 
 
 

@@ -198,12 +198,14 @@ async fetchDimensionMembers(dimensionId) {
     const allDimensions = this._myDataSource.metadata.dimensions;
     console.log("All Available Dimensions:", allDimensions);
 
-    const dimension = allDimensions[dimensionId];
+    // Find the dimension by ID
+    const dimension = Object.values(allDimensions).find((dim) => dim.id === dimensionId);
     if (!dimension) {
       console.warn(`Dimension '${dimensionId}' not found in metadata. Available keys:`, Object.keys(allDimensions));
       return [];
     }
 
+    // If `memberKeys` exist, use them
     const members = [];
     if (dimension.memberKeys && Array.isArray(dimension.memberKeys)) {
       dimension.memberKeys.forEach((key) => {

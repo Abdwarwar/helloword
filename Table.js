@@ -198,33 +198,41 @@ async fetchDimensionMembers(dimensionId) {
     const allDimensions = this._myDataSource.metadata.dimensions;
     console.log("All Available Dimensions:", allDimensions);
 
-    // Find the dimension by ID
+    // Find the dimension in metadata using its ID
     const dimension = Object.values(allDimensions).find((dim) => dim.id === dimensionId);
     if (!dimension) {
       console.warn(`Dimension '${dimensionId}' not found in metadata. Available keys:`, Object.keys(allDimensions));
       return [];
     }
 
-    // If `memberKeys` exist, use them
-    const members = [];
-    if (dimension.memberKeys && Array.isArray(dimension.memberKeys)) {
-      dimension.memberKeys.forEach((key) => {
-        members.push({
-          id: key,
-          label: dimension.memberDescriptions?.[key] || key, // Fallback to key if description is missing
-        });
-      });
-    } else {
-      console.warn(`No members found for dimension '${dimensionId}'.`);
+    // Attempt to fetch members for the dimension
+    if (dimension.memberKeys) {
+      const members = dimension.memberKeys.map((key) => ({
+        id: key,
+        label: dimension.memberDescriptions?.[key] || key, // Use description if available
+      }));
+      console.log(`Fetched members for '${dimensionId}':`, members);
+      return members;
     }
 
-    console.log(`Fetched members for '${dimensionId}':`, members);
+    // Use data source rows to fetch dimension members if not available in metadata
+    const membersSet = new Set();
+    this._myDataSource.data.forEach((row) => {
+      const value = row[dimension.key]?.id || row[dimension.key]?.label || "N/A";
+      if (value !== "N/A") {
+        membersSet.add(value);
+      }
+    });
+
+    const members = Array.from(membersSet).map((id) => ({ id, label: id }));
+    console.log(`Fallback members for '${dimensionId}':`, members);
     return members;
   } catch (error) {
     console.error(`Error fetching members for dimension '${dimensionId}':`, error);
     return [];
   }
 }
+
 
 
 

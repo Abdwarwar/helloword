@@ -189,48 +189,40 @@
     }
 
 async fetchDimensionMembers(dimensionId, returnType = "id") {
+  if (!this._myDataSource || !this._myDataSource.data) {
+    console.error("Data source not available or data is missing.");
+    return [];
+  }
+
   try {
-    if (!this._myDataSource || !this._myDataSource.getDimensionMembers) {
-      console.error("The 'getDimensionMembers' API is not available for this data source.");
-      return [];
-    }
+    console.log(`Fetching members manually for dimension: '${dimensionId}'`);
 
-    // Match the dimensionKey from metadata
-    const dimensionMeta = Object.values(this._myDataSource.metadata.dimensions).find(
-      (dim) => dim.id === dimensionId
-    );
+    const membersSet = new Set();
 
-    if (!dimensionMeta) {
-      console.error(`Dimension '${dimensionId}' not found in metadata.`);
-      return [];
-    }
-
-    const dimensionKey = dimensionMeta.key;
-    console.log(`Resolved Dimension ID '${dimensionId}' to Key '${dimensionKey}'`);
-
-    // Fetch all members with unbooked data
-    const dimensionMembers = await this._myDataSource.getDimensionMembers(dimensionKey, {
-      includeUnbooked: true,
+    // Iterate over the data and collect all unique members
+    this._myDataSource.data.forEach((row) => {
+      const dimensionData = row[dimensionId];
+      if (dimensionData) {
+        const value = dimensionData[returnType] || dimensionData.id || null;
+        if (value) {
+          membersSet.add(value);
+        }
+      }
     });
 
-    if (!dimensionMembers || dimensionMembers.length === 0) {
-      console.warn(`No members found for dimension '${dimensionId}'.`);
-      return [];
-    }
-
-    // Map to desired format
-    const members = dimensionMembers.map((member) => ({
-      id: member.id,
-      label: member.description || member.id,
+    const members = Array.from(membersSet).map((member) => ({
+      id: member,
+      label: member, // Use the ID as label in absence of description
     }));
 
-    console.log(`Fetched members for '${dimensionId}':`, members);
+    console.log(`Manually fetched members for dimension '${dimensionId}':`, members);
     return members;
   } catch (error) {
-    console.error(`Error fetching dimension members for '${dimensionId}':`, error);
+    console.error(`Error fetching members for dimension '${dimensionId}':`, error);
     return [];
   }
 }
+
 
 
 

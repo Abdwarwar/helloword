@@ -197,48 +197,50 @@ async fetchDimensionMembers(dimensionId) {
   try {
     const dimensionMetadata = this._myDataSource.metadata.dimensions[dimensionId];
     if (!dimensionMetadata) {
-      console.error(`Dimension '${dimensionId}' not found in metadata.`);
+      console.warn(`Dimension '${dimensionId}' not found in metadata.`);
       return [];
     }
 
-    // Fetch unbooked members from metadata
+    // Retrieve unbooked members from metadata
     const unbookedMembers = dimensionMetadata.members || [];
 
-    // Fetch booked members from data
+    // Retrieve booked members from data
     const bookedMembersSet = new Set();
     this._myDataSource.data.forEach((row) => {
-      const value = row[dimensionId]?.id || row[dimensionId]?.label || null;
-      if (value) {
-        bookedMembersSet.add(value);
+      const member = row[dimensionId]?.id || row[dimensionId]?.label || null;
+      if (member) {
+        bookedMembersSet.add(member);
       }
     });
 
+    // Create booked members list
     const bookedMembers = Array.from(bookedMembersSet).map((id) => {
-      const unbookedMatch = unbookedMembers.find((m) => m.id === id);
+      const match = unbookedMembers.find((m) => m.id === id);
       return {
         id: id,
-        label: unbookedMatch?.description || id,
+        label: match?.description || id, // Fallback to ID if no description is available
       };
     });
 
     // Merge booked and unbooked members, avoiding duplicates
-    const allMembers = [...bookedMembers];
+    const mergedMembers = [...bookedMembers];
     unbookedMembers.forEach((member) => {
       if (!bookedMembersSet.has(member.id)) {
-        allMembers.push({
+        mergedMembers.push({
           id: member.id,
           label: member.description || member.id,
         });
       }
     });
 
-    console.log(`Fetched members for dimension '${dimensionId}':`, allMembers);
-    return allMembers;
+    console.log(`Fetched members for dimension '${dimensionId}':`, mergedMembers);
+    return mergedMembers;
   } catch (error) {
     console.error("Error fetching dimension members:", error);
     return [];
   }
 }
+
 
 
 async addEmptyRow() {
@@ -261,25 +263,30 @@ async addEmptyRow() {
     const cell = document.createElement("td");
     const dropdown = document.createElement("select");
 
-    // Fetch dimension members (both booked and unbooked)
-    const members = await this.fetchDimensionMembers(dim.id);
-    if (members.length === 0) {
-      dropdown.innerHTML = `<option value="" disabled>No members available</option>`;
-    } else {
-      members.forEach((member) => {
-        const option = document.createElement("option");
-        option.value = member.id;
-        option.textContent = member.label; // Use label for display
-        dropdown.appendChild(option);
+    try {
+      const members = await this.fetchDimensionMembers(dim.id);
+      if (members.length === 0) {
+        dropdown.innerHTML = `<option value="" disabled>No members available</option>`;
+      } else {
+        members.forEach((member) => {
+          const option = document.createElement("option");
+          option.value = member.id;
+          option.textContent = member.label;
+          dropdown.appendChild(option);
+        });
+      }
+
+      dropdown.addEventListener("change", (event) => {
+        console.log(`Dimension '${dim.id}' selected: ${event.target.value}`);
+        cell.setAttribute("data-dimension-value", event.target.value); // Store selected ID
       });
+
+      cell.appendChild(dropdown);
+    } catch (error) {
+      console.error(`Error populating dropdown for dimension '${dim.id}':`, error);
+      cell.innerHTML = `<p>Error loading members</p>`;
     }
 
-    dropdown.addEventListener("change", (event) => {
-      console.log(`Dimension '${dim.id}' selected: ${event.target.value}`);
-      cell.setAttribute("data-dimension-value", event.target.value); // Store selected ID
-    });
-
-    cell.appendChild(dropdown);
     newRow.appendChild(cell);
   }
 
@@ -308,7 +315,6 @@ async addEmptyRow() {
   newRow.addEventListener("click", () => {
     table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
     newRow.classList.add("selected");
-    this._selectedRows.add(newRowIndex);
     console.log(`New row selected: ${newRowIndex}`);
   });
 

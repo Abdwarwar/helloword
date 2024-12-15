@@ -195,16 +195,20 @@ async fetchDimensionMembers(dimensionId) {
   }
 
   try {
+    // Log the dimension metadata
     const dimensionMetadata = this._myDataSource.metadata.dimensions[dimensionId];
+    console.log(`Dimension Metadata for ${dimensionId}:`, dimensionMetadata);
+
     if (!dimensionMetadata) {
       console.warn(`Dimension '${dimensionId}' not found in metadata.`);
       return [];
     }
 
-    // Retrieve unbooked members from metadata
+    // Retrieve unbooked members
     const unbookedMembers = dimensionMetadata.members || [];
+    console.log(`Unbooked members for ${dimensionId}:`, unbookedMembers);
 
-    // Retrieve booked members from data
+    // Retrieve booked members
     const bookedMembersSet = new Set();
     this._myDataSource.data.forEach((row) => {
       const member = row[dimensionId]?.id || row[dimensionId]?.label || null;
@@ -213,17 +217,17 @@ async fetchDimensionMembers(dimensionId) {
       }
     });
 
-    // Create booked members list
-    const bookedMembers = Array.from(bookedMembersSet).map((id) => {
+    console.log(`Booked members for ${dimensionId}:`, Array.from(bookedMembersSet));
+
+    // Merge booked and unbooked members
+    const mergedMembers = [...Array.from(bookedMembersSet).map((id) => {
       const match = unbookedMembers.find((m) => m.id === id);
       return {
         id: id,
-        label: match?.description || id, // Fallback to ID if no description is available
+        label: match?.description || id,
       };
-    });
+    })];
 
-    // Merge booked and unbooked members, avoiding duplicates
-    const mergedMembers = [...bookedMembers];
     unbookedMembers.forEach((member) => {
       if (!bookedMembersSet.has(member.id)) {
         mergedMembers.push({
@@ -233,13 +237,14 @@ async fetchDimensionMembers(dimensionId) {
       }
     });
 
-    console.log(`Fetched members for dimension '${dimensionId}':`, mergedMembers);
+    console.log(`Merged members for ${dimensionId}:`, mergedMembers);
     return mergedMembers;
   } catch (error) {
     console.error("Error fetching dimension members:", error);
     return [];
   }
 }
+
 
 
 

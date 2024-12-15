@@ -195,15 +195,15 @@ async fetchDimensionMembers(dimensionId) {
   }
 
   try {
-    const dimension = this._myDataSource.metadata.dimensions[dimensionId];
-    console.log("Dimension Metadata:", dimension);
+    const allDimensions = this._myDataSource.metadata.dimensions;
+    console.log("All Available Dimensions:", allDimensions);
 
+    const dimension = allDimensions[dimensionId];
     if (!dimension) {
-      console.warn(`Dimension '${dimensionId}' not found in metadata.`);
+      console.warn(`Dimension '${dimensionId}' not found in metadata. Available keys:`, Object.keys(allDimensions));
       return [];
     }
 
-    // Collect all members (both booked and unbooked)
     const members = [];
     if (dimension.memberKeys && Array.isArray(dimension.memberKeys)) {
       dimension.memberKeys.forEach((key) => {
@@ -213,7 +213,7 @@ async fetchDimensionMembers(dimensionId) {
         });
       });
     } else {
-      console.warn(`No memberKeys found for dimension '${dimensionId}'.`);
+      console.warn(`No members found for dimension '${dimensionId}'.`);
     }
 
     console.log(`Fetched members for '${dimensionId}':`, members);
@@ -223,6 +223,7 @@ async fetchDimensionMembers(dimensionId) {
     return [];
   }
 }
+
 
 
 async addEmptyRow() {
@@ -356,25 +357,27 @@ getDimensions() {
     return [];
   }
 
-  const dimensionsKeys = this._myDataSource.metadata.feeds.dimensions.values;
+  const dimensionsKeys = this._myDataSource.metadata.feeds?.dimensions?.values || [];
+  console.log("Dimension Keys from Feeds:", dimensionsKeys);
 
   const dimensions = dimensionsKeys.map((key) => {
     const dimension = this._myDataSource.metadata.dimensions[key];
     if (!dimension) {
-      console.warn(`Dimension with key '${key}' not found in metadata.`);
+      console.warn(`Dimension '${key}' not found in metadata.`);
       return { id: key, key, description: key }; // Fallback
     }
 
     return {
-      id: dimension.id || key, // Use actual dimension ID
+      id: dimension.id || key,
       key,
-      description: dimension.description || dimension.id || key, // Use actual description
+      description: dimension.description || dimension.id || key,
     };
   });
 
   console.log("Resolved Dimensions:", dimensions);
   return dimensions;
 }
+
 
 
 getMeasures() {

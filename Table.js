@@ -411,16 +411,14 @@ getDimensionSelected(dimensionId) {
       return [];
     }
 
-    const selectedRows = Array.from(this._selectedRows);
-    const dimensionValues = selectedRows.map((rowIndex) => {
+    const dimensionValues = Array.from(this._selectedRows).map((rowIndex) => {
       const row = table.querySelector(`tr[data-row-index="${rowIndex}"]`);
-
       if (!row) {
         console.warn(`Row at index '${rowIndex}' not found in DOM.`);
         return null;
       }
 
-      // Check for dynamically added rows
+      // Check dynamically added rows first
       const dynamicCell = row.querySelector(`td[data-dimension-id="${dimensionId}"]`);
       if (dynamicCell) {
         const value = dynamicCell.getAttribute("data-dimension-value") || null;
@@ -428,14 +426,15 @@ getDimensionSelected(dimensionId) {
         return value;
       }
 
-      // Check for existing rows from the data source
+      // Check data source rows
       if (this._myDataSource?.data[rowIndex]) {
         const dataRow = this._myDataSource.data[rowIndex];
-        const value = dataRow[dimensionId]?.id || dataRow[dimensionId]?.label || null;
+        const value = dataRow?.[dimensionId]?.id || dataRow?.[dimensionId]?.label || null;
         console.log(`Dimension '${dimensionId}' for data source row '${rowIndex}' has value: ${value}`);
         return value;
       }
 
+      console.warn(`Dimension '${dimensionId}' not found for row '${rowIndex}'.`);
       return null;
     });
 
@@ -456,16 +455,14 @@ getMeasureValues(measureId) {
       return [];
     }
 
-    const selectedRows = Array.from(this._selectedRows);
-    const measureValues = selectedRows.map((rowIndex) => {
+    const measureValues = Array.from(this._selectedRows).map((rowIndex) => {
       const row = table.querySelector(`tr[data-row-index="${rowIndex}"]`);
-
       if (!row) {
         console.warn(`Row at index '${rowIndex}' not found in DOM.`);
         return null;
       }
 
-      // Check for dynamically added rows
+      // Check dynamically added rows first
       const dynamicCell = row.querySelector(`td[data-measure-id="${measureId}"]`);
       if (dynamicCell) {
         const value = parseFloat(dynamicCell.getAttribute("data-measure-value")) || null;
@@ -473,14 +470,15 @@ getMeasureValues(measureId) {
         return value;
       }
 
-      // Check for existing rows from the data source
+      // Check data source rows
       if (this._myDataSource?.data[rowIndex]) {
         const dataRow = this._myDataSource.data[rowIndex];
-        const value = dataRow[measureId]?.raw || dataRow[measureId]?.formatted || null;
+        const value = dataRow?.[measureId]?.raw || dataRow?.[measureId]?.formatted || null;
         console.log(`Measure '${measureId}' for data source row '${rowIndex}' has value: ${value}`);
         return value;
       }
 
+      console.warn(`Measure '${measureId}' not found for row '${rowIndex}'.`);
       return null;
     });
 

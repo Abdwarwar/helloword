@@ -228,42 +228,37 @@ async addEmptyRow() {
 
   const dimensions = this.getDimensions();
   const measures = this.getMeasures();
-  const newRowIndex = this._myDataSource.data.length + this._newRowsData.length;
-
-  const newRowData = {
-    index: newRowIndex,
-    dimensions: {},
-    measures: {},
-  };
+  const newRowIndex = table.rows.length; // New row index in DOM
 
   const newRow = document.createElement("tr");
   newRow.setAttribute("data-row-index", newRowIndex);
   newRow.classList.add("selected");
 
-  // Populate dropdowns for dimensions
-  for (const dim of dimensions) {
+  // Add dropdowns for dimensions
+  dimensions.forEach((dim) => {
     const cell = document.createElement("td");
     const dropdown = document.createElement("select");
 
-    const members = await this.fetchDimensionMembers(dim.key);
-    members.forEach((member) => {
-      const option = document.createElement("option");
-      option.value = member.id;
-      option.textContent = member.label;
-      dropdown.appendChild(option);
+    // Populate dropdown with members dynamically
+    this.fetchDimensionMembers(dim.key).then((members) => {
+      members.forEach((member) => {
+        const option = document.createElement("option");
+        option.value = member.id;
+        option.textContent = member.label;
+        dropdown.appendChild(option);
+      });
     });
 
     dropdown.addEventListener("change", (event) => {
-      const selectedValue = event.target.value;
-      console.log(`Dimension ${dim.id} selected: ${selectedValue}`);
-      newRowData.dimensions[dim.id] = selectedValue;
+      console.log(`Dimension ${dim.id} selected for new row: ${event.target.value}`);
+      cell.setAttribute("data-dimension-value", event.target.value); // Store selected dimension
     });
 
     cell.appendChild(dropdown);
     newRow.appendChild(cell);
-  }
+  });
 
-  // Add editable cells for measures
+  // Add editable measure cells
   measures.forEach((measure) => {
     const cell = document.createElement("td");
     cell.classList.add("editable");
@@ -272,32 +267,24 @@ async addEmptyRow() {
 
     cell.addEventListener("blur", (event) => {
       const value = parseFloat(event.target.textContent.trim());
-      if (!isNaN(value)) {
-        console.log(`Updated Measure ${measure.id}: ${value}`);
-        newRowData.measures[measure.id] = value;
-      } else {
-        console.error("Invalid value for measure.");
-        cell.textContent = "";
-      }
+      console.log(`Measure '${measure.id}' for new row updated to: ${value}`);
+      cell.setAttribute("data-measure-value", isNaN(value) ? "" : value); // Store edited measure
     });
 
     newRow.appendChild(cell);
   });
 
+  // Add click handler for selection
   newRow.addEventListener("click", () => {
     table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
     newRow.classList.add("selected");
-    console.log("New row selected:", newRowIndex);
+    this._selectedRows.add(newRowIndex);
+    console.log(`New row selected: ${newRowIndex}`);
   });
 
   table.appendChild(newRow);
-  this._newRowsData.push(newRowData); // Add to new rows data
-  console.log("New row added:", newRowData);
+  console.log(`New row added at index: ${newRowIndex}`);
 }
-
-
-
-
 
 
     updateMeasureValue(rowIndex, measureId, newValue) {
@@ -421,65 +408,64 @@ getMeasures() {
 
 getDimensionSelected(dimensionId) {
   try {
-    if (!this._myDataSource || !this._myDataSource.data) {
-      console.error("Data source is not bound or data is unavailable.");
+    const table = this._root.querySelector("table tbody");
+    if (!table) {
+      console.error("Table body not found.");
       return [];
     }
 
-    const dimensions = this.getDimensions();
-    const selectedDimension = dimensions.find((dim) => dim.id === dimensionId);
+    const selectedRows = Array.from(this._selectedRows);
+    const dimensionValues = selectedRows.map((rowIndex) => {
+      const row = table.querySelector(`tr[data-row-index="${rowIndex}"]`);
+      if (!row) {
+        console.warn(`Row at index '${rowIndex}' not found in DOM.`);
+        return null;
+      }
 
-    if (!selectedDimension) {
-      console.error(`Dimension with ID '${dimensionId}' not found.`);
-      return [];
-    }
+      const cell = row.querySelector(`td[data-dimension-id="${dimensionId}"]`);
+      if (!cell) {
+        console.warn(`Dimension '${dimensionId}' not found for row '${rowIndex}'.`);
+        return null;
+      }
 
-    // Collect data from selected existing rows
-    const selectedMembers = Array.from(this._selectedRows).map((rowIndex) => {
-      const isExistingRow = rowIndex < this._myDataSource.data.length;
-      const row = isExistingRow ? this._myDataSource.data[rowIndex] : this._newRowsData[rowIndex - this._myDataSource.data.length];
-
-      if (!row) return null;
-      return isExistingRow
-        ? row[selectedDimension.key]?.id || null
-        : row.dimensions[dimensionId] || null;
+      const value = cell.getAttribute("data-dimension-value") || "N/A";
+      console.log(`Dimension '${dimensionId}' for row '${rowIndex}' has value: ${value}`);
+      return value !== "N/A" ? value : null;
     });
 
-    const filteredMembers = selectedMembers.filter((member) => member !== null);
-    console.log(`Selected members for dimension '${dimensionId}':`, filteredMembers);
-    return filteredMembers;
+    const filteredValues = dimensionValues.filter((value) => value !== null);
+    console.log(`Filtered dimension values for '${dimensionId}':`, filteredValues);
+    return filteredValues;
   } catch (error) {
     console.error("Error in getDimensionSelected:", error);
     return [];
   }
 }
-
-
 getMeasureValues(measureId) {
   try {
-    const table = this._root.querySelector("table");
+    const table = this._root.querySelector("table tbody");
     if (!table) {
-      console.error("Table element not found.");
+      console.error("Table body not found.");
       return [];
     }
 
-    const rows = table.querySelectorAll("tbody tr");
-    const measureValues = Array.from(this._selectedRows).map((rowIndex) => {
-      const row = rows[rowIndex];
+    const selectedRows = Array.from(this._selectedRows);
+    const measureValues = selectedRows.map((rowIndex) => {
+      const row = table.querySelector(`tr[data-row-index="${rowIndex}"]`);
       if (!row) {
-        console.warn(`Row at index '${rowIndex}' not found in the DOM.`);
+        console.warn(`Row at index '${rowIndex}' not found in DOM.`);
         return null;
       }
 
       const cell = row.querySelector(`td[data-measure-id="${measureId}"]`);
       if (!cell) {
-        console.warn(`Cell for measure '${measureId}' not found in row '${rowIndex}'.`);
+        console.warn(`Measure '${measureId}' not found for row '${rowIndex}'.`);
         return null;
       }
 
-      const editedValue = parseFloat(cell.textContent.trim());
-      console.log(`Measure '${measureId}' in row '${rowIndex}' has value: ${editedValue}`);
-      return isNaN(editedValue) ? null : editedValue;
+      const value = parseFloat(cell.getAttribute("data-measure-value") || "N/A");
+      console.log(`Measure '${measureId}' for row '${rowIndex}' has value: ${value}`);
+      return !isNaN(value) ? value : null;
     });
 
     const filteredValues = measureValues.filter((value) => value !== null);
@@ -490,6 +476,7 @@ getMeasureValues(measureId) {
     return [];
   }
 }
+
 
 
 

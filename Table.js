@@ -419,14 +419,16 @@ getDimensionSelected(dimensionId) {
         return null;
       }
 
+      // Check for dynamically added rows
       const cell = row.querySelector(`td[data-dimension-id="${dimensionId}"]`);
       if (cell) {
-        // For dynamically added rows, retrieve data from attributes
         const value = cell.getAttribute("data-dimension-value") || null;
         console.log(`Dimension '${dimensionId}' for row '${rowIndex}' (new row) has value: ${value}`);
         return value;
-      } else if (this._myDataSource) {
-        // For rows from the data source
+      }
+
+      // Check for rows from the data source
+      if (this._myDataSource && this._myDataSource.data[rowIndex]) {
         const rowData = this._myDataSource.data[rowIndex];
         const value = rowData?.[dimensionId]?.id || rowData?.[dimensionId]?.label || null;
         console.log(`Dimension '${dimensionId}' for row '${rowIndex}' (data source) has value: ${value}`);
@@ -462,14 +464,16 @@ getMeasureValues(measureId) {
         return null;
       }
 
+      // Check for dynamically added rows
       const cell = row.querySelector(`td[data-measure-id="${measureId}"]`);
       if (cell) {
-        // Retrieve value from dynamically added rows
         const value = parseFloat(cell.getAttribute("data-measure-value")) || null;
         console.log(`Measure '${measureId}' for row '${rowIndex}' (new row) has value: ${value}`);
         return value;
-      } else if (this._myDataSource) {
-        // Retrieve value from rows in the data source
+      }
+
+      // Check for rows from the data source
+      if (this._myDataSource && this._myDataSource.data[rowIndex]) {
         const rowData = this._myDataSource.data[rowIndex];
         const value = rowData?.[measureId]?.raw || rowData?.[measureId]?.formatted || null;
         console.log(`Measure '${measureId}' for row '${rowIndex}' (data source) has value: ${value}`);
@@ -485,8 +489,9 @@ getMeasureValues(measureId) {
   } catch (error) {
     console.error("Error in getMeasureValues:", error);
     return [];
-    }
   }
+}
+
     }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

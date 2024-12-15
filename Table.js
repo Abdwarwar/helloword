@@ -188,33 +188,34 @@
       });
     }
 
-    async fetchDimensionMembers(dimensionId) {
-      if (!this._myDataSource || !this._myDataSource.data) {
-        console.error("Data source not available or data is missing.");
-        return [];
+async fetchDimensionMembers(dimensionId, returnType = "id") {
+  if (!this._myDataSource || !this._myDataSource.data) {
+    console.error("Data source not available or data is missing.");
+    return [];
+  }
+
+  try {
+    const membersSet = new Set();
+    this._myDataSource.data.forEach((row) => {
+      const value = row[dimensionId]?.[returnType] || null;
+      if (value) {
+        membersSet.add(value);
       }
+    });
 
-      try {
-        const membersSet = new Set();
-        this._myDataSource.data.forEach((row) => {
-          const value = row[dimensionId]?.label || row[dimensionId]?.id || "N/A";
-          if (value !== "N/A") {
-            membersSet.add(value);
-          }
-        });
+    const members = Array.from(membersSet).map((member) => ({
+      id: member,
+      label: member, // For dropdowns, we can show `id` or `label`
+    }));
 
-        const members = Array.from(membersSet).map((member) => ({
-          id: member,
-          label: member,
-        }));
+    console.log(`Fetched members for dimension '${dimensionId}' (${returnType}):`, members);
+    return members;
+  } catch (error) {
+    console.error("Error fetching dimension members:", error);
+    return [];
+  }
+}
 
-        console.log(`Fetched members for dimension ${dimensionId}:`, members);
-        return members;
-      } catch (error) {
-        console.error("Error fetching dimension members:", error);
-        return [];
-      }
-    }
 
 async addEmptyRow() {
   const table = this._root.querySelector("table tbody");
@@ -232,28 +233,29 @@ async addEmptyRow() {
   newRow.classList.add("selected");
 
   // Populate dropdowns for dimensions
-  dimensions.forEach((dim) => {
+  for (const dim of dimensions) {
     const cell = document.createElement("td");
-    cell.setAttribute("data-dimension-id", dim.id); // Add dimension ID for tracking
+    cell.setAttribute("data-dimension-id", dim.id);
 
     const dropdown = document.createElement("select");
-    this.fetchDimensionMembers(dim.key).then((members) => {
-      members.forEach((member) => {
-        const option = document.createElement("option");
-        option.value = member.id;
-        option.textContent = member.label;
-        dropdown.appendChild(option);
-      });
+
+    // Fetch dimension members dynamically with `id` as default type
+    const members = await this.fetchDimensionMembers(dim.key, "id");
+    members.forEach((member) => {
+      const option = document.createElement("option");
+      option.value = member.id;
+      option.textContent = member.label; // Show label (or description) in dropdown
+      dropdown.appendChild(option);
     });
 
     dropdown.addEventListener("change", (event) => {
-      console.log(`Dimension '${dim.id}' selected: ${event.target.value}`);
-      cell.setAttribute("data-dimension-value", event.target.value); // Store selection
+      console.log(`Dimension '${dim.id}' selected as ID: ${event.target.value}`);
+      cell.setAttribute("data-dimension-value", event.target.value); // Store selected ID
     });
 
     cell.appendChild(dropdown);
     newRow.appendChild(cell);
-  });
+  }
 
   // Add editable cells for measures
   measures.forEach((measure) => {
@@ -271,7 +273,7 @@ async addEmptyRow() {
     newRow.appendChild(cell);
   });
 
-  // Attach selection highlighting
+  // Attach row click event for selection highlighting
   newRow.addEventListener("click", () => {
     table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
     newRow.classList.add("selected");
@@ -282,6 +284,7 @@ async addEmptyRow() {
   table.appendChild(newRow);
   console.log(`New row added: ${newRowIndex}`);
 }
+
 
 
 

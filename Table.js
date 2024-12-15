@@ -419,7 +419,7 @@ getDimensionSelected(dimensionId) {
         return null;
       }
 
-      // Check for dynamically added rows (new rows)
+      // Handle new rows (dynamically added)
       const dynamicCell = row.querySelector(`td[data-dimension-id="${dimensionId}"]`);
       if (dynamicCell) {
         const value = dynamicCell.getAttribute("data-dimension-value") || null;
@@ -427,7 +427,7 @@ getDimensionSelected(dimensionId) {
         return value;
       }
 
-      // Check for existing rows in the data source
+      // Handle existing rows (data source rows)
       if (this._myDataSource?.data[rowIndex]) {
         const dataRow = this._myDataSource.data[rowIndex];
         const value = dataRow?.[dimensionId]?.id || dataRow?.[dimensionId]?.label || null;
@@ -447,6 +447,7 @@ getDimensionSelected(dimensionId) {
     return [];
   }
 }
+
     
 getMeasureValues(measureId) {
   try {
@@ -463,7 +464,7 @@ getMeasureValues(measureId) {
         return null;
       }
 
-      // Check for dynamically added rows (new rows)
+      // Handle new rows (dynamically added)
       const dynamicCell = row.querySelector(`td[data-measure-id="${measureId}"]`);
       if (dynamicCell) {
         const value = parseFloat(dynamicCell.getAttribute("data-measure-value")) || null;
@@ -471,7 +472,7 @@ getMeasureValues(measureId) {
         return value;
       }
 
-      // Check for existing rows in the data source
+      // Handle existing rows (data source rows)
       if (this._myDataSource?.data[rowIndex]) {
         const dataRow = this._myDataSource.data[rowIndex];
         const value = dataRow?.[measureId]?.raw || dataRow?.[measureId]?.formatted || null;
@@ -491,6 +492,7 @@ getMeasureValues(measureId) {
     return [];
   }
 }
+
 
 
     }

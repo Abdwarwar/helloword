@@ -189,7 +189,7 @@
     }
 
 async fetchDimensionMembers(dimensionId) {
-  if (!this._myDataSource || !this._myDataSource.metadata || !this._myDataSource.data) {
+  if (!this._myDataSource || !this._myDataSource.metadata) {
     console.error("Data source or metadata is not available.");
     return [];
   }
@@ -199,7 +199,6 @@ async fetchDimensionMembers(dimensionId) {
     const allDimensions = this._myDataSource.metadata.dimensions;
     console.log("All Available Dimensions:", allDimensions);
 
-    // Map through keys to find the dimension matching the ID
     const dimensionKey = Object.keys(allDimensions).find(
       (key) => allDimensions[key].id === dimensionId
     );
@@ -211,19 +210,21 @@ async fetchDimensionMembers(dimensionId) {
 
     console.log(`Resolved Dimension Key for '${dimensionId}':`, dimensionKey);
 
-    // Step 2: Fetch all members (booked or unbooked) from data rows
-    const membersSet = new Set();
-    this._myDataSource.data.forEach((row) => {
-      const dimensionValue = row[dimensionKey]?.id || row[dimensionKey]?.label || null;
-      if (dimensionValue) {
-        membersSet.add(dimensionValue);
-      }
-    });
+    // Step 2: Fetch all available members (booked and unbooked) for the dimension
+    const allMembers = await this._myDataSource.getDimensionMembers(dimensionId);
 
-    // Step 3: Return unique members
-    const members = Array.from(membersSet).map((id) => ({ id, label: id }));
-    console.log(`Fetched members for '${dimensionId}':`, members);
+    if (!allMembers || allMembers.length === 0) {
+      console.warn(`No members found for dimension '${dimensionId}'.`);
+      return [];
+    }
 
+    // Step 3: Format members to include IDs and labels
+    const members = allMembers.map((member) => ({
+      id: member.id || member.key,
+      label: member.label || member.id,
+    }));
+
+    console.log(`Fetched all members (booked and unbooked) for '${dimensionId}':`, members);
     return members;
   } catch (error) {
     console.error(`Error fetching members for dimension '${dimensionId}':`, error);

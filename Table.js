@@ -188,37 +188,33 @@
       });
     }
 
-async fetchDimensionMembers(dimensionId) {
+async fetchDimensionMembers(dimensionId, returnType = "id") {
+  if (!this._myDataSource || !this._myDataSource.data) {
+    console.error("Data source not available or data is missing.");
+    return [];
+  }
+
   try {
-    // Step 1: Validate the data source and planning interface
-    if (!this._myDataSource || !this._myDataSource.getDimensionMembers) {
-      console.error("Data source or the 'getDimensionMembers' API is not available.");
-      return [];
-    }
+    const membersSet = new Set();
+    this._myDataSource.data.forEach((row) => {
+      const value = row[dimensionId]?.[returnType] || null;
+      if (value) {
+        membersSet.add(value);
+      }
+    });
 
-    // Step 2: Fetch all members for the given dimension
-    const members = await this._myDataSource.getDimensionMembers(dimensionId);
-
-    if (!members || members.length === 0) {
-      console.warn(`No members found for dimension '${dimensionId}'.`);
-      return [];
-    }
-
-    // Step 3: Format the members with ID and label
-    const formattedMembers = members.map((member) => ({
-      id: member.id || member.key,
-      label: member.label || member.id,
+    const members = Array.from(membersSet).map((member) => ({
+      id: member,
+      label: member, // For dropdowns, we can show `id` or `label`
     }));
 
-    console.log(`Successfully fetched members for '${dimensionId}':`, formattedMembers);
-    return formattedMembers;
+    console.log(`Fetched members for dimension '${dimensionId}' (${returnType}):`, members);
+    return members;
   } catch (error) {
-    console.error(`Error fetching members for dimension '${dimensionId}':`, error);
+    console.error("Error fetching dimension members:", error);
     return [];
   }
 }
-
-
 
 async addEmptyRow() {
   const table = this._root.querySelector("table tbody");
@@ -238,23 +234,22 @@ async addEmptyRow() {
   // Populate dropdowns for dimensions
   for (const dim of dimensions) {
     const cell = document.createElement("td");
+    cell.setAttribute("data-dimension-id", dim.id);
+
     const dropdown = document.createElement("select");
 
-    // Fetch dimension members dynamically
-    const members = await this.fetchDimensionMembers(dim.id);
-    if (members.length === 0) {
-      console.warn(`No members found for dimension '${dim.id}'.`);
-    } else {
-      members.forEach((member) => {
-        const option = document.createElement("option");
-        option.value = member.id;
-        option.textContent = member.label;
-        dropdown.appendChild(option);
-      });
-    }
+    // Fetch dimension members dynamically with `id` as default type
+    const members = await this.fetchDimensionMembers(dim.key, "id");
+    members.forEach((member) => {
+      const option = document.createElement("option");
+      option.value = member.id;
+      option.textContent = member.label; // Show label (or description) in dropdown
+      dropdown.appendChild(option);
+    });
 
     dropdown.addEventListener("change", (event) => {
-      console.log(`Dimension ${dim.id} selected: ${event.target.value}`);
+      console.log(`Dimension '${dim.id}' selected as ID: ${event.target.value}`);
+      cell.setAttribute("data-dimension-value", event.target.value); // Store selected ID
     });
 
     cell.appendChild(dropdown);
@@ -266,34 +261,28 @@ async addEmptyRow() {
     const cell = document.createElement("td");
     cell.classList.add("editable");
     cell.setAttribute("data-measure-id", measure.id);
+
     cell.contentEditable = "true";
     cell.addEventListener("blur", (event) => {
       const value = parseFloat(event.target.textContent.trim());
-      if (!isNaN(value)) {
-        console.log(`Updated Measure ${measure.id}: ${value}`);
-      } else {
-        console.error("Invalid value for measure.");
-        cell.textContent = "";
-      }
+      console.log(`Measure '${measure.id}' for new row updated to: ${value}`);
+      cell.setAttribute("data-measure-value", isNaN(value) ? null : value); // Store edited value
     });
+
     newRow.appendChild(cell);
   });
 
-  // Highlight row on selection
+  // Attach row click event for selection highlighting
   newRow.addEventListener("click", () => {
     table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
     newRow.classList.add("selected");
-    console.log("New row selected:", newRowIndex);
+    this._selectedRows.add(newRowIndex);
+    console.log(`New row selected: ${newRowIndex}`);
   });
 
   table.appendChild(newRow);
-  console.log("New row added:", newRow);
+  console.log(`New row added: ${newRowIndex}`);
 }
-
-
-
-
-
 
     updateMeasureValue(rowIndex, measureId, newValue) {
       if (!this._myDataSource || !this._myDataSource.data[rowIndex]) {
@@ -354,27 +343,25 @@ getDimensions() {
     return [];
   }
 
-  const dimensionsKeys = this._myDataSource.metadata.feeds?.dimensions?.values || [];
-  console.log("Dimension Keys from Feeds:", dimensionsKeys);
+  const dimensionsKeys = this._myDataSource.metadata.feeds.dimensions.values;
 
   const dimensions = dimensionsKeys.map((key) => {
     const dimension = this._myDataSource.metadata.dimensions[key];
     if (!dimension) {
-      console.warn(`Dimension '${key}' not found in metadata.`);
+      console.warn(`Dimension with key '${key}' not found in metadata.`);
       return { id: key, key, description: key }; // Fallback
     }
 
     return {
-      id: dimension.id || key,
+      id: dimension.id || key, // Use actual dimension ID
       key,
-      description: dimension.description || dimension.id || key,
+      description: dimension.description || dimension.id || key, // Use actual description
     };
   });
 
   console.log("Resolved Dimensions:", dimensions);
   return dimensions;
 }
-
 
 
 getMeasures() {

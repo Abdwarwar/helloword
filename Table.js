@@ -195,42 +195,40 @@ async fetchDimensionMembers(dimensionId) {
   }
 
   try {
-    // Check if the data source API supports fetching members
+    // Step 1: Use getMembers API if available
     if (typeof this._myDataSource.getMembers === "function") {
-      // Fetch all members (including unbooked) using SAC API
       const members = await this._myDataSource.getMembers(dimensionId);
-      console.log(`Fetched all members for dimension '${dimensionId}':`, members);
+      console.log(`Fetched ALL members for dimension '${dimensionId}'`, members);
 
-      return members.map((member) => ({
-        id: member.id,
-        label: member.description || member.id,
-      }));
-    } else {
-      console.warn("Data source does not support getMembers API. Falling back to data extraction.");
-
-      // Fallback: Extract members directly from the data source (only booked)
-      const membersSet = new Set();
-      this._myDataSource.data.forEach((row) => {
-        const value = row[dimensionId]?.id || row[dimensionId]?.label || "N/A";
-        if (value !== "N/A") membersSet.add(value);
-      });
-
-      const members = Array.from(membersSet).map((id) => ({
-        id,
-        label: id,
-      }));
-
-      console.log(`Fetched fallback members for dimension '${dimensionId}':`, members);
-      return members;
+      if (members && members.length > 0) {
+        return members.map((member) => ({
+          id: member.id,
+          label: member.description || member.id,
+        }));
+      }
     }
+
+    // Step 2: Fallback logic for booked data
+    console.warn(`getMembers API unavailable. Fallback to booked members for '${dimensionId}'.`);
+    const membersSet = new Set();
+    this._myDataSource.data.forEach((row) => {
+      const value = row[dimensionId]?.id || row[dimensionId]?.label || "N/A";
+      if (value !== "N/A") {
+        membersSet.add(value);
+      }
+    });
+
+    const fallbackMembers = Array.from(membersSet).map((id) => ({
+      id,
+      label: id,
+    }));
+    console.log(`Fallback members for dimension '${dimensionId}':`, fallbackMembers);
+    return fallbackMembers;
   } catch (error) {
     console.error(`Error fetching members for dimension '${dimensionId}':`, error);
     return [];
   }
 }
-
-
-
 
 
 
@@ -254,20 +252,23 @@ async addEmptyRow() {
     const cell = document.createElement("td");
     const dropdown = document.createElement("select");
 
-    // Fetch members dynamically for each dimension
-    const members = await this.fetchDimensionMembers(dim.id);
-    if (members.length > 0) {
-      members.forEach((member) => {
+    try {
+      const members = await this.fetchDimensionMembers(dim.id);
+      if (members.length > 0) {
+        members.forEach((member) => {
+          const option = document.createElement("option");
+          option.value = member.id;
+          option.textContent = member.label;
+          dropdown.appendChild(option);
+        });
+      } else {
         const option = document.createElement("option");
-        option.value = member.id;
-        option.textContent = member.label;
+        option.value = "";
+        option.textContent = "No members available";
         dropdown.appendChild(option);
-      });
-    } else {
-      const option = document.createElement("option");
-      option.value = "";
-      option.textContent = "No members available";
-      dropdown.appendChild(option);
+      }
+    } catch (error) {
+      console.error(`Error populating dropdown for dimension '${dim.id}':`, error);
     }
 
     dropdown.addEventListener("change", (event) => {
@@ -305,6 +306,7 @@ async addEmptyRow() {
   table.appendChild(newRow);
   console.log("New row added:", newRow);
 }
+
 
 
 

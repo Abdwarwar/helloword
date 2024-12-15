@@ -426,7 +426,7 @@ getDimensionSelected(dimensionId) {
         return value;
       }
 
-      // Check data source rows
+      // Fallback to data source rows
       if (this._myDataSource?.data[rowIndex]) {
         const dataRow = this._myDataSource.data[rowIndex];
         const value = dataRow?.[dimensionId]?.id || dataRow?.[dimensionId]?.label || null;
@@ -470,7 +470,7 @@ getMeasureValues(measureId) {
         return value;
       }
 
-      // Check data source rows
+      // Fallback to data source rows
       if (this._myDataSource?.data[rowIndex]) {
         const dataRow = this._myDataSource.data[rowIndex];
         const value = dataRow?.[measureId]?.raw || dataRow?.[measureId]?.formatted || null;
@@ -490,6 +490,7 @@ getMeasureValues(measureId) {
     return [];
   }
 }
+
     }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

@@ -34,10 +34,27 @@
       this.render();
     }
 
-    set myDataSource(dataBinding) {
-      this._myDataSource = dataBinding;
-      this.render();
-    }
+ set myDataSource(dataBinding) {
+  this._myDataSource = dataBinding;
+
+  // Ensure the data source is valid
+  if (this._myDataSource) {
+    console.log("Attaching onResultChange listener");
+
+    // Attach the onResultChange event listener
+    this._myDataSource.attachResultChange(() => {
+      console.log("onResultChange triggered");
+      this.onResultChangeHandler();
+    });
+  }
+
+  this.render(); // Render the table after setting the data source
+}
+  onResultChangeHandler() {
+    console.log("Result has changed. Handling the update...");
+    // Implement custom logic here if needed
+    this.render(); // Re-render the table or update the UI
+  }
 
     render() {
       if (!this._myDataSource || this._myDataSource.state !== "success") {

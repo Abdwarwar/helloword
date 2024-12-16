@@ -135,65 +135,57 @@ attachRowSelectionListeners() {
       this.dispatchEvent(event);
     }
 
-  makeMeasureCellsEditable() {
+makeMeasureCellsEditable() {
   const rows = this._root.querySelectorAll("tbody tr");
   rows.forEach((row) => {
     const rowIndex = row.getAttribute("data-row-index");
     const cells = row.querySelectorAll("td.editable");
+
     cells.forEach((cell) => {
       const measureId = cell.getAttribute("data-measure-id");
       cell.contentEditable = "true";
 
-      cell.addEventListener("blur", async (event) => {
+      cell.addEventListener("blur", async () => {
         const newValue = parseFloat(cell.textContent.trim());
 
         if (!isNaN(newValue)) {
           console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
 
-          // Check if this is a new row or an existing data source row
-          const isNewRow = !this._myDataSource || !this._myDataSource.data[rowIndex];
+          // Determine if it's a new row or an existing row
+          const isNewRow = row.getAttribute("data-is-new") === "true";
 
           if (isNewRow) {
-            // For new rows, store the value in the cell attribute
             cell.setAttribute("data-measure-value", newValue);
-            console.log(`Measure '${measureId}' for new row '${rowIndex}' stored with value: ${newValue}`);
           } else {
-            // For existing rows, update the data source
-            const dimensions = this.getDimensions();
-            const rowData = this._myDataSource.data[rowIndex];
-            if (!rowData) {
-              console.error("Row data not found for index:", rowIndex);
-              return;
-            }
-
-            const userInput = {
-              "@MeasureDimension": measureId,
-              ...dimensions.reduce((acc, dim) => {
-                acc[dim.id] = rowData[dim.key]?.id || "N/A";
-                return acc;
-              }, {}),
-            };
-
+            // Update existing data source row
             try {
               const planning = await this._myDataSource.getPlanning();
-              if (!planning) {
-                console.error("Planning API is not available for this data source.");
-                return;
-              }
+              if (!planning) throw new Error("Planning API not available.");
+
+              const dimensions = this.getDimensions();
+              const userInput = {
+                "@MeasureDimension": measureId,
+                ...dimensions.reduce((acc, dim) => {
+                  acc[dim.id] = this._myDataSource.data[rowIndex]?.[dim.key]?.id || "N/A";
+                  return acc;
+                }, {}),
+              };
 
               await planning.setUserInput(userInput, newValue);
               await planning.submitData();
-              console.log("Data successfully written back to the model.");
 
+              console.log("Data successfully written back to the model.");
               this._myDataSource.refreshData();
             } catch (error) {
-              console.error("Error submitting data to the model:", error);
+              console.error("Error submitting data:", error);
+              cell.textContent = this._myDataSource.data[rowIndex]?.[measureId]?.raw || "N/A";
             }
           }
         } else {
-          console.error("Invalid input, resetting value.");
-          const rowData = this._myDataSource?.data?.[rowIndex];
-          cell.textContent = rowData?.[measureId]?.raw || "N/A";
+          console.error("Invalid input. Resetting value.");
+          const resetValue =
+            this._myDataSource.data?.[rowIndex]?.[measureId]?.raw || "N/A";
+          cell.textContent = resetValue;
           cell.removeAttribute("data-measure-value");
         }
       });

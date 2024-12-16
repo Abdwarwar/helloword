@@ -134,13 +134,14 @@
       this.dispatchEvent(event);
     }
 
-    fireOnResultChange(detail) {
+fireOnResultChange(detail) {
   const event = new CustomEvent("onResultChange", {
-    detail,
+    detail, // Include the rowIndex, measureId, and newValue in the event
   });
   this.dispatchEvent(event);
   console.log("onResultChange triggered:", detail);
 }
+
 
 
 makeMeasureCellsEditable() {
@@ -157,18 +158,16 @@ makeMeasureCellsEditable() {
 
         if (!isNaN(newValue)) {
           console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
-          cell.setAttribute("data-measure-value", newValue); // Update for dynamic rows
+          cell.setAttribute("data-measure-value", newValue); // Store value for dynamic rows
 
-          if (this._myDataSource?.data?.[rowIndex]) {
-            // Update for existing rows in data source
-            const measureKey = this.getMeasures().find((measure) => measure.id === measureId)?.key;
-            if (measureKey) {
-              this._myDataSource.data[rowIndex][measureKey] = { raw: newValue };
-              console.log(`Updated data source for measure '${measureId}' at row '${rowIndex}'`);
-            }
+          // Handle existing rows from data source
+          const measureKey = this.getMeasures().find((measure) => measure.id === measureId)?.key;
+          if (this._myDataSource?.data?.[rowIndex] && measureKey) {
+            this._myDataSource.data[rowIndex][measureKey] = { raw: newValue };
+            console.log(`Updated data source for measure '${measureId}' at row '${rowIndex}'`);
           }
 
-          // Trigger the `onResultChange` event
+          // Fire the `onResultChange` event
           this.fireOnResultChange({
             rowIndex,
             measureId,
@@ -176,7 +175,10 @@ makeMeasureCellsEditable() {
           });
         } else {
           console.error("Invalid input, resetting value.");
-          cell.textContent = this._myDataSource?.data?.[rowIndex]?.[measureId]?.raw || "N/A";
+          // Reset value if invalid
+          const measureKey = this.getMeasures().find((measure) => measure.id === measureId)?.key;
+          cell.textContent =
+            this._myDataSource?.data?.[rowIndex]?.[measureKey]?.raw || "N/A";
         }
       });
     });

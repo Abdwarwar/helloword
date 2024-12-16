@@ -456,7 +456,6 @@ getDimensionSelected(dimensionId) {
     return [];
   }
 }
-
 getMeasureValues(measureId) {
   try {
     const table = this._root.querySelector("table tbody");

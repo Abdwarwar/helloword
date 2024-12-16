@@ -34,21 +34,10 @@
       this.render();
     }
 
-class CustomTableWidget extends HTMLElement {
-  constructor() {
-    super();
-    this._shadowRoot = this.attachShadow({ mode: "open" });
-    this._myDataSource = null; // Holds the data source
-    this._selectedRows = new Set(); // Track selected rows
-    // Other initialization logic...
-  }
-
- set myDataSource(dataBinding) {
+    set myDataSource(dataBinding) {
       this._myDataSource = dataBinding;
       this.render();
     }
-
-
 
     render() {
       if (!this._myDataSource || this._myDataSource.state !== "success") {
@@ -147,12 +136,10 @@ class CustomTableWidget extends HTMLElement {
 
 fireOnResultChange(detail) {
   const event = new CustomEvent("onResultChange", {
-    detail: {
-      ...detail,
-    },
+    detail, // Include the rowIndex, measureId, and newValue in the event
   });
   this.dispatchEvent(event);
-  console.log("onResultChange triggered with details:", detail);
+  console.log("onResultChange triggered:", detail);
 }
 
 
@@ -440,26 +427,22 @@ getDimensionSelected(dimensionId) {
         return null;
       }
 
-      // Handle dynamically added rows
+      // For new rows
       const dynamicCell = row.querySelector(`td[data-dimension-id="${dimensionId}"]`);
       if (dynamicCell) {
         const value = dynamicCell.getAttribute("data-dimension-value") || null;
-        if (value) {
-          console.log(`Dimension '${dimensionId}' for new row '${rowIndex}' has value: ${value}`);
-          return value;
-        }
+        console.log(`Dimension '${dimensionId}' for new row '${rowIndex}' has value: ${value}`);
+        return value;
       }
 
-      // Handle existing rows from data source
+      // For existing rows in the data source
       if (this._myDataSource?.data?.[rowIndex]) {
         const dataRow = this._myDataSource.data[rowIndex];
         console.log(`Data Row for '${rowIndex}':`, dataRow);
 
-        const value = dataRow[dimensionKey]?.id ?? dataRow[dimensionKey]?.label ?? null;
-        if (value !== null) {
-          console.log(`Dimension '${dimensionId}' for data source row '${rowIndex}' has value: ${value}`);
-          return value;
-        }
+        const value = dataRow[dimensionKey]?.id || dataRow[dimensionKey]?.label || null;
+        console.log(`Dimension '${dimensionId}' for data source row '${rowIndex}' has value: ${value}`);
+        return value;
       }
 
       console.warn(`Dimension '${dimensionId}' not found for row '${rowIndex}'.`);

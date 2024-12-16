@@ -136,10 +136,12 @@
 
 fireOnResultChange(detail) {
   const event = new CustomEvent("onResultChange", {
-    detail, // Include the rowIndex, measureId, and newValue in the event
+    detail: {
+      ...detail,
+    },
   });
   this.dispatchEvent(event);
-  console.log("onResultChange triggered:", detail);
+  console.log("onResultChange triggered with details:", detail);
 }
 
 
@@ -427,22 +429,26 @@ getDimensionSelected(dimensionId) {
         return null;
       }
 
-      // For new rows
+      // Handle dynamically added rows
       const dynamicCell = row.querySelector(`td[data-dimension-id="${dimensionId}"]`);
       if (dynamicCell) {
         const value = dynamicCell.getAttribute("data-dimension-value") || null;
-        console.log(`Dimension '${dimensionId}' for new row '${rowIndex}' has value: ${value}`);
-        return value;
+        if (value) {
+          console.log(`Dimension '${dimensionId}' for new row '${rowIndex}' has value: ${value}`);
+          return value;
+        }
       }
 
-      // For existing rows in the data source
+      // Handle existing rows from data source
       if (this._myDataSource?.data?.[rowIndex]) {
         const dataRow = this._myDataSource.data[rowIndex];
         console.log(`Data Row for '${rowIndex}':`, dataRow);
 
-        const value = dataRow[dimensionKey]?.id || dataRow[dimensionKey]?.label || null;
-        console.log(`Dimension '${dimensionId}' for data source row '${rowIndex}' has value: ${value}`);
-        return value;
+        const value = dataRow[dimensionKey]?.id ?? dataRow[dimensionKey]?.label ?? null;
+        if (value !== null) {
+          console.log(`Dimension '${dimensionId}' for data source row '${rowIndex}' has value: ${value}`);
+          return value;
+        }
       }
 
       console.warn(`Dimension '${dimensionId}' not found for row '${rowIndex}'.`);

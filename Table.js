@@ -470,7 +470,8 @@ getMeasureValues(measureId) {
     }
 
     const measures = this.getMeasures();
-    console.log("Selected Rows:", Array.from(this._selectedRows));
+    const selectedRows = Array.from(this._selectedRows);
+    console.log("Selected Rows:", selectedRows);
     console.log("Data Source Structure:", this._myDataSource?.data);
 
     const measureKey = measures.find((measure) => measure.id === measureId)?.key; // Match measureId to key
@@ -479,20 +480,20 @@ getMeasureValues(measureId) {
       return [];
     }
 
-    const measureValues = Array.from(this._selectedRows).map((rowIndex) => {
+    const measureValues = selectedRows.map((rowIndex) => {
       const row = table.querySelector(`tr[data-row-index="${rowIndex}"]`);
       if (!row) {
         console.warn(`Row at index '${rowIndex}' not found in DOM.`);
         return null;
       }
 
-      // For dynamically added rows
+      // For new rows
       const dynamicCell = row.querySelector(`td[data-measure-id="${measureId}"]`);
       if (dynamicCell) {
-        const value = parseFloat(dynamicCell.getAttribute("data-measure-value")) || null;
-        if (!isNaN(value)) {
-          console.log(`Measure '${measureId}' for new row '${rowIndex}' has value: ${value}`);
-          return value;
+        const dynamicValue = parseFloat(dynamicCell.getAttribute("data-measure-value")) || null;
+        if (!isNaN(dynamicValue)) {
+          console.log(`Measure '${measureId}' for new row '${rowIndex}' has value: ${dynamicValue}`);
+          return dynamicValue;
         }
       }
 
@@ -503,8 +504,9 @@ getMeasureValues(measureId) {
 
         const value = dataRow[measureKey]?.raw ?? dataRow[measureKey]?.formatted ?? null;
         if (value !== null) {
-          console.log(`Measure '${measureId}' for data source row '${rowIndex}' has value: ${value}`);
-          return parseFloat(value) || value; // Parse numeric string to float
+          const parsedValue = parseFloat(value) || value; // Parse numeric string to float
+          console.log(`Measure '${measureId}' for data source row '${rowIndex}' has value: ${parsedValue}`);
+          return parsedValue;
         }
       }
 
@@ -520,6 +522,7 @@ getMeasureValues(measureId) {
     return [];
   }
 }
+
 
     }
 

@@ -512,7 +512,6 @@ getMeasureValues(measureId) {
     return [];
   }
 }
-}
     }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

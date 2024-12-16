@@ -134,59 +134,39 @@
       this.dispatchEvent(event);
     }
 
-    makeMeasureCellsEditable() {
-      const rows = this._root.querySelectorAll("tbody tr");
-      rows.forEach((row) => {
-        const rowIndex = row.getAttribute("data-row-index");
-        const cells = row.querySelectorAll("td.editable");
-        cells.forEach((cell) => {
-          const measureId = cell.getAttribute("data-measure-id");
-          cell.contentEditable = "true";
+makeMeasureCellsEditable() {
+  const rows = this._root.querySelectorAll("tbody tr");
+  rows.forEach((row) => {
+    const rowIndex = row.getAttribute("data-row-index");
+    const cells = row.querySelectorAll("td.editable");
+    cells.forEach((cell) => {
+      const measureId = cell.getAttribute("data-measure-id");
+      cell.contentEditable = "true";
 
-          cell.addEventListener("blur", async (event) => {
-            const newValue = parseFloat(cell.textContent.trim());
+      cell.addEventListener("blur", async (event) => {
+        const newValue = parseFloat(cell.textContent.trim());
 
-            if (!isNaN(newValue)) {
-              console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
+        if (!isNaN(newValue)) {
+          console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
+          cell.setAttribute("data-measure-value", newValue); // Update for dynamic rows
 
-              const dimensions = this.getDimensions();
-              const rowData = this._myDataSource.data[rowIndex];
-              if (!rowData) {
-                console.error("Row data not found for index:", rowIndex);
-                return;
-              }
-
-              const userInput = {
-                "@MeasureDimension": measureId,
-                ...dimensions.reduce((acc, dim) => {
-                  acc[dim.id] = rowData[dim.key]?.id || "N/A";
-                  return acc;
-                }, {}),
-              };
-
-              try {
-                const planning = await this._myDataSource.getPlanning();
-                if (!planning) {
-                  console.error("Planning API is not available for this data source.");
-                  return;
-                }
-
-                await planning.setUserInput(userInput, newValue);
-                await planning.submitData();
-                console.log("Data successfully written back to the model.");
-
-                this._myDataSource.refreshData();
-              } catch (error) {
-                console.error("Error submitting data to the model:", error);
-              }
-            } else {
-              console.error("Invalid input, resetting value.");
-              cell.textContent = rowData[measureId]?.raw || "N/A";
+          if (this._myDataSource?.data?.[rowIndex]) {
+            // Update for existing rows in data source
+            const measureKey = this.getMeasures().find((measure) => measure.id === measureId)?.key;
+            if (measureKey) {
+              this._myDataSource.data[rowIndex][measureKey] = { raw: newValue };
+              console.log(`Updated data source for measure '${measureId}' at row '${rowIndex}'`);
             }
-          });
-        });
+          }
+        } else {
+          console.error("Invalid input, resetting value.");
+          cell.textContent = this._myDataSource?.data?.[rowIndex]?.[measureId]?.raw || "N/A";
+        }
       });
-    }
+    });
+  });
+}
+
 
 async fetchDimensionMembers(dimensionId, returnType = "id") {
   if (!this._myDataSource || !this._myDataSource.data) {
@@ -487,7 +467,7 @@ getMeasureValues(measureId) {
         return null;
       }
 
-      // For new rows
+      // Handle dynamically added rows
       const dynamicCell = row.querySelector(`td[data-measure-id="${measureId}"]`);
       if (dynamicCell) {
         const dynamicValue = parseFloat(dynamicCell.getAttribute("data-measure-value")) || null;
@@ -497,7 +477,7 @@ getMeasureValues(measureId) {
         }
       }
 
-      // For existing rows in the data source
+      // Handle existing rows from data source
       if (this._myDataSource?.data?.[rowIndex]) {
         const dataRow = this._myDataSource.data[rowIndex];
         console.log(`Data Row for '${rowIndex}':`, dataRow);
@@ -522,8 +502,6 @@ getMeasureValues(measureId) {
     return [];
   }
 }
-
-
     }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

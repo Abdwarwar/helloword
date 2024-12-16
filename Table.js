@@ -469,28 +469,46 @@ getMeasureValues(measureId) {
       return [];
     }
 
-    const selectedRows = Array.from(this._selectedRows);
-    const measureValues = selectedRows.map((rowIndex) => {
+    const measures = this.getMeasures();
+    console.log("Selected Rows:", Array.from(this._selectedRows));
+    console.log("Data Source Structure:", this._myDataSource?.data);
+
+    const measureKey = measures.find((measure) => measure.id === measureId)?.key; // Match measureId to key
+    if (!measureKey) {
+      console.warn(`Measure ID '${measureId}' not found in resolved measures.`);
+      return [];
+    }
+
+    const measureValues = Array.from(this._selectedRows).map((rowIndex) => {
       const row = table.querySelector(`tr[data-row-index="${rowIndex}"]`);
       if (!row) {
         console.warn(`Row at index '${rowIndex}' not found in DOM.`);
         return null;
       }
 
-      const cell = row.querySelector(`td[data-measure-id="${measureId}"]`);
-      if (cell) {
-        // Retrieve value from dynamically added rows
-        const value = parseFloat(cell.getAttribute("data-measure-value")) || null;
-        console.log(`Measure '${measureId}' for row '${rowIndex}' (new row) has value: ${value}`);
-        return value;
-      } else if (this._myDataSource) {
-        // Retrieve value from rows in the data source
-        const rowData = this._myDataSource.data[rowIndex];
-        const value = rowData?.[measureId]?.raw || rowData?.[measureId]?.formatted || null;
-        console.log(`Measure '${measureId}' for row '${rowIndex}' (data source) has value: ${value}`);
-        return value;
+      // For dynamically added rows
+      const dynamicCell = row.querySelector(`td[data-measure-id="${measureId}"]`);
+      if (dynamicCell) {
+        const value = parseFloat(dynamicCell.getAttribute("data-measure-value")) || null;
+        if (!isNaN(value)) {
+          console.log(`Measure '${measureId}' for new row '${rowIndex}' has value: ${value}`);
+          return value;
+        }
       }
 
+      // For existing rows in the data source
+      if (this._myDataSource?.data?.[rowIndex]) {
+        const dataRow = this._myDataSource.data[rowIndex];
+        console.log(`Data Row for '${rowIndex}':`, dataRow);
+
+        const value = dataRow[measureKey]?.raw ?? dataRow[measureKey]?.formatted ?? null;
+        if (value !== null) {
+          console.log(`Measure '${measureId}' for data source row '${rowIndex}' has value: ${value}`);
+          return parseFloat(value) || value; // Parse numeric string to float
+        }
+      }
+
+      console.warn(`Measure '${measureId}' not found for row '${rowIndex}'.`);
       return null;
     });
 
@@ -500,8 +518,9 @@ getMeasureValues(measureId) {
   } catch (error) {
     console.error("Error in getMeasureValues:", error);
     return [];
-    }
   }
+}
+
     }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

@@ -135,25 +135,12 @@
     }
 
 fireOnResultChange(detail) {
-  // Refresh the table state and selections
-  const selectedRows = this.getSelectedRow();
-  const updatedMeasures = this.getMeasures();
-  const updatedDimensions = this.getDimensions();
-
-  // Add additional context to the event
   const event = new CustomEvent("onResultChange", {
-    detail: {
-      ...detail,
-      selectedRows,
-      updatedMeasures,
-      updatedDimensions,
-    },
+    detail, // Include the rowIndex, measureId, and newValue in the event
   });
-
   this.dispatchEvent(event);
-  console.log("onResultChange triggered with details:", detail);
+  console.log("onResultChange triggered:", detail);
 }
-
 
 
 
@@ -424,8 +411,10 @@ getDimensionSelected(dimensionId) {
     }
 
     const dimensions = this.getDimensions();
-    const dimensionKey = dimensions.find((dim) => dim.id === dimensionId)?.key;
+    console.log("Selected Rows:", Array.from(this._selectedRows));
+    console.log("Data Source Structure:", this._myDataSource?.data);
 
+    const dimensionKey = dimensions.find((dim) => dim.id === dimensionId)?.key; // Match dimensionId to key
     if (!dimensionKey) {
       console.warn(`Dimension ID '${dimensionId}' not found in resolved dimensions.`);
       return [];
@@ -438,17 +427,21 @@ getDimensionSelected(dimensionId) {
         return null;
       }
 
-      const cell = row.querySelector(`td[data-dimension-id="${dimensionId}"]`);
-      if (cell) {
-        const value = cell.getAttribute("data-dimension-value") || null;
-        console.log(`Dimension '${dimensionId}' for row '${rowIndex}' (table) has value: ${value}`);
+      // For new rows
+      const dynamicCell = row.querySelector(`td[data-dimension-id="${dimensionId}"]`);
+      if (dynamicCell) {
+        const value = dynamicCell.getAttribute("data-dimension-value") || null;
+        console.log(`Dimension '${dimensionId}' for new row '${rowIndex}' has value: ${value}`);
         return value;
       }
 
-      const dataRow = this._myDataSource?.data?.[rowIndex];
-      if (dataRow) {
+      // For existing rows in the data source
+      if (this._myDataSource?.data?.[rowIndex]) {
+        const dataRow = this._myDataSource.data[rowIndex];
+        console.log(`Data Row for '${rowIndex}':`, dataRow);
+
         const value = dataRow[dimensionKey]?.id || dataRow[dimensionKey]?.label || null;
-        console.log(`Dimension '${dimensionId}' for row '${rowIndex}' (data source) has value: ${value}`);
+        console.log(`Dimension '${dimensionId}' for data source row '${rowIndex}' has value: ${value}`);
         return value;
       }
 
@@ -466,7 +459,6 @@ getDimensionSelected(dimensionId) {
 }
 
 
-
     
 getMeasureValues(measureId) {
   try {
@@ -477,32 +469,44 @@ getMeasureValues(measureId) {
     }
 
     const measures = this.getMeasures();
-    const measureKey = measures.find((measure) => measure.id === measureId)?.key;
+    const selectedRows = Array.from(this._selectedRows);
+    console.log("Selected Rows:", selectedRows);
+    console.log("Data Source Structure:", this._myDataSource?.data);
 
+    const measureKey = measures.find((measure) => measure.id === measureId)?.key; // Match measureId to key
     if (!measureKey) {
       console.warn(`Measure ID '${measureId}' not found in resolved measures.`);
       return [];
     }
 
-    const measureValues = Array.from(this._selectedRows).map((rowIndex) => {
+    const measureValues = selectedRows.map((rowIndex) => {
       const row = table.querySelector(`tr[data-row-index="${rowIndex}"]`);
       if (!row) {
         console.warn(`Row at index '${rowIndex}' not found in DOM.`);
         return null;
       }
 
-      const cell = row.querySelector(`td[data-measure-id="${measureId}"]`);
-      if (cell) {
-        const value = parseFloat(cell.getAttribute("data-measure-value")) || null;
-        console.log(`Measure '${measureId}' for row '${rowIndex}' (table) has value: ${value}`);
-        return value;
+      // Handle dynamically added rows
+      const dynamicCell = row.querySelector(`td[data-measure-id="${measureId}"]`);
+      if (dynamicCell) {
+        const dynamicValue = parseFloat(dynamicCell.getAttribute("data-measure-value")) || null;
+        if (!isNaN(dynamicValue)) {
+          console.log(`Measure '${measureId}' for new row '${rowIndex}' has value: ${dynamicValue}`);
+          return dynamicValue;
+        }
       }
 
-      const dataRow = this._myDataSource?.data?.[rowIndex];
-      if (dataRow) {
-        const value = dataRow[measureKey]?.raw || dataRow[measureKey]?.formatted || null;
-        console.log(`Measure '${measureId}' for row '${rowIndex}' (data source) has value: ${value}`);
-        return value;
+      // Handle existing rows from data source
+      if (this._myDataSource?.data?.[rowIndex]) {
+        const dataRow = this._myDataSource.data[rowIndex];
+        console.log(`Data Row for '${rowIndex}':`, dataRow);
+
+        const value = dataRow[measureKey]?.raw ?? dataRow[measureKey]?.formatted ?? null;
+        if (value !== null) {
+          const parsedValue = parseFloat(value) || value; // Parse numeric string to float
+          console.log(`Measure '${measureId}' for data source row '${rowIndex}' has value: ${parsedValue}`);
+          return parsedValue;
+        }
       }
 
       console.warn(`Measure '${measureId}' not found for row '${rowIndex}'.`);
@@ -517,7 +521,6 @@ getMeasureValues(measureId) {
     return [];
   }
 }
-
     }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

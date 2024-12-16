@@ -542,6 +542,46 @@ getMeasureValues(measureId) {
     return [];
   }
 }
+
+    getTableMembers() {
+  try {
+    if (!this._myDataSource || !this._myDataSource.data) {
+      console.error("Data source is not bound or data is unavailable.");
+      return [];
+    }
+
+    const dimensions = this.getDimensions();
+    const measures = this.getMeasures();
+
+    // Map data source rows into the desired format
+    const tableMembers = this._myDataSource.data.map((row) => {
+      const rowData = {};
+
+      // Include all dimensions in the row
+      dimensions.forEach((dim) => {
+        rowData[dim.id] = row[dim.key]?.id || row[dim.key]?.label || "N/A";
+      });
+
+      // Include measure value and handle MeasureDimension key
+      measures.forEach((measure) => {
+        rowData["@MeasureDimension"] = measure.description || measure.id;
+        rowData[measure.id] = row[measure.key]?.raw ?? "N/A";
+      });
+
+      // Add any additional keys (like 'Version') if required
+      rowData["Version"] = row["Version"]?.id || row["Version"]?.label || "public.Budget";
+
+      return rowData;
+    });
+
+    console.log("Formatted Table Members:", tableMembers);
+    return tableMembers;
+  } catch (error) {
+    console.error("Error in getTableMembers:", error);
+    return [];
+  }
+}
+
     }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

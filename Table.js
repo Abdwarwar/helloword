@@ -411,28 +411,42 @@ getDimensionSelected(dimensionId) {
       return [];
     }
 
-    const selectedRows = Array.from(this._selectedRows);
-    const dimensionValues = selectedRows.map((rowIndex) => {
+    const dimensions = this.getDimensions();
+    console.log("Selected Rows:", Array.from(this._selectedRows));
+    console.log("Data Source Structure:", this._myDataSource?.data);
+
+    const dimensionKey = dimensions.find((dim) => dim.id === dimensionId)?.key; // Match dimensionId to key
+    if (!dimensionKey) {
+      console.warn(`Dimension ID '${dimensionId}' not found in resolved dimensions.`);
+      return [];
+    }
+
+    const dimensionValues = Array.from(this._selectedRows).map((rowIndex) => {
       const row = table.querySelector(`tr[data-row-index="${rowIndex}"]`);
       if (!row) {
         console.warn(`Row at index '${rowIndex}' not found in DOM.`);
         return null;
       }
 
-      const cell = row.querySelector(`td[data-dimension-id="${dimensionId}"]`);
-      if (cell) {
-        // For dynamically added rows, retrieve data from attributes
-        const value = cell.getAttribute("data-dimension-value") || null;
-        console.log(`Dimension '${dimensionId}' for row '${rowIndex}' (new row) has value: ${value}`);
-        return value;
-      } else if (this._myDataSource) {
-        // For rows from the data source
-        const rowData = this._myDataSource.data[rowIndex];
-        const value = rowData?.[dimensionId]?.id || rowData?.[dimensionId]?.label || null;
-        console.log(`Dimension '${dimensionId}' for row '${rowIndex}' (data source) has value: ${value}`);
+      // For new rows
+      const dynamicCell = row.querySelector(`td[data-dimension-id="${dimensionId}"]`);
+      if (dynamicCell) {
+        const value = dynamicCell.getAttribute("data-dimension-value") || null;
+        console.log(`Dimension '${dimensionId}' for new row '${rowIndex}' has value: ${value}`);
         return value;
       }
 
+      // For existing rows in the data source
+      if (this._myDataSource?.data?.[rowIndex]) {
+        const dataRow = this._myDataSource.data[rowIndex];
+        console.log(`Data Row for '${rowIndex}':`, dataRow);
+
+        const value = dataRow[dimensionKey]?.id || dataRow[dimensionKey]?.label || null;
+        console.log(`Dimension '${dimensionId}' for data source row '${rowIndex}' has value: ${value}`);
+        return value;
+      }
+
+      console.warn(`Dimension '${dimensionId}' not found for row '${rowIndex}'.`);
       return null;
     });
 
@@ -444,6 +458,7 @@ getDimensionSelected(dimensionId) {
     return [];
   }
 }
+
 
     
 getMeasureValues(measureId) {

@@ -135,59 +135,71 @@ attachRowSelectionListeners() {
       this.dispatchEvent(event);
     }
 
-    makeMeasureCellsEditable() {
-      const rows = this._root.querySelectorAll("tbody tr");
-      rows.forEach((row) => {
-        const rowIndex = row.getAttribute("data-row-index");
-        const cells = row.querySelectorAll("td.editable");
-        cells.forEach((cell) => {
-          const measureId = cell.getAttribute("data-measure-id");
-          cell.contentEditable = "true";
+  makeMeasureCellsEditable() {
+  const rows = this._root.querySelectorAll("tbody tr");
+  rows.forEach((row) => {
+    const rowIndex = row.getAttribute("data-row-index");
+    const cells = row.querySelectorAll("td.editable");
+    cells.forEach((cell) => {
+      const measureId = cell.getAttribute("data-measure-id");
+      cell.contentEditable = "true";
 
-          cell.addEventListener("blur", async (event) => {
-            const newValue = parseFloat(cell.textContent.trim());
+      cell.addEventListener("blur", async (event) => {
+        const newValue = parseFloat(cell.textContent.trim());
 
-            if (!isNaN(newValue)) {
-              console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
+        if (!isNaN(newValue)) {
+          console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
 
-              const dimensions = this.getDimensions();
-              const rowData = this._myDataSource.data[rowIndex];
-              if (!rowData) {
-                console.error("Row data not found for index:", rowIndex);
+          // Check if this is a new row or an existing data source row
+          const isNewRow = !this._myDataSource || !this._myDataSource.data[rowIndex];
+
+          if (isNewRow) {
+            // For new rows, store the value in the cell attribute
+            cell.setAttribute("data-measure-value", newValue);
+            console.log(`Measure '${measureId}' for new row '${rowIndex}' stored with value: ${newValue}`);
+          } else {
+            // For existing rows, update the data source
+            const dimensions = this.getDimensions();
+            const rowData = this._myDataSource.data[rowIndex];
+            if (!rowData) {
+              console.error("Row data not found for index:", rowIndex);
+              return;
+            }
+
+            const userInput = {
+              "@MeasureDimension": measureId,
+              ...dimensions.reduce((acc, dim) => {
+                acc[dim.id] = rowData[dim.key]?.id || "N/A";
+                return acc;
+              }, {}),
+            };
+
+            try {
+              const planning = await this._myDataSource.getPlanning();
+              if (!planning) {
+                console.error("Planning API is not available for this data source.");
                 return;
               }
 
-              const userInput = {
-                "@MeasureDimension": measureId,
-                ...dimensions.reduce((acc, dim) => {
-                  acc[dim.id] = rowData[dim.key]?.id || "N/A";
-                  return acc;
-                }, {}),
-              };
+              await planning.setUserInput(userInput, newValue);
+              await planning.submitData();
+              console.log("Data successfully written back to the model.");
 
-              try {
-                const planning = await this._myDataSource.getPlanning();
-                if (!planning) {
-                  console.error("Planning API is not available for this data source.");
-                  return;
-                }
-
-                await planning.setUserInput(userInput, newValue);
-                await planning.submitData();
-                console.log("Data successfully written back to the model.");
-
-                this._myDataSource.refreshData();
-              } catch (error) {
-                console.error("Error submitting data to the model:", error);
-              }
-            } else {
-              console.error("Invalid input, resetting value.");
-              cell.textContent = rowData[measureId]?.raw || "N/A";
+              this._myDataSource.refreshData();
+            } catch (error) {
+              console.error("Error submitting data to the model:", error);
             }
-          });
-        });
+          }
+        } else {
+          console.error("Invalid input, resetting value.");
+          const rowData = this._myDataSource?.data?.[rowIndex];
+          cell.textContent = rowData?.[measureId]?.raw || "N/A";
+          cell.removeAttribute("data-measure-value");
+        }
       });
-    }
+    });
+  });
+}
 
 async fetchDimensionMembers(dimensionId, returnType = "id") {
   if (!this._myDataSource || !this._myDataSource.data) {
@@ -511,6 +523,7 @@ getMeasureValues(measureId) {
     console.error("Error in getMeasureValues:", error);
     return [];
   }
+}
 }
     }
 

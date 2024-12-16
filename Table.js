@@ -351,25 +351,26 @@ async addEmptyRow() {
 
 getDimensions() {
   try {
-    if (!this._myDataSource || !this._myDataSource.metadata) {
-      console.error("Data source metadata is unavailable.");
+    if (!this._myDataSource || !this._myDataSource.metadata || !this._myDataSource.data) {
+      console.error("Data source or metadata is unavailable.");
       return [];
     }
 
     const dimensionsKeys = this._myDataSource.metadata.feeds.dimensions.values;
+    console.log("Resolved Dimension Keys:", dimensionsKeys);
 
-    const dimensions = this._myDataSource.data.map((row) => {
+    const dimensions = this._myDataSource.data.map((row, rowIndex) => {
       const dimensionObject = {};
 
       dimensionsKeys.forEach((key) => {
         const dimension = this._myDataSource.metadata.dimensions[key];
         if (dimension) {
-          dimensionObject[dimension.id || key] =
-            row[dimension.key]?.id || row[dimension.key]?.label || null;
+          const value = row[dimension.key]?.id || row[dimension.key]?.label || "N/A";
+          dimensionObject[dimension.id || key] = value;
         }
       });
 
-      // Include additional fields similar to the screenshot
+      // Include additional fields if they exist
       if (row["@MeasureDimension"]) {
         dimensionObject["@MeasureDimension"] = row["@MeasureDimension"];
       }
@@ -377,16 +378,18 @@ getDimensions() {
         dimensionObject["Version"] = row["Version"];
       }
 
+      console.log(`Row ${rowIndex} - Resolved Dimensions:`, dimensionObject);
       return dimensionObject;
     });
 
-    console.log("Resolved Dimensions with data structure:", dimensions);
+    console.log("Final Resolved Dimensions Array:", dimensions);
     return dimensions;
   } catch (error) {
     console.error("Error in getDimensions:", error);
     return [];
   }
 }
+
 
 
 getMeasures() {

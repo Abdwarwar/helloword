@@ -167,12 +167,24 @@ makeMeasureCellsEditable() {
             console.log(`Updated data source for measure '${measureId}' at row '${rowIndex}'`);
           }
 
-          // Fire the `onResultChange` event
-          this.fireOnResultChange({
-            rowIndex,
-            measureId,
-            newValue,
-          });
+          // Trigger `onResultChange` and call `getMeasureValues` and `getDimensionSelected`
+          const detail = { rowIndex, measureId, newValue };
+          this.fireOnResultChange(detail);
+
+          // Call getMeasureValues and getDimensionSelected
+          console.log(
+            `Measure Values for '${measureId}':`,
+            this.getMeasureValues(measureId)
+          );
+
+          // Assuming a specific dimensionId to demonstrate. Replace with your logic.
+          const dimensionId = this.getDimensions()?.[0]?.id;
+          if (dimensionId) {
+            console.log(
+              `Dimension Selected for '${dimensionId}':`,
+              this.getDimensionSelected(dimensionId)
+            );
+          }
         } else {
           console.error("Invalid input, resetting value.");
           // Reset value if invalid
@@ -184,6 +196,7 @@ makeMeasureCellsEditable() {
     });
   });
 }
+
 
 
 

@@ -136,62 +136,58 @@ attachRowSelectionListeners() {
     }
 
 makeMeasureCellsEditable() {
-  const rows = this._root.querySelectorAll("tbody tr");
-  rows.forEach((row) => {
-    const rowIndex = row.getAttribute("data-row-index");
-    const cells = row.querySelectorAll("td.editable");
+      const rows = this._root.querySelectorAll("tbody tr");
+      rows.forEach((row) => {
+        const rowIndex = row.getAttribute("data-row-index");
+        const cells = row.querySelectorAll("td.editable");
+        cells.forEach((cell) => {
+          const measureId = cell.getAttribute("data-measure-id");
+          cell.contentEditable = "true";
 
-    cells.forEach((cell) => {
-      const measureId = cell.getAttribute("data-measure-id");
-      cell.contentEditable = "true";
+          cell.addEventListener("blur", async (event) => {
+            const newValue = parseFloat(cell.textContent.trim());
 
-      cell.addEventListener("blur", async () => {
-        const newValue = parseFloat(cell.textContent.trim());
-
-        if (!isNaN(newValue)) {
-          console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
-
-          // Determine if it's a new row or an existing row
-          const isNewRow = row.getAttribute("data-is-new") === "true";
-
-          if (isNewRow) {
-            cell.setAttribute("data-measure-value", newValue);
-          } else {
-            // Update existing data source row
-            try {
-              const planning = await this._myDataSource.getPlanning();
-              if (!planning) throw new Error("Planning API not available.");
+            if (!isNaN(newValue)) {
+              console.log(Row ${rowIndex}, Measure ${measureId} updated to: ${newValue});
 
               const dimensions = this.getDimensions();
+              const rowData = this._myDataSource.data[rowIndex];
+              if (!rowData) {
+                console.error("Row data not found for index:", rowIndex);
+                return;
+              }
+
               const userInput = {
                 "@MeasureDimension": measureId,
                 ...dimensions.reduce((acc, dim) => {
-                  acc[dim.id] = this._myDataSource.data[rowIndex]?.[dim.key]?.id || "N/A";
+                  acc[dim.id] = rowData[dim.key]?.id || "N/A";
                   return acc;
                 }, {}),
               };
 
-              await planning.setUserInput(userInput, newValue);
-              await planning.submitData();
+              try {
+                const planning = await this._myDataSource.getPlanning();
+                if (!planning) {
+                  console.error("Planning API is not available for this data source.");
+                  return;
+                }
 
-              console.log("Data successfully written back to the model.");
-              this._myDataSource.refreshData();
-            } catch (error) {
-              console.error("Error submitting data:", error);
-              cell.textContent = this._myDataSource.data[rowIndex]?.[measureId]?.raw || "N/A";
+                await planning.setUserInput(userInput, newValue);
+                await planning.submitData();
+                console.log("Data successfully written back to the model.");
+
+                this._myDataSource.refreshData();
+              } catch (error) {
+                console.error("Error submitting data to the model:", error);
+              }
+            } else {
+              console.error("Invalid input, resetting value.");
+              cell.textContent = rowData[measureId]?.raw || "N/A";
             }
-          }
-        } else {
-          console.error("Invalid input. Resetting value.");
-          const resetValue =
-            this._myDataSource.data?.[rowIndex]?.[measureId]?.raw || "N/A";
-          cell.textContent = resetValue;
-          cell.removeAttribute("data-measure-value");
-        }
+          });
+        });
       });
-    });
-  });
-}
+    }
 
 async fetchDimensionMembers(dimensionId, returnType = "id") {
   if (!this._myDataSource || !this._myDataSource.data) {

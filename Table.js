@@ -43,26 +43,11 @@ class CustomTableWidget extends HTMLElement {
     // Other initialization logic...
   }
 
-  set myDataSource(dataBinding) {
-    this._myDataSource = dataBinding;
-
-    if (this._myDataSource) {
-      console.log("Attaching onResultChange listener");
-
-      this._myDataSource.attachResultChange(() => {
-        console.log("onResultChange triggered");
-        this.onResultChangeHandler();
-      });
+ set myDataSource(dataBinding) {
+      this._myDataSource = dataBinding;
+      this.render();
     }
 
-    this.render(); // Render the table
-  }
-
-  onResultChangeHandler() {
-    console.log("Result has changed. Handling the update...");
-    // Implement custom logic here if needed
-    this.render(); // Re-render the table or update the UI
-  }
 
 
     render() {

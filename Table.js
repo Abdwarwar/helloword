@@ -457,15 +457,21 @@ getDimensionSelected(dimensionId) {
   }
 }
 
-
-
-
-    
 getMeasureValues(measureId) {
   try {
     const table = this._root.querySelector("table tbody");
     if (!table) {
       console.error("Table body not found.");
+      return [];
+    }
+
+    const measures = this.getMeasures();
+    console.log("Selected Rows:", Array.from(this._selectedRows));
+    console.log("Data Source Structure:", this._myDataSource?.data);
+
+    const measureKey = measures.find((measure) => measure.id === measureId)?.key; // Match measureId to key
+    if (!measureKey) {
+      console.warn(`Measure ID '${measureId}' not found in resolved measures.`);
       return [];
     }
 
@@ -476,16 +482,20 @@ getMeasureValues(measureId) {
         return null;
       }
 
-      const cell = row.querySelector(`td[data-measure-id="${measureId}"]`);
-      if (cell) {
-        const value = parseFloat(cell.getAttribute("data-measure-value")) || null;
+      // For new rows
+      const dynamicCell = row.querySelector(`td[data-measure-id="${measureId}"]`);
+      if (dynamicCell) {
+        const value = parseFloat(dynamicCell.getAttribute("data-measure-value")) || null;
         console.log(`Measure '${measureId}' for new row '${rowIndex}' has value: ${value}`);
         return value;
       }
 
+      // For existing rows in the data source
       if (this._myDataSource?.data?.[rowIndex]) {
         const dataRow = this._myDataSource.data[rowIndex];
-        const value = dataRow[measureId]?.raw || dataRow[measureId]?.formatted || null;
+        console.log(`Data Row for '${rowIndex}':`, dataRow);
+
+        const value = dataRow[measureKey]?.raw || dataRow[measureKey]?.formatted || null;
         console.log(`Measure '${measureId}' for data source row '${rowIndex}' has value: ${value}`);
         return value;
       }

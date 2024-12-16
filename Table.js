@@ -351,44 +351,36 @@ async addEmptyRow() {
 
 getDimensions() {
   try {
-    if (!this._myDataSource || !this._myDataSource.metadata || !this._myDataSource.data) {
+    if (!this._myDataSource || !this._myDataSource.metadata) {
       console.error("Data source or metadata is unavailable.");
       return [];
     }
 
-    const dimensionsKeys = this._myDataSource.metadata.feeds.dimensions.values;
-    console.log("Resolved Dimension Keys:", dimensionsKeys);
+    // Resolve dimension keys from metadata
+    const dimensionKeys = this._myDataSource.metadata.feeds.dimensions.values;
 
-    const dimensions = this._myDataSource.data.map((row, rowIndex) => {
-      const dimensionObject = {};
-
-      dimensionsKeys.forEach((key) => {
-        const dimension = this._myDataSource.metadata.dimensions[key];
-        if (dimension) {
-          const value = row[dimension.key]?.id || row[dimension.key]?.label || "N/A";
-          dimensionObject[dimension.id || key] = value;
-        }
-      });
-
-      // Include additional fields if they exist
-      if (row["@MeasureDimension"]) {
-        dimensionObject["@MeasureDimension"] = row["@MeasureDimension"];
-      }
-      if (row["Version"]) {
-        dimensionObject["Version"] = row["Version"];
+    const dimensions = dimensionKeys.map((key) => {
+      const dimension = this._myDataSource.metadata.dimensions[key];
+      if (!dimension) {
+        console.warn(`Dimension key '${key}' not found in metadata.`);
+        return { id: key, description: "Undefined Dimension", key }; // Placeholder
       }
 
-      console.log(`Row ${rowIndex} - Resolved Dimensions:`, dimensionObject);
-      return dimensionObject;
+      return {
+        id: dimension.id || key, // Fallback to key if ID is missing
+        description: dimension.description || dimension.id || key, // Fallback to ID or key
+        key, // Original metadata key for matching rows
+      };
     });
 
-    console.log("Final Resolved Dimensions Array:", dimensions);
+    console.log("Resolved Dimensions:", dimensions);
     return dimensions;
   } catch (error) {
     console.error("Error in getDimensions:", error);
     return [];
   }
 }
+
 
 
 

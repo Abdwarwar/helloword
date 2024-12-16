@@ -149,45 +149,40 @@ makeMeasureCellsEditable() {
   rows.forEach((row) => {
     const rowIndex = row.getAttribute("data-row-index");
     const cells = row.querySelectorAll("td.editable");
+
     cells.forEach((cell) => {
       const measureId = cell.getAttribute("data-measure-id");
-      cell.contentEditable = "true";
+      cell.contentEditable = "false"; // Disable editing by default
 
+      // Enable editing on double-click
+      cell.addEventListener("dblclick", () => {
+        cell.contentEditable = "true";
+        cell.focus();
+      });
+
+      // Save and disable editing on blur
       cell.addEventListener("blur", async (event) => {
         const newValue = parseFloat(cell.textContent.trim());
+        cell.contentEditable = "false";
 
         if (!isNaN(newValue)) {
           console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
-          cell.setAttribute("data-measure-value", newValue); // Store value for dynamic rows
+          cell.setAttribute("data-measure-value", newValue); // Store the updated value
 
-          // Handle existing rows from data source
+          // Update the data source if available
           const measureKey = this.getMeasures().find((measure) => measure.id === measureId)?.key;
           if (this._myDataSource?.data?.[rowIndex] && measureKey) {
             this._myDataSource.data[rowIndex][measureKey] = { raw: newValue };
-            console.log(`Updated data source for measure '${measureId}' at row '${rowIndex}'`);
           }
 
-          // Trigger `onResultChange` and call `getMeasureValues` and `getDimensionSelected`
-          const detail = { rowIndex, measureId, newValue };
-          this.fireOnResultChange(detail);
-
-          // Call getMeasureValues and getDimensionSelected
-          console.log(
-            `Measure Values for '${measureId}':`,
-            this.getMeasureValues(measureId)
-          );
-
-          // Assuming a specific dimensionId to demonstrate. Replace with your logic.
-          const dimensionId = this.getDimensions()?.[0]?.id;
-          if (dimensionId) {
-            console.log(
-              `Dimension Selected for '${dimensionId}':`,
-              this.getDimensionSelected(dimensionId)
-            );
-          }
+          // Trigger onResultChange
+          this.fireOnResultChange({
+            rowIndex,
+            measureId,
+            newValue,
+          });
         } else {
           console.error("Invalid input, resetting value.");
-          // Reset value if invalid
           const measureKey = this.getMeasures().find((measure) => measure.id === measureId)?.key;
           cell.textContent =
             this._myDataSource?.data?.[rowIndex]?.[measureKey]?.raw || "N/A";
@@ -507,17 +502,17 @@ getMeasureValues(measureId) {
         return null;
       }
 
-      // Handle dynamically added rows
-      const dynamicCell = row.querySelector(`td[data-measure-id="${measureId}"]`);
-      if (dynamicCell) {
-        const dynamicValue = parseFloat(dynamicCell.getAttribute("data-measure-value")) || null;
-        if (!isNaN(dynamicValue)) {
-          console.log(`Measure '${measureId}' for new row '${rowIndex}' has value: ${dynamicValue}`);
-          return dynamicValue;
+      // Always retrieve value from the DOM
+      const cell = row.querySelector(`td[data-measure-id="${measureId}"]`);
+      if (cell) {
+        const domValue = parseFloat(cell.textContent.trim()) || null;
+        if (!isNaN(domValue)) {
+          console.log(`Measure '${measureId}' for row '${rowIndex}' (DOM) has value: ${domValue}`);
+          return domValue;
         }
       }
 
-      // Handle existing rows from data source
+      // Retrieve value from the data source as fallback
       if (this._myDataSource?.data?.[rowIndex]) {
         const dataRow = this._myDataSource.data[rowIndex];
         console.log(`Data Row for '${rowIndex}':`, dataRow);
@@ -542,6 +537,7 @@ getMeasureValues(measureId) {
     return [];
   }
 }
+
     }
 
   customElements.define("com-sap-custom-tablewidget", CustomTableWidget);

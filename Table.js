@@ -134,6 +134,15 @@
       this.dispatchEvent(event);
     }
 
+    fireOnResultChange(detail) {
+  const event = new CustomEvent("onResultChange", {
+    detail,
+  });
+  this.dispatchEvent(event);
+  console.log("onResultChange triggered:", detail);
+}
+
+
 makeMeasureCellsEditable() {
   const rows = this._root.querySelectorAll("tbody tr");
   rows.forEach((row) => {
@@ -158,6 +167,13 @@ makeMeasureCellsEditable() {
               console.log(`Updated data source for measure '${measureId}' at row '${rowIndex}'`);
             }
           }
+
+          // Trigger the `onResultChange` event
+          this.fireOnResultChange({
+            rowIndex,
+            measureId,
+            newValue,
+          });
         } else {
           console.error("Invalid input, resetting value.");
           cell.textContent = this._myDataSource?.data?.[rowIndex]?.[measureId]?.raw || "N/A";
@@ -166,6 +182,7 @@ makeMeasureCellsEditable() {
     });
   });
 }
+
 
 
 async fetchDimensionMembers(dimensionId, returnType = "id") {

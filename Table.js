@@ -13,11 +13,7 @@
     <div id="controls">
       <button id="addRowButton">Add New Row</button>
     </div>
-    <div id="root" style="width: 100%; height: 100%; overflow: auto;">
-      <div id="actualDataTable"></div>
-      <h3>New Rows</h3>
-      <div id="newRowsTable"></div>
-    </div>
+    <div id="root" style="width: 100%; height: 100%; overflow: auto;"></div>
   `;
 
   class CustomTableWidget extends HTMLElement {
@@ -25,29 +21,27 @@
       super();
       this._shadowRoot = this.attachShadow({ mode: "open" });
       this._shadowRoot.appendChild(prepared.content.cloneNode(true));
-      this._actualDataTable = this._shadowRoot.getElementById("actualDataTable");
-      this._newRowsTable = this._shadowRoot.getElementById("newRowsTable");
-      this._addRowButton = this._shadowRoot.getElementById("addRowButton");
+      this._root = this._shadowRoot.getElementById("root");
       this._selectedRows = new Set(); // Track selected rows
       this._myDataSource = null;
+      this._newRowsData = []; // Track newly added rows
 
-      // Event to add a new row
-      this._addRowButton.addEventListener("click", () => this.addEmptyRow());
+      const addRowButton = this._shadowRoot.getElementById("addRowButton");
+      addRowButton.addEventListener("click", () => this.addEmptyRow());
     }
 
     connectedCallback() {
-      this.renderActualData();
+      this.render();
     }
 
     set myDataSource(dataBinding) {
       this._myDataSource = dataBinding;
-      this.renderActualData();
+      this.render();
     }
 
-    // Render Actual Data Table
-    renderActualData() {
+    render() {
       if (!this._myDataSource || this._myDataSource.state !== "success") {
-        this._actualDataTable.innerHTML = `<p>Loading data...</p>`;
+        this._root.innerHTML = `<p>Loading data...</p>`;
         return;
       }
 
@@ -55,7 +49,7 @@
       const measures = this.getMeasures();
 
       if (dimensions.length === 0 || measures.length === 0) {
-        this._actualDataTable.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
+        this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
         return;
       }
 
@@ -74,6 +68,10 @@
         }, {}),
       }));
 
+      const container = document.createElement("div");
+      container.style.display = "flex";
+      container.style.flexDirection = "column";
+
       const table = document.createElement("table");
       table.innerHTML = `
         <thead>
@@ -86,83 +84,221 @@
           ${tableData
             .map(
               (row) =>
-                `<tr>
+                `<tr data-row-index="${row.index}">
                   ${dimensions.map((dim) => `<td>${row[dim.id]}</td>`).join("")}
-                  ${measures.map((measure) => `<td>${row[measure.id]}</td>`).join("")}
+                  ${measures
+                    .map(
+                      (measure) =>
+                        `<td class="editable" data-measure-id="${measure.id}">${row[measure.id]}</td>`
+                    )
+                    .join("")}
                 </tr>`
             )
             .join("")}
         </tbody>
       `;
-      this._actualDataTable.innerHTML = "";
-      this._actualDataTable.appendChild(table);
+      container.appendChild(table);
+
+      this._root.innerHTML = "";
+      this._root.appendChild(container);
+
+      this.attachRowSelectionListeners();
+      this.makeMeasureCellsEditable();
     }
 
-    // Add New Row Table
-    async addEmptyRow() {
-      const dimensions = this.getDimensions();
-      const measures = this.getMeasures();
+    attachRowSelectionListeners() {
+      const rows = this._root.querySelectorAll("tbody tr");
+      rows.forEach((row) => {
+        row.addEventListener("click", (event) => {
+          const rowIndex = event.currentTarget.getAttribute("data-row-index");
+          if (this._selectedRows.has(rowIndex)) {
+            this._selectedRows.delete(rowIndex);
+            event.currentTarget.classList.remove("selected");
+          } else {
+            this._selectedRows.add(rowIndex);
+            event.currentTarget.classList.add("selected");
+          }
+          console.log(`Selected rows:`, Array.from(this._selectedRows));
 
-      const table = this._newRowsTable.querySelector("table tbody") || this.createNewRowsTable(dimensions, measures);
-
-      const newRow = document.createElement("tr");
-
-      // Add dropdowns for dimensions
-      dimensions.forEach((dim) => {
-        const cell = document.createElement("td");
-        const dropdown = document.createElement("select");
-
-        // Populate dropdown
-        this.fetchDimensionMembers(dim.key).then((members) => {
-          members.forEach((member) => {
-            const option = document.createElement("option");
-            option.value = member.id;
-            option.textContent = member.label;
-            dropdown.appendChild(option);
-          });
+          this.fireOnSelectEvent();
         });
-
-        dropdown.addEventListener("change", () => {
-          console.log(`Dimension '${dim.id}' updated to ${dropdown.value}`);
-        });
-
-        cell.appendChild(dropdown);
-        newRow.appendChild(cell);
       });
+    }
 
-      // Add editable measure cells
-      measures.forEach((measure) => {
-        const cell = document.createElement("td");
+    fireOnSelectEvent() {
+      const event = new CustomEvent("onSelect", {
+        detail: {
+          selectedRows: Array.from(this._selectedRows),
+        },
+      });
+      this.dispatchEvent(event);
+    }
+
+fireOnResultChange(detail) {
+  const event = new CustomEvent("onResultChange", {
+    detail, // Include the rowIndex, measureId, and newValue in the event
+  });
+  this.dispatchEvent(event);
+  console.log("onResultChange triggered:", detail);
+}
+
+
+
+makeMeasureCellsEditable() {
+  const rows = this._root.querySelectorAll("tbody tr");
+  rows.forEach((row) => {
+    const rowIndex = row.getAttribute("data-row-index");
+    const cells = row.querySelectorAll("td.editable");
+
+    cells.forEach((cell) => {
+      const measureId = cell.getAttribute("data-measure-id");
+      cell.contentEditable = "false"; // Disable editing by default
+
+      // Enable editing on double-click
+      cell.addEventListener("dblclick", () => {
         cell.contentEditable = "true";
-        cell.addEventListener("blur", () => {
-          console.log(`Measure '${measure.id}' updated to ${cell.textContent}`);
-        });
-        newRow.appendChild(cell);
+        cell.focus();
       });
 
-      table.appendChild(newRow);
-    }
+      // Save and disable editing on blur
+      cell.addEventListener("blur", async (event) => {
+        const newValue = parseFloat(cell.textContent.trim());
+        cell.contentEditable = "false";
 
-    createNewRowsTable(dimensions, measures) {
-      const table = document.createElement("table");
-      table.innerHTML = `
-        <thead>
-          <tr>
-            ${dimensions.map((dim) => `<th>${dim.description || dim.id}</th>`).join("")}
-            ${measures.map((measure) => `<th>${measure.description || measure.id}</th>`).join("")}
-          </tr>
-        </thead>
-        <tbody></tbody>
-      `;
-      this._newRowsTable.innerHTML = "";
-      this._newRowsTable.appendChild(table);
-      return table.querySelector("tbody");
-    }
+        if (!isNaN(newValue)) {
+          console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
+          cell.setAttribute("data-measure-value", newValue); // Store the updated value
 
-    async fetchDimensionMembers(dimensionKey) {
-      if (!this._myDataSource || !this._myDataSource.data) return [];
-      const uniqueValues = [...new Set(this._myDataSource.data.map((row) => row[dimensionKey]?.id))];
-      return uniqueValues.map((id) => ({ id, label: id }));
+          // Update the data source if available
+          const measureKey = this.getMeasures().find((measure) => measure.id === measureId)?.key;
+          if (this._myDataSource?.data?.[rowIndex] && measureKey) {
+            this._myDataSource.data[rowIndex][measureKey] = { raw: newValue };
+          }
+
+          // Trigger onResultChange
+          this.fireOnResultChange({
+            rowIndex,
+            measureId,
+            newValue,
+          });
+        } else {
+          console.error("Invalid input, resetting value.");
+          const measureKey = this.getMeasures().find((measure) => measure.id === measureId)?.key;
+          cell.textContent =
+            this._myDataSource?.data?.[rowIndex]?.[measureKey]?.raw || "N/A";
+        }
+      });
+    });
+  });
+}
+
+
+
+
+async fetchDimensionMembers(dimensionId, returnType = "id") {
+  if (!this._myDataSource || !this._myDataSource.data) {
+    console.error("Data source not available or data is missing.");
+    return [];
+  }
+
+  try {
+    const membersSet = new Set();
+    this._myDataSource.data.forEach((row) => {
+      const value = row[dimensionId]?.[returnType] || null;
+      if (value) {
+        membersSet.add(value);
+      }
+    });
+
+    const members = Array.from(membersSet).map((member) => ({
+      id: member,
+      label: member, // For dropdowns, we can show `id` or `label`
+    }));
+
+    console.log(`Fetched members for dimension '${dimensionId}' (${returnType}):`, members);
+    return members;
+  } catch (error) {
+    console.error("Error fetching dimension members:", error);
+    return [];
+  }
+}
+
+async addEmptyRow() {
+  const table = this._root.querySelector("table tbody");
+  if (!table) {
+    console.error("Table body not found.");
+    return;
+  }
+
+  const dimensions = this.getDimensions();
+  const measures = this.getMeasures();
+  const newRowIndex = table.rows.length;
+
+  const newRow = document.createElement("tr");
+  newRow.setAttribute("data-row-index", newRowIndex);
+  newRow.classList.add("selected");
+
+  // Populate dropdowns for dimensions
+  for (const dim of dimensions) {
+    const cell = document.createElement("td");
+    cell.setAttribute("data-dimension-id", dim.id);
+
+    const dropdown = document.createElement("select");
+
+    // Fetch dimension members dynamically with `id` as default type
+    const members = await this.fetchDimensionMembers(dim.key, "id");
+    members.forEach((member) => {
+      const option = document.createElement("option");
+      option.value = member.id;
+      option.textContent = member.label; // Show label (or description) in dropdown
+      dropdown.appendChild(option);
+    });
+
+    dropdown.addEventListener("change", (event) => {
+      console.log(`Dimension '${dim.id}' selected as ID: ${event.target.value}`);
+      cell.setAttribute("data-dimension-value", event.target.value); // Store selected ID
+    });
+
+    cell.appendChild(dropdown);
+    newRow.appendChild(cell);
+  }
+
+  // Add editable cells for measures
+  measures.forEach((measure) => {
+    const cell = document.createElement("td");
+    cell.classList.add("editable");
+    cell.setAttribute("data-measure-id", measure.id);
+
+    cell.contentEditable = "true";
+    cell.addEventListener("blur", (event) => {
+      const value = parseFloat(event.target.textContent.trim());
+      console.log(`Measure '${measure.id}' for new row updated to: ${value}`);
+      cell.setAttribute("data-measure-value", isNaN(value) ? null : value); // Store edited value
+    });
+
+    newRow.appendChild(cell);
+  });
+
+  // Attach row click event for selection highlighting
+  newRow.addEventListener("click", () => {
+    table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
+    newRow.classList.add("selected");
+    this._selectedRows.add(newRowIndex);
+    console.log(`New row selected: ${newRowIndex}`);
+  });
+
+  table.appendChild(newRow);
+  console.log(`New row added: ${newRowIndex}`);
+}
+
+    updateMeasureValue(rowIndex, measureId, newValue) {
+      if (!this._myDataSource || !this._myDataSource.data[rowIndex]) {
+        console.error("Row data is not available for updating.");
+        return;
+      }
+
+      // Update the measure value in the data source
+      this._myDataSource.data[rowIndex][measureId] = { raw: newValue };
     }
 
     // Expose getSelections API

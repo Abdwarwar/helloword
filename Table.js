@@ -230,9 +230,14 @@ async addEmptyRow() {
     return;
   }
 
+  // Clear all existing rows
+  table.innerHTML = "";
+  this._selectedRows.clear();
+  console.log("Cleared all existing rows from the table.");
+
   const dimensions = this.getDimensions();
   const measures = this.getMeasures();
-  const newRowIndex = table.rows.length;
+  const newRowIndex = 0; // Always start at index 0 since table is cleared
 
   const newRow = document.createElement("tr");
   newRow.setAttribute("data-row-index", newRowIndex);
@@ -270,16 +275,19 @@ async addEmptyRow() {
     cell.setAttribute("data-measure-id", measure.id);
 
     cell.contentEditable = "true";
+    cell.addEventListener("dblclick", () => {
+      console.log(`Editing measure '${measure.id}' for row '${newRowIndex}'`);
+    });
     cell.addEventListener("blur", (event) => {
       const value = parseFloat(event.target.textContent.trim());
-      console.log(`Measure '${measure.id}' for new row updated to: ${value}`);
+      console.log(`Measure '${measure.id}' updated to: ${value}`);
       cell.setAttribute("data-measure-value", isNaN(value) ? null : value); // Store edited value
     });
 
     newRow.appendChild(cell);
   });
 
-  // Attach row click event for selection highlighting
+  // Highlight the new row as selected
   newRow.addEventListener("click", () => {
     table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
     newRow.classList.add("selected");
@@ -290,6 +298,7 @@ async addEmptyRow() {
   table.appendChild(newRow);
   console.log(`New row added: ${newRowIndex}`);
 }
+
 
     updateMeasureValue(rowIndex, measureId, newValue) {
       if (!this._myDataSource || !this._myDataSource.data[rowIndex]) {

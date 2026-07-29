@@ -1,743 +1,751 @@
 (function () {
-  const prepared = document.createElement("template");
-  prepared.innerHTML = `
+  const template = document.createElement("template");
+  template.innerHTML = `
     <style>
-      table { width: 100%; border-collapse: collapse; }
-      th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-      th { background-color: #f4f4f4; }
-      tr:nth-child(even) { background-color: #f9f9f9; }
-      tr.selected { background-color: #ffeb3b; }
-      td.editable { background-color: #fff3e0; }
-      td.writeback-error { background-color: #ffcdd2; }
-      button { margin-bottom: 10px; padding: 5px 10px; cursor: pointer; }
+      :host {
+        display: block;
+        width: 100%;
+        height: 100%;
+        min-height: 180px;
+        box-sizing: border-box;
+        font-family: "72", "SAP Fiori 3", Arial, sans-serif;
+        color: #1d2d3e;
+        background: #fff;
+      }
+
+      * { box-sizing: border-box; }
+
+      .shell {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #d9dfe6;
+        background: #fff;
+      }
+
+      .toolbar {
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px;
+        border-bottom: 1px solid #d9dfe6;
+        background: #f7f8fa;
+      }
+
+      button {
+        height: 28px;
+        border: 1px solid #0a6ed1;
+        border-radius: 4px;
+        background: #0a6ed1;
+        color: #fff;
+        font: inherit;
+        font-size: 12px;
+        line-height: 1;
+        padding: 0 10px;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        border-color: #bcc7d2;
+        background: #fff;
+        color: #0a6ed1;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      .status {
+        margin-left: auto;
+        color: #556b82;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .status.error { color: #bb0000; }
+      .status.success { color: #107e3e; }
+
+      .table-wrap {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: fixed;
+        font-size: 13px;
+      }
+
+      th, td {
+        min-width: 120px;
+        height: 34px;
+        border-right: 1px solid #e5eaf0;
+        border-bottom: 1px solid #e5eaf0;
+        padding: 0 8px;
+        text-align: left;
+        vertical-align: middle;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        height: 36px;
+        color: #354a5f;
+        background: #f2f4f7;
+        font-weight: 600;
+      }
+
+      th.measure,
+      td.measure { text-align: right; }
+
+      tr:hover td { background: #f5faff; }
+      tr.selected td { background: #eaf4ff; }
+
+      td.measure {
+        padding: 0;
+        background: #fffef5;
+      }
+
+      .cell-input,
+      select {
+        width: 100%;
+        height: 100%;
+        min-height: 32px;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+      }
+
+      .cell-input {
+        padding: 0 8px;
+        text-align: right;
+      }
+
+      .cell-input:focus,
+      select:focus {
+        box-shadow: inset 0 0 0 2px #0a6ed1;
+        background: #fff;
+      }
+
+      .cell-input.pending { background: #fff7d6; }
+      .cell-input.error { background: #ffebeb; }
+      .cell-input.success { background: #edf8f0; }
+
+      td.dimension-select { padding: 0; }
+      select { padding: 0 26px 0 8px; cursor: pointer; }
+
+      .empty {
+        padding: 18px;
+        color: #556b82;
+        font-size: 13px;
+      }
     </style>
-    <div id="controls">
-      <button id="addRowButton">Add New Row</button>
+    <div class="shell">
+      <div class="toolbar">
+        <button id="addRowButton" type="button">Add New Row</button>
+        <button id="submitButton" type="button" class="secondary">Submit</button>
+        <span id="status" class="status"></span>
+      </div>
+      <div id="root" class="table-wrap"></div>
     </div>
-    <div id="root" style="width: 100%; height: 100%; overflow: auto;"></div>
   `;
 
-  class CustomTableWidget extends HTMLElement {
+  class PlanningTableWidget extends HTMLElement {
     constructor() {
       super();
       this._shadowRoot = this.attachShadow({ mode: "open" });
-      this._shadowRoot.appendChild(prepared.content.cloneNode(true));
+      this._shadowRoot.appendChild(template.content.cloneNode(true));
+
       this._root = this._shadowRoot.getElementById("root");
+      this._status = this._shadowRoot.getElementById("status");
+      this._dataBinding = null;
+      this._newRows = [];
       this._selectedRows = new Set();
-      this._myDataSource = null;
-      this._newRowsData = [];
+      this._pendingValues = new Map();
 
       this.planningEnabled = true;
       this.autoSubmit = true;
+      this.autoPublish = false;
 
-      const addRowButton = this._shadowRoot.getElementById("addRowButton");
-      addRowButton.addEventListener("click", () => this.addEmptyRow());
+      this._shadowRoot.getElementById("addRowButton").addEventListener("click", () => this.addEmptyRow());
+      this._shadowRoot.getElementById("submitButton").addEventListener("click", () => this.submitPlanningData());
     }
 
     connectedCallback() {
       this.render();
     }
 
-    onCustomWidgetBeforeUpdate(changedProps) {
-      this._pendingProps = changedProps;
-    }
+    onCustomWidgetBeforeUpdate() {}
 
     onCustomWidgetAfterUpdate(changedProps) {
-      Object.keys(changedProps || {}).forEach((key) => {
-        this[key] = changedProps[key];
+      Object.entries(changedProps || {}).forEach(([key, value]) => {
+        this[key] = value;
       });
       this.render();
     }
 
     onCustomWidgetResize() {}
-
     onCustomWidgetDestroy() {}
 
-    set myDataSource(dataBinding) {
-      this._myDataSource = dataBinding;
+    set myDataSource(value) {
+      this._dataBinding = value;
       this.render();
     }
 
     get myDataSource() {
-      return this._myDataSource;
+      return this._dataBinding;
     }
 
     render() {
       const dataSource = this._getDataSource();
-      if (!dataSource || dataSource.state !== "success") {
-        this._root.innerHTML = `<p>Loading data...</p>`;
+      if (!dataSource || (dataSource.state && dataSource.state !== "success")) {
+        this._root.innerHTML = `<div class="empty">Waiting for SAC data binding…</div>`;
         return;
       }
 
       const dimensions = this.getDimensions();
       const measures = this.getMeasures();
+      const rows = this._getRows();
 
       if (dimensions.length === 0 || measures.length === 0) {
-        this._root.innerHTML = `<p>Please add Dimensions and Measures in the Builder Panel.</p>`;
+        this._root.innerHTML = `<div class="empty">Add dimensions and measures to the custom widget data binding.</div>`;
         return;
       }
-
-      console.log("Resolved Dimensions:", dimensions);
-      console.log("Resolved Measures:", measures);
-
-      const tableData = dataSource.data.map((row, index) => ({
-        index,
-        ...dimensions.reduce((acc, dim) => {
-          acc[dim.id] = row[dim.key]?.label || row[dim.key]?.description || row[dim.key]?.id || "N/A";
-          return acc;
-        }, {}),
-        ...measures.reduce((acc, measure) => {
-          acc[measure.id] = row[measure.key]?.raw ?? row[measure.key]?.formatted ?? "N/A";
-          return acc;
-        }, {}),
-      }));
-
-      const container = document.createElement("div");
-      container.style.display = "flex";
-      container.style.flexDirection = "column";
 
       const table = document.createElement("table");
-      table.innerHTML = `
-        <thead>
-          <tr>
-            ${dimensions.map((dim) => `<th>${this._escapeHtml(dim.description || dim.id)}</th>`).join("")}
-            ${measures.map((measure) => `<th>${this._escapeHtml(measure.description || measure.id)}</th>`).join("")}
-          </tr>
-        </thead>
-        <tbody>
-          ${tableData
-            .map(
-              (row) =>
-                `<tr data-row-index="${row.index}">
-                  ${dimensions.map((dim) => `<td>${this._escapeHtml(row[dim.id])}</td>`).join("")}
-                  ${measures
-                    .map(
-                      (measure) =>
-                        `<td class="editable" data-measure-id="${this._escapeHtml(measure.id)}" data-measure-key="${this._escapeHtml(measure.key)}">${this._escapeHtml(row[measure.id])}</td>`,
-                    )
-                    .join("")}
-                </tr>`,
-            )
-            .join("")}
-        </tbody>
-      `;
-      container.appendChild(table);
+      const thead = document.createElement("thead");
+      const headerRow = document.createElement("tr");
 
-      this._root.innerHTML = "";
-      this._root.appendChild(container);
-
-      this.attachRowSelectionListeners();
-      this.makeMeasureCellsEditable();
-    }
-
-    attachRowSelectionListeners() {
-      const rows = this._root.querySelectorAll("tbody tr");
-      rows.forEach((row) => {
-        row.addEventListener("click", (event) => {
-          const rowIndex = event.currentTarget.getAttribute("data-row-index");
-          if (this._selectedRows.has(rowIndex)) {
-            this._selectedRows.delete(rowIndex);
-            event.currentTarget.classList.remove("selected");
-          } else {
-            this._selectedRows.add(rowIndex);
-            event.currentTarget.classList.add("selected");
-          }
-          console.log(`Selected rows:`, Array.from(this._selectedRows));
-
-          this.fireOnSelectEvent();
-        });
+      dimensions.forEach((dimension) => {
+        const th = document.createElement("th");
+        th.textContent = dimension.description || dimension.id;
+        headerRow.appendChild(th);
       });
-    }
 
-    fireOnSelectEvent() {
-      const event = new CustomEvent("onSelect", {
-        detail: {
-          selectedRows: Array.from(this._selectedRows),
-        },
+      measures.forEach((measure) => {
+        const th = document.createElement("th");
+        th.className = "measure";
+        th.textContent = measure.description || measure.id;
+        headerRow.appendChild(th);
       });
-      this.dispatchEvent(event);
+
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      rows.forEach((row, rowIndex) => tbody.appendChild(this._createTableRow(row, rowIndex, false, dimensions, measures)));
+      this._newRows.forEach((row, index) => tbody.appendChild(this._createTableRow(row, rows.length + index, true, dimensions, measures)));
+      table.appendChild(tbody);
+
+      this._root.replaceChildren(table);
+      this._updateButtons();
     }
 
-    fireOnResultChange(detail) {
-      const event = new CustomEvent("onResultChange", {
-        detail,
-      });
-      this.dispatchEvent(event);
-      this.dispatchEvent(new CustomEvent("onResultChanged", { detail }));
-      console.log("onResultChange triggered:", detail);
-    }
+    _createTableRow(row, rowIndex, isNew, dimensions, measures) {
+      const tr = document.createElement("tr");
+      tr.dataset.rowIndex = String(rowIndex);
+      tr.dataset.newRow = String(isNew);
+      tr.addEventListener("click", () => this._selectRow(tr));
 
-    makeMeasureCellsEditable() {
-      const rows = this._root.querySelectorAll("tbody tr");
-      rows.forEach((row) => {
-        const rowIndex = row.getAttribute("data-row-index");
-        const cells = row.querySelectorAll("td.editable");
-
-        cells.forEach((cell) => {
-          const measureId = cell.getAttribute("data-measure-id");
-          const measureKey = cell.getAttribute("data-measure-key") || measureId;
-          cell.contentEditable = "false";
-
-          cell.addEventListener("dblclick", () => {
-            if (!this.planningEnabled) return;
-            cell.contentEditable = "true";
-            cell.focus();
-          });
-
-          cell.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              cell.blur();
-            }
-            if (event.key === "Escape") {
-              cell.contentEditable = "false";
-              this.render();
-            }
-          });
-
-          cell.addEventListener("blur", async () => {
-            const newValue = parseFloat((cell.textContent || "").trim().replace(/,/g, ""));
-            cell.contentEditable = "false";
-
-            if (!isNaN(newValue)) {
-              console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
-              cell.setAttribute("data-measure-value", String(newValue));
-
-              const dataSource = this._getDataSource();
-              if (dataSource?.data?.[rowIndex] && measureKey) {
-                dataSource.data[rowIndex][measureKey] = { raw: newValue, formatted: String(newValue) };
-              }
-
-              const writeback = await this._writeBackValue(rowIndex, measureId, newValue, cell);
-
-              this.fireOnResultChange({
-                rowIndex,
-                measureId,
-                newValue,
-                writeback,
-              });
-            } else {
-              console.error("Invalid input, resetting value.");
-              const measureKey = this.getMeasures().find((measure) => measure.id === measureId)?.key;
-              const dataSource = this._getDataSource();
-              cell.textContent = dataSource?.data?.[rowIndex]?.[measureKey]?.raw ?? "N/A";
-            }
-          });
-        });
-      });
-    }
-
-    async fetchDimensionMembers(dimensionId, returnType = "id") {
-      const dataSource = this._getDataSource();
-      if (!dataSource || !dataSource.data) {
-        console.error("Data source not available or data is missing.");
-        return [];
-      }
-
-      try {
-        const membersSet = new Set();
-        dataSource.data.forEach((row) => {
-          const value = row[dimensionId]?.[returnType] || null;
-          if (value) {
-            membersSet.add(value);
-          }
-        });
-
-        const members = Array.from(membersSet).map((member) => ({
-          id: member,
-          label: member,
-        }));
-
-        console.log(`Fetched members for dimension '${dimensionId}' (${returnType}):`, members);
-        return members;
-      } catch (error) {
-        console.error("Error fetching dimension members:", error);
-        return [];
-      }
-    }
-
-    async addEmptyRow() {
-      const table = this._root.querySelector("table tbody");
-      if (!table) {
-        console.error("Table body not found.");
-        return;
-      }
-
-      const dimensions = this.getDimensions();
-      const measures = this.getMeasures();
-      const newRowIndex = table.rows.length;
-
-      const newRow = document.createElement("tr");
-      newRow.setAttribute("data-row-index", newRowIndex);
-      newRow.classList.add("selected");
-
-      for (const dim of dimensions) {
+      dimensions.forEach((dimension) => {
         const cell = document.createElement("td");
-        cell.setAttribute("data-dimension-id", dim.id);
-        cell.setAttribute("data-dimension-key", dim.key);
+        cell.dataset.dimensionId = dimension.id;
+        cell.dataset.dimensionKey = dimension.key;
 
-        const dropdown = document.createElement("select");
+        if (isNew) {
+          cell.className = "dimension-select";
+          const select = document.createElement("select");
+          const members = this._getDimensionMembers(dimension);
+          members.forEach((member) => {
+            const option = document.createElement("option");
+            option.value = member.id;
+            option.textContent = member.label || member.id;
+            select.appendChild(option);
+          });
+          const current = row.dimensions[dimension.key] || row.dimensions[dimension.id] || members[0]?.id || "";
+          select.value = current;
+          row.dimensions[dimension.key] = current;
+          cell.dataset.dimensionValue = current;
+          select.addEventListener("change", () => {
+            row.dimensions[dimension.key] = select.value;
+            cell.dataset.dimensionValue = select.value;
+            this.fireOnResultChange({ rowIndex, dimensionId: dimension.id, memberId: select.value });
+          });
+          cell.appendChild(select);
+        } else {
+          const member = this._readCell(row, dimension);
+          const value = this._memberId(member);
+          cell.dataset.dimensionValue = value;
+          cell.title = value;
+          cell.textContent = this._memberText(member);
+        }
 
-        const members = await this.fetchDimensionMembers(dim.key, "id");
-        members.forEach((member) => {
-          const option = document.createElement("option");
-          option.value = member.id;
-          option.textContent = member.label;
-          dropdown.appendChild(option);
-        });
-
-        cell.setAttribute("data-dimension-value", dropdown.value || "");
-
-        dropdown.addEventListener("change", (event) => {
-          console.log(`Dimension '${dim.id}' selected as ID: ${event.target.value}`);
-          cell.setAttribute("data-dimension-value", event.target.value);
-        });
-
-        cell.appendChild(dropdown);
-        newRow.appendChild(cell);
-      }
+        tr.appendChild(cell);
+      });
 
       measures.forEach((measure) => {
         const cell = document.createElement("td");
-        cell.classList.add("editable");
-        cell.setAttribute("data-measure-id", measure.id);
-        cell.setAttribute("data-measure-key", measure.key);
+        cell.className = "measure";
+        cell.dataset.measureId = measure.id;
+        cell.dataset.measureKey = measure.key;
 
-        cell.contentEditable = this.planningEnabled ? "true" : "false";
-        cell.addEventListener("keydown", (event) => {
+        const input = document.createElement("input");
+        input.className = "cell-input";
+        input.type = "text";
+        input.inputMode = "decimal";
+        input.disabled = this.planningEnabled === false;
+        input.value = this._measureText(isNew ? row.measures[measure.key] : this._readCell(row, measure));
+        input.dataset.originalValue = input.value;
+
+        input.addEventListener("focus", () => {
+          input.value = this._plainNumber(input.value);
+          input.select();
+        });
+        input.addEventListener("keydown", (event) => {
           if (event.key === "Enter") {
             event.preventDefault();
-            cell.blur();
+            input.blur();
+          }
+          if (event.key === "Escape") {
+            input.value = input.dataset.originalValue || "";
+            input.blur();
           }
         });
-        cell.addEventListener("blur", async (event) => {
-          const value = parseFloat((event.target.textContent || "").trim().replace(/,/g, ""));
-          console.log(`Measure '${measure.id}' for new row updated to: ${value}`);
-          cell.setAttribute("data-measure-value", isNaN(value) ? "" : String(value));
+        input.addEventListener("change", () => this._stageCellValue(tr, cell, input));
+        input.addEventListener("blur", () => this._stageCellValue(tr, cell, input));
 
-          if (!isNaN(value)) {
-            const writeback = await this._writeBackValue(newRowIndex, measure.id, value, cell);
-            this.fireOnResultChange({
-              rowIndex: String(newRowIndex),
-              measureId: measure.id,
-              newValue: value,
-              writeback,
-            });
-          }
-        });
-
-        newRow.appendChild(cell);
+        cell.appendChild(input);
+        tr.appendChild(cell);
       });
 
-      newRow.addEventListener("click", () => {
-        table.querySelectorAll("tr").forEach((row) => row.classList.remove("selected"));
-        newRow.classList.add("selected");
-        this._selectedRows.add(String(newRowIndex));
-        console.log(`New row selected: ${newRowIndex}`);
+      return tr;
+    }
+
+    async addEmptyRow() {
+      const dimensions = this.getDimensions();
+      const row = { dimensions: {}, measures: {} };
+      dimensions.forEach((dimension) => {
+        row.dimensions[dimension.key] = this._getDimensionMembers(dimension)[0]?.id || "";
       });
-
-      table.appendChild(newRow);
-      this._selectedRows.add(String(newRowIndex));
-      console.log(`New row added: ${newRowIndex}`);
-    }
-
-    updateMeasureValue(rowIndex, measureId, newValue) {
-      const dataSource = this._getDataSource();
-      if (!dataSource || !dataSource.data[rowIndex]) {
-        console.error("Row data is not available for updating.");
-        return;
-      }
-
-      dataSource.data[rowIndex][measureId] = { raw: newValue };
-    }
-
-    getSelections() {
-      try {
-        const dataSource = this._getDataSource();
-        if (!dataSource || !dataSource.data) {
-          console.error("Data source is not bound or data is unavailable.");
-          return [];
-        }
-
-        const dimensions = this.getDimensions();
-        const measures = this.getMeasures();
-
-        const selectedData = Array.from(this._selectedRows).map((rowIndex) => {
-          const row = dataSource.data[rowIndex];
-          if (!row) return null;
-
-          const rowData = {};
-
-          dimensions.forEach((dim) => {
-            rowData[dim.id] = {
-              id: row[dim.key]?.id || null,
-              label: row[dim.key]?.label || "N/A",
-            };
-          });
-
-          measures.forEach((measure) => {
-            rowData[measure.id] = row[measure.key]?.raw || row[measure.key]?.value || null;
-          });
-
-          return rowData;
-        });
-
-        console.log("Selected data:", selectedData);
-        return selectedData;
-      } catch (error) {
-        console.error("Error in getSelections:", error);
-        return [];
-      }
-    }
-
-    getDimensions() {
-      try {
-        const dataSource = this._getDataSource();
-        if (!dataSource || !dataSource.metadata) {
-          console.error("Data source or metadata is unavailable.");
-          return [];
-        }
-
-        const feeds = dataSource.metadata.feeds || {};
-        const dimensionKeys = this._readFeedValues(feeds.dimensions || feeds.dimension);
-
-        const dimensions = dimensionKeys.map((key) => {
-          const dimension = dataSource.metadata.dimensions[key];
-          if (!dimension) {
-            console.warn(`Dimension key '${key}' not found in metadata.`);
-            return { id: key, description: "Undefined Dimension", key };
-          }
-
-          return {
-            id: dimension.id || key,
-            description: dimension.description || dimension.id || key,
-            key,
-          };
-        });
-
-        console.log("Resolved Dimensions:", dimensions);
-        return dimensions;
-      } catch (error) {
-        console.error("Error in getDimensions:", error);
-        return [];
-      }
-    }
-
-    getMeasures() {
-      const dataSource = this._getDataSource();
-      if (!dataSource || !dataSource.metadata) {
-        console.error("Data source metadata is unavailable.");
-        return [];
-      }
-
-      const feeds = dataSource.metadata.feeds || {};
-      const measuresKeys = this._readFeedValues(feeds.measures || feeds.measure || feeds.mainStructureMembers);
-
-      const measures = measuresKeys.map((key) => {
-        const measure = dataSource.metadata.mainStructureMembers[key];
-        if (!measure) {
-          console.warn(`Measure with key '${key}' not found in metadata.`);
-          return { id: key, key, description: key };
-        }
-
-        return {
-          id: measure.id || key,
-          key,
-          description: measure.description || measure.label || measure.id || key,
-        };
-      });
-
-      console.log("Resolved Measures:", measures);
-      return measures;
-    }
-
-    getSelectedRow() {
-      try {
-        const selectedRowIndices = Array.from(this._selectedRows);
-        console.log("Selected rows:", selectedRowIndices);
-        return selectedRowIndices;
-      } catch (error) {
-        console.error("Error in getSelectedRow:", error);
-        return [];
-      }
-    }
-
-    getDimensionSelected(dimensionId) {
-      try {
-        const table = this._root.querySelector("table tbody");
-        if (!table) {
-          console.error("Table body not found.");
-          return [];
-        }
-
-        const dimensions = this.getDimensions();
-        const dataSource = this._getDataSource();
-        console.log("Selected Rows:", Array.from(this._selectedRows));
-        console.log("Data Source Structure:", dataSource?.data);
-
-        const dimensionKey = dimensions.find((dim) => dim.id === dimensionId)?.key;
-        if (!dimensionKey) {
-          console.warn(`Dimension ID '${dimensionId}' not found in resolved dimensions.`);
-          return [];
-        }
-
-        const dimensionValues = Array.from(this._selectedRows).map((rowIndex) => {
-          const row = table.querySelector(`tr[data-row-index="${rowIndex}"]`);
-          if (!row) {
-            console.warn(`Row at index '${rowIndex}' not found in DOM.`);
-            return null;
-          }
-
-          const dynamicCell = row.querySelector(`td[data-dimension-id="${dimensionId}"]`);
-          if (dynamicCell) {
-            const value = dynamicCell.getAttribute("data-dimension-value") || null;
-            console.log(`Dimension '${dimensionId}' for new row '${rowIndex}' has value: ${value}`);
-            return value;
-          }
-
-          if (dataSource?.data?.[rowIndex]) {
-            const dataRow = dataSource.data[rowIndex];
-            console.log(`Data Row for '${rowIndex}':`, dataRow);
-
-            const value = dataRow[dimensionKey]?.id || dataRow[dimensionKey]?.label || null;
-            console.log(`Dimension '${dimensionId}' for data source row '${rowIndex}' has value: ${value}`);
-            return value;
-          }
-
-          console.warn(`Dimension '${dimensionId}' not found for row '${rowIndex}'.`);
-          return null;
-        });
-
-        const filteredValues = dimensionValues.filter((value) => value !== null);
-        console.log(`Filtered dimension values for '${dimensionId}':`, filteredValues);
-        return filteredValues;
-      } catch (error) {
-        console.error("Error in getDimensionSelected:", error);
-        return [];
-      }
-    }
-
-    getMeasureValues(measureId) {
-      try {
-        const table = this._root.querySelector("table tbody");
-        if (!table) {
-          console.error("Table body not found.");
-          return [];
-        }
-
-        const measures = this.getMeasures();
-        const selectedRows = Array.from(this._selectedRows);
-        const dataSource = this._getDataSource();
-        console.log("Selected Rows:", selectedRows);
-        console.log("Data Source Structure:", dataSource?.data);
-
-        const measureKey = measures.find((measure) => measure.id === measureId)?.key;
-        if (!measureKey) {
-          console.warn(`Measure ID '${measureId}' not found in resolved measures.`);
-          return [];
-        }
-
-        const measureValues = selectedRows.map((rowIndex) => {
-          const row = table.querySelector(`tr[data-row-index="${rowIndex}"]`);
-          if (!row) {
-            console.warn(`Row at index '${rowIndex}' not found in DOM.`);
-            return null;
-          }
-
-          const cell = row.querySelector(`td[data-measure-id="${measureId}"]`);
-          if (cell) {
-            const domValue = parseFloat((cell.textContent || "").trim()) || null;
-            if (!isNaN(domValue)) {
-              console.log(`Measure '${measureId}' for row '${rowIndex}' (DOM) has value: ${domValue}`);
-              return domValue;
-            }
-          }
-
-          if (dataSource?.data?.[rowIndex]) {
-            const dataRow = dataSource.data[rowIndex];
-            console.log(`Data Row for '${rowIndex}':`, dataRow);
-
-            const value = dataRow[measureKey]?.raw ?? dataRow[measureKey]?.formatted ?? null;
-            if (value !== null) {
-              const parsedValue = parseFloat(value) || value;
-              console.log(`Measure '${measureId}' for data source row '${rowIndex}' has value: ${parsedValue}`);
-              return parsedValue;
-            }
-          }
-
-          console.warn(`Measure '${measureId}' not found for row '${rowIndex}'.`);
-          return null;
-        });
-
-        const filteredValues = measureValues.filter((value) => value !== null);
-        console.log(`Filtered measure values for '${measureId}':`, filteredValues);
-        return filteredValues;
-      } catch (error) {
-        console.error("Error in getMeasureValues:", error);
-        return [];
-      }
+      this._newRows.push(row);
+      this.render();
+      this._setStatus("New row added. Select members and enter plan values.", "");
     }
 
     async submitPlanningData() {
-      const cells = Array.from(this._root.querySelectorAll("td.editable[data-measure-value]"));
-      let submitted = 0;
-      for (const cell of cells) {
-        const row = cell.closest("tr");
-        const rowIndex = row?.getAttribute("data-row-index");
-        const measureId = cell.getAttribute("data-measure-id");
-        const value = parseFloat(cell.getAttribute("data-measure-value"));
-        if (rowIndex != null && measureId && !isNaN(value)) {
-          const ok = await this._writeBackValue(rowIndex, measureId, value, cell);
-          if (ok) submitted += 1;
-        }
+      if (this._pendingValues.size === 0) {
+        this._setStatus("No changed cells to submit.", "");
+        return false;
       }
+
+      let submitted = 0;
+      const entries = Array.from(this._pendingValues.values());
+      for (const entry of entries) {
+        const ok = await this._writeBackValue(entry);
+        if (ok) submitted += 1;
+      }
+
+      if (submitted > 0) {
+        this._setStatus(`${submitted} cell${submitted === 1 ? "" : "s"} submitted`, "success");
+      }
+      this._updateButtons();
       return submitted > 0;
     }
 
-    _getDataSource() {
-      if (this._myDataSource?.getDataSource) {
-        try {
-          return this._myDataSource.getDataSource();
-        } catch (error) {
-          console.warn("Unable to read data source from binding:", error);
-        }
+    getSelections() {
+      return Array.from(this._selectedRows).map((rowIndex) => JSON.stringify(this._rowSnapshot(Number(rowIndex))));
+    }
+
+    getSelectedRow() {
+      return this.getSelections();
+    }
+
+    getDimensionSelected(dimensionId) {
+      const dimensions = this.getDimensions();
+      const dimension = dimensions.find((item) => item.id === dimensionId || item.key === dimensionId);
+      if (!dimension) return [];
+      return Array.from(this._selectedRows)
+        .map((rowIndex) => this._dimensionValueForRow(Number(rowIndex), dimension))
+        .filter(Boolean);
+    }
+
+    getMeasureValues(measureId) {
+      const measures = this.getMeasures();
+      const measure = measures.find((item) => item.id === measureId || item.key === measureId);
+      if (!measure) return [];
+      return Array.from(this._selectedRows)
+        .map((rowIndex) => this._measureValueForRow(Number(rowIndex), measure))
+        .filter((value) => value !== null && value !== undefined);
+    }
+
+    getDimensions() {
+      const metadata = this._getMetadata();
+      const feedKeys = this._readFeedValues(metadata?.feeds?.dimensions || metadata?.feeds?.dimension);
+      const allDimensions = metadata?.dimensions || {};
+      const keys = feedKeys.length ? feedKeys : Object.keys(allDimensions);
+      return keys.map((key) => {
+        const meta = allDimensions[key] || {};
+        return {
+          key,
+          id: meta.id || key,
+          description: meta.description || meta.label || meta.id || key,
+        };
+      });
+    }
+
+    getMeasures() {
+      const metadata = this._getMetadata();
+      const members = metadata?.mainStructureMembers || metadata?.measures || {};
+      const feedKeys = this._readFeedValues(
+        metadata?.feeds?.measures || metadata?.feeds?.measure || metadata?.feeds?.mainStructureMembers,
+      );
+      const keys = feedKeys.length ? feedKeys : Object.keys(members);
+      return keys.map((key) => {
+        const meta = members[key] || {};
+        return {
+          key,
+          id: meta.id || key,
+          description: meta.description || meta.label || meta.id || key,
+        };
+      });
+    }
+
+    addDimension() {}
+    addMeasure() {}
+    removeDimension() {}
+    removeMeasure() {}
+
+    getDimensionsOnFeed() {
+      return this.getDimensions().map((dimension) => dimension.id);
+    }
+
+    getMeasuresOnFeed() {
+      return this.getMeasures().map((measure) => measure.id);
+    }
+
+    getDataSource() {
+      return this._getDataSource();
+    }
+
+    _stageCellValue(tr, cell, input) {
+      if (this.planningEnabled === false) return;
+      const raw = this._plainNumber(input.value);
+      if (raw === "") return;
+
+      const value = Number(raw);
+      if (!Number.isFinite(value)) {
+        input.classList.add("error");
+        this._setStatus("Enter a valid number.", "error");
+        return;
+      }
+
+      input.value = this._formatNumber(value);
+      const rowIndex = Number(tr.dataset.rowIndex);
+      const measureId = cell.dataset.measureId;
+      const measureKey = cell.dataset.measureKey || measureId;
+      const selection = this._buildPlanningSelection(rowIndex, measureKey);
+      const key = `${rowIndex}:${measureKey}`;
+
+      const entry = { key, rowIndex, measureId, measureKey, value, selection, input };
+      this._pendingValues.set(key, entry);
+      input.classList.remove("error", "success");
+      input.classList.add("pending");
+
+      this._updateLocalRow(rowIndex, measureKey, value);
+      this.fireOnResultChange({ rowIndex, measureId, newValue: value, selection });
+      this._updateButtons();
+
+      if (this.autoSubmit !== false) {
+        this._writeBackValue(entry);
+      } else {
+        this._setStatus("Cell changed. Press Submit to write back.", "");
+      }
+    }
+
+    async _writeBackValue(entry) {
+      const planning = this._getPlanning();
+      if (!planning || typeof planning.setUserInput !== "function") {
+        this._markEntryError(entry, "Planning is not available on this model/data source.");
+        return false;
+      }
+
+      const missing = this.getDimensions().filter((dimension) => !entry.selection[dimension.key] && !entry.selection[dimension.id]);
+      if (missing.length > 0) {
+        this._markEntryError(entry, "Select all dimension members before writeback.");
+        return false;
       }
 
       try {
-        const binding = this._getDataBinding();
-        const dataSource = binding?.getDataSource?.();
-        if (dataSource) return dataSource;
-      } catch (error) {
-        console.warn("Unable to read widget data binding:", error);
-      }
+        this._setStatus("Submitting planning value…", "");
+        const inputResult = await Promise.resolve(planning.setUserInput(entry.selection, String(entry.value)));
+        if (inputResult === false) throw new Error("SAC rejected the planning value.");
 
-      return this._myDataSource;
+        if (typeof planning.submitData === "function") {
+          const submitResult = await Promise.resolve(planning.submitData());
+          if (submitResult === false) throw new Error("SAC rejected submitData().");
+        }
+
+        const publish = await this._publishVersions(planning);
+        entry.input.classList.remove("pending", "error");
+        entry.input.classList.add("success");
+        entry.input.dataset.originalValue = entry.input.value;
+        this._pendingValues.delete(entry.key);
+        this.dispatchEvent(
+          new CustomEvent("onDataSubmitted", {
+            detail: {
+              rowIndex: entry.rowIndex,
+              measureId: entry.measureId,
+              value: entry.value,
+              selection: entry.selection,
+              publish,
+            },
+          }),
+        );
+        this._setStatus("Planning value submitted", "success");
+        this._updateButtons();
+        return true;
+      } catch (error) {
+        this._markEntryError(entry, String(error?.message || error));
+        return false;
+      }
+    }
+
+    _buildPlanningSelection(rowIndex, measureKey) {
+      const selection = { "@MeasureDimension": measureKey };
+      this.getDimensions().forEach((dimension) => {
+        const value = this._dimensionValueForRow(rowIndex, dimension);
+        if (value) selection[dimension.key] = value;
+      });
+      return selection;
+    }
+
+    _dimensionValueForRow(rowIndex, dimension) {
+      const existingRows = this._getRows();
+      if (rowIndex < existingRows.length) {
+        const member = this._readCell(existingRows[rowIndex], dimension);
+        return this._memberId(member);
+      }
+      const newRow = this._newRows[rowIndex - existingRows.length];
+      return newRow?.dimensions?.[dimension.key] || newRow?.dimensions?.[dimension.id] || "";
+    }
+
+    _measureValueForRow(rowIndex, measure) {
+      const existingRows = this._getRows();
+      if (rowIndex < existingRows.length) {
+        return this._numericValue(this._readCell(existingRows[rowIndex], measure));
+      }
+      const newRow = this._newRows[rowIndex - existingRows.length];
+      return newRow?.measures?.[measure.key] ?? null;
+    }
+
+    _rowSnapshot(rowIndex) {
+      const snapshot = {};
+      this.getDimensions().forEach((dimension) => {
+        snapshot[dimension.id] = this._dimensionValueForRow(rowIndex, dimension);
+      });
+      this.getMeasures().forEach((measure) => {
+        snapshot[measure.id] = this._measureValueForRow(rowIndex, measure);
+      });
+      return snapshot;
+    }
+
+    _updateLocalRow(rowIndex, measureKey, value) {
+      const existingRows = this._getRows();
+      if (rowIndex < existingRows.length) {
+        const row = existingRows[rowIndex];
+        if (row) row[measureKey] = { raw: value, formatted: this._formatNumber(value) };
+        return;
+      }
+      const newRow = this._newRows[rowIndex - existingRows.length];
+      if (newRow) newRow.measures[measureKey] = value;
     }
 
     _getDataBinding() {
       try {
-        return this.dataBindings?.getDataBinding?.("myDataSource") || null;
+        return this.dataBindings?.getDataBinding?.("myDataSource") || this._dataBinding || null;
       } catch (error) {
-        console.warn("Unable to read data binding:", error);
-        return null;
+        return this._dataBinding || null;
       }
+    }
+
+    _getDataSource() {
+      const binding = this._getDataBinding();
+      try {
+        const source = binding?.getDataSource?.();
+        if (source) return source;
+      } catch (error) {}
+      return binding;
     }
 
     _getPlanning() {
-      if (this._myDataSource?.getPlanning) return this._myDataSource.getPlanning();
-
       const binding = this._getDataBinding();
-      if (binding?.getPlanning) return binding.getPlanning();
-
+      const source = this._getDataSource();
       try {
-        const bindingDataSource = binding?.getDataSource?.();
-        if (bindingDataSource?.getPlanning) return bindingDataSource.getPlanning();
-      } catch (error) {
-        console.warn("Unable to read planning API from binding data source:", error);
-      }
-
-      const dataSource = this._getDataSource();
-      if (dataSource?.getPlanning) return dataSource.getPlanning();
-
+        if (typeof binding?.getPlanning === "function") return binding.getPlanning();
+      } catch (error) {}
+      try {
+        if (typeof source?.getPlanning === "function") return source.getPlanning();
+      } catch (error) {}
+      try {
+        const nested = binding?.getDataSource?.();
+        if (typeof nested?.getPlanning === "function") return nested.getPlanning();
+      } catch (error) {}
       return null;
     }
 
-    _buildPlanningSelection(rowIndex, measureId) {
-      const dimensions = this.getDimensions();
-      const measures = this.getMeasures();
-      const measure = measures.find((item) => item.id === measureId || item.key === measureId);
-      const selection = {
-        "@MeasureDimension": measure?.key || measure?.id || measureId,
-      };
-
-      const tableRow = this._root.querySelector(`tr[data-row-index="${rowIndex}"]`);
+    _getMetadata() {
       const dataSource = this._getDataSource();
-      dimensions.forEach((dim) => {
-        const dynamicCell = this._findDimensionCell(tableRow, dim);
-        const dynamicValue = dynamicCell?.getAttribute("data-dimension-value");
-        const sourceCell = dataSource?.data?.[rowIndex]?.[dim.key] || dataSource?.data?.[rowIndex]?.[dim.id];
-        const sourceValue =
-          sourceCell?.id ||
-          sourceCell?.memberId ||
-          sourceCell?.key ||
-          (typeof sourceCell === "string" ? sourceCell : sourceCell?.label || sourceCell?.description);
-        const value = dynamicValue || sourceValue;
-        if (value) selection[dim.key || dim.id] = String(value);
-      });
-
-      return selection;
+      return dataSource?.metadata || dataSource?.getMetadata?.() || {};
     }
 
-    _findDimensionCell(row, dim) {
-      if (!row) return null;
-      return Array.from(row.querySelectorAll("td[data-dimension-id], td[data-dimension-key]")).find(
-        (cell) => cell.getAttribute("data-dimension-key") === dim.key || cell.getAttribute("data-dimension-id") === dim.id,
-      );
-    }
-
-    _readFeedValues(feed) {
-      if (Array.isArray(feed)) return feed;
-      if (Array.isArray(feed?.values)) return feed.values;
+    _getRows() {
+      const dataSource = this._getDataSource();
+      if (Array.isArray(dataSource?.data)) return dataSource.data;
+      try {
+        const resultSet = dataSource?.getResultSet?.();
+        if (Array.isArray(resultSet)) return resultSet;
+      } catch (error) {}
       return [];
     }
 
-    async _writeBackValue(rowIndex, measureId, value, cell) {
-      if (!this.planningEnabled) return false;
-
-      const planning = this._getPlanning();
-      if (!planning || !planning.setUserInput || !planning.submitData) {
-        const message = "Planning API is not available. Check that the bound model is planning-enabled.";
-        console.error(message);
-        this.dispatchEvent(new CustomEvent("onSubmitError", { detail: { message, rowIndex, measureId, value } }));
-        return false;
+    _getDimensionMembers(dimension) {
+      const members = new Map();
+      const metadataMembers = this._getMetadata()?.dimensions?.[dimension.key]?.members;
+      if (Array.isArray(metadataMembers)) {
+        metadataMembers.forEach((member) => members.set(this._memberId(member), this._memberText(member)));
       }
-
-      const selection = this._buildPlanningSelection(rowIndex, measureId);
-      const dimensionCount = this.getDimensions().length;
-      const selectedDimensions = Object.keys(selection).filter((key) => key !== "@MeasureDimension").length;
-      if (selectedDimensions < dimensionCount) {
-        const message = "Please select all dimension members before writing back.";
-        console.error(message, selection);
-        if (cell) cell.classList.add("writeback-error");
-        this.dispatchEvent(new CustomEvent("onSubmitError", { detail: { message, rowIndex, measureId, value, selection } }));
-        return false;
-      }
-
-      try {
-        if (cell) cell.classList.remove("writeback-error");
-        const inputResult = await Promise.resolve(planning.setUserInput(selection, String(value)));
-        if (inputResult === false) {
-          throw new Error("SAC rejected setUserInput for this cell selection.");
-        }
-        if (this.autoSubmit !== false) {
-          const submitResult = await Promise.resolve(planning.submitData());
-          if (submitResult === false) {
-            throw new Error("SAC rejected submitData for this planning change.");
-          }
-        }
-        this.dispatchEvent(new CustomEvent("onDataSubmitted", { detail: { rowIndex, measureId, value, selection } }));
-        console.log("Planning writeback submitted:", { rowIndex, measureId, value, selection });
-        return true;
-      } catch (error) {
-        const message = String((error && error.message) || error);
-        console.error("Planning writeback failed:", error);
-        if (cell) cell.classList.add("writeback-error");
-        this.dispatchEvent(new CustomEvent("onSubmitError", { detail: { message, rowIndex, measureId, value, selection } }));
-        return false;
-      }
+      this._getRows().forEach((row) => {
+        const member = this._readCell(row, dimension);
+        const id = this._memberId(member);
+        if (id) members.set(id, this._memberText(member));
+      });
+      return Array.from(members.entries()).map(([id, label]) => ({ id, label }));
     }
 
-    _escapeHtml(value) {
-      return String(value == null ? "" : value).replace(/[&<>"]/g, (char) => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-      })[char]);
+    _readCell(row, item) {
+      return row?.[item.key] ?? row?.[item.id] ?? row?.[item.description];
+    }
+
+    _readFeedValues(feed) {
+      if (Array.isArray(feed)) return feed.map((item) => (typeof item === "string" ? item : item.id || item.key)).filter(Boolean);
+      if (Array.isArray(feed?.values)) return this._readFeedValues(feed.values);
+      return [];
+    }
+
+    _memberId(cell) {
+      if (cell == null) return "";
+      if (typeof cell === "string" || typeof cell === "number") return String(cell);
+      return String(cell.id ?? cell.memberId ?? cell.key ?? cell.raw ?? cell.formatted ?? cell.label ?? cell.description ?? "");
+    }
+
+    _memberText(cell) {
+      if (cell == null) return "";
+      if (typeof cell === "string" || typeof cell === "number") return String(cell);
+      return String(cell.description ?? cell.label ?? cell.formatted ?? cell.id ?? cell.memberId ?? cell.key ?? cell.raw ?? "");
+    }
+
+    _numericValue(cell) {
+      if (cell == null) return null;
+      const raw = typeof cell === "object" ? cell.raw ?? cell.value ?? cell.formatted : cell;
+      const number = Number(this._plainNumber(String(raw ?? "")));
+      return Number.isFinite(number) ? number : null;
+    }
+
+    _measureText(cell) {
+      const value = this._numericValue(cell);
+      return value == null ? "" : this._formatNumber(value);
+    }
+
+    _plainNumber(value) {
+      return String(value ?? "").replace(/,/g, "").trim();
+    }
+
+    _formatNumber(value) {
+      return Number(value).toLocaleString(undefined, { maximumFractionDigits: 8 });
+    }
+
+    async _publishVersions(planning) {
+      if (this.autoPublish !== true) return { attempted: false, published: 0 };
+
+      const versions = [];
+      const collect = (items) => {
+        if (Array.isArray(items)) items.forEach((item) => item && versions.push(item));
+      };
+      try { collect(planning.getPublicVersions?.()); } catch (error) {}
+      try { collect(planning.getPrivateVersions?.()); } catch (error) {}
+
+      let published = 0;
+      for (const version of versions) {
+        try {
+          const dirty = typeof version.isDirty === "function" ? await Promise.resolve(version.isDirty()) : true;
+          if (dirty && typeof version.publish === "function") {
+            await Promise.resolve(version.publish());
+            published += 1;
+          }
+        } catch (error) {}
+      }
+      return { attempted: versions.length > 0, published };
+    }
+
+    _selectRow(row) {
+      const index = row.dataset.rowIndex;
+      if (!index) return;
+      if (this._selectedRows.has(index)) {
+        this._selectedRows.delete(index);
+        row.classList.remove("selected");
+      } else {
+        this._selectedRows.add(index);
+        row.classList.add("selected");
+      }
+      this.dispatchEvent(new CustomEvent("onSelect", { detail: { selectedRows: Array.from(this._selectedRows) } }));
+    }
+
+    _markEntryError(entry, message) {
+      entry.input.classList.remove("pending", "success");
+      entry.input.classList.add("error");
+      this._setStatus(message, "error");
+      this.dispatchEvent(
+        new CustomEvent("onSubmitError", {
+          detail: {
+            message,
+            rowIndex: entry.rowIndex,
+            measureId: entry.measureId,
+            value: entry.value,
+            selection: entry.selection,
+          },
+        }),
+      );
+    }
+
+    _setStatus(message, type) {
+      this._status.textContent = message || "";
+      this._status.className = `status ${type || ""}`;
+    }
+
+    _updateButtons() {
+      const submit = this._shadowRoot.getElementById("submitButton");
+      submit.disabled = this.planningEnabled === false || this._pendingValues.size === 0;
+    }
+
+    fireOnResultChange(detail) {
+      this.dispatchEvent(new CustomEvent("onResultChange", { detail }));
+      this.dispatchEvent(new CustomEvent("onResultChanged", { detail }));
     }
   }
 
   if (!customElements.get("com-sap-custom-tablewidget")) {
-    customElements.define("com-sap-custom-tablewidget", CustomTableWidget);
+    customElements.define("com-sap-custom-tablewidget", PlanningTableWidget);
   }
 })();

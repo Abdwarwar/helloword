@@ -113,7 +113,7 @@
                   ${measures
                     .map(
                       (measure) =>
-                        `<td class="editable" data-measure-id="${this._escapeHtml(measure.id)}">${this._escapeHtml(row[measure.id])}</td>`,
+                        `<td class="editable" data-measure-id="${this._escapeHtml(measure.id)}" data-measure-key="${this._escapeHtml(measure.key)}">${this._escapeHtml(row[measure.id])}</td>`,
                     )
                     .join("")}
                 </tr>`,
@@ -175,6 +175,7 @@
 
         cells.forEach((cell) => {
           const measureId = cell.getAttribute("data-measure-id");
+          const measureKey = cell.getAttribute("data-measure-key") || measureId;
           cell.contentEditable = "false";
 
           cell.addEventListener("dblclick", () => {
@@ -202,7 +203,6 @@
               console.log(`Row ${rowIndex}, Measure ${measureId} updated to: ${newValue}`);
               cell.setAttribute("data-measure-value", String(newValue));
 
-              const measureKey = this.getMeasures().find((measure) => measure.id === measureId)?.key;
               const dataSource = this._getDataSource();
               if (dataSource?.data?.[rowIndex] && measureKey) {
                 dataSource.data[rowIndex][measureKey] = { raw: newValue, formatted: String(newValue) };
@@ -274,6 +274,7 @@
       for (const dim of dimensions) {
         const cell = document.createElement("td");
         cell.setAttribute("data-dimension-id", dim.id);
+        cell.setAttribute("data-dimension-key", dim.key);
 
         const dropdown = document.createElement("select");
 
@@ -300,6 +301,7 @@
         const cell = document.createElement("td");
         cell.classList.add("editable");
         cell.setAttribute("data-measure-id", measure.id);
+        cell.setAttribute("data-measure-key", measure.key);
 
         cell.contentEditable = this.planningEnabled ? "true" : "false";
         cell.addEventListener("keydown", (event) => {
@@ -396,7 +398,8 @@
           return [];
         }
 
-        const dimensionKeys = dataSource.metadata.feeds.dimensions.values;
+        const feeds = dataSource.metadata.feeds || {};
+        const dimensionKeys = this._readFeedValues(feeds.dimensions || feeds.dimension);
 
         const dimensions = dimensionKeys.map((key) => {
           const dimension = dataSource.metadata.dimensions[key];
@@ -427,7 +430,8 @@
         return [];
       }
 
-      const measuresKeys = dataSource.metadata.feeds.measures.values;
+      const feeds = dataSource.metadata.feeds || {};
+      const measuresKeys = this._readFeedValues(feeds.measures || feeds.measure || feeds.mainStructureMembers);
 
       const measures = measuresKeys.map((key) => {
         const measure = dataSource.metadata.mainStructureMembers[key];
@@ -600,7 +604,7 @@
       }
 
       try {
-        const binding = this.dataBindings?.getDataBinding?.("myDataSource");
+        const binding = this._getDataBinding();
         const dataSource = binding?.getDataSource?.();
         if (dataSource) return dataSource;
       } catch (error) {
@@ -610,17 +614,30 @@
       return this._myDataSource;
     }
 
+    _getDataBinding() {
+      try {
+        return this.dataBindings?.getDataBinding?.("myDataSource") || null;
+      } catch (error) {
+        console.warn("Unable to read data binding:", error);
+        return null;
+      }
+    }
+
     _getPlanning() {
-      const dataSource = this._getDataSource();
-      if (dataSource?.getPlanning) return dataSource.getPlanning();
+      if (this._myDataSource?.getPlanning) return this._myDataSource.getPlanning();
+
+      const binding = this._getDataBinding();
+      if (binding?.getPlanning) return binding.getPlanning();
 
       try {
-        const binding = this.dataBindings?.getDataBinding?.("myDataSource");
-        const source = binding?.getDataSource?.();
-        if (source?.getPlanning) return source.getPlanning();
+        const bindingDataSource = binding?.getDataSource?.();
+        if (bindingDataSource?.getPlanning) return bindingDataSource.getPlanning();
       } catch (error) {
-        console.warn("Unable to read planning API:", error);
+        console.warn("Unable to read planning API from binding data source:", error);
       }
+
+      const dataSource = this._getDataSource();
+      if (dataSource?.getPlanning) return dataSource.getPlanning();
 
       return null;
     }
@@ -630,20 +647,38 @@
       const measures = this.getMeasures();
       const measure = measures.find((item) => item.id === measureId || item.key === measureId);
       const selection = {
-        "@MeasureDimension": measure?.id || measureId,
+        "@MeasureDimension": measure?.key || measure?.id || measureId,
       };
 
       const tableRow = this._root.querySelector(`tr[data-row-index="${rowIndex}"]`);
       const dataSource = this._getDataSource();
       dimensions.forEach((dim) => {
-        const dynamicCell = tableRow?.querySelector(`td[data-dimension-id="${dim.id}"]`);
+        const dynamicCell = this._findDimensionCell(tableRow, dim);
         const dynamicValue = dynamicCell?.getAttribute("data-dimension-value");
-        const sourceValue = dataSource?.data?.[rowIndex]?.[dim.key]?.id || dataSource?.data?.[rowIndex]?.[dim.key]?.label;
+        const sourceCell = dataSource?.data?.[rowIndex]?.[dim.key] || dataSource?.data?.[rowIndex]?.[dim.id];
+        const sourceValue =
+          sourceCell?.id ||
+          sourceCell?.memberId ||
+          sourceCell?.key ||
+          (typeof sourceCell === "string" ? sourceCell : sourceCell?.label || sourceCell?.description);
         const value = dynamicValue || sourceValue;
-        if (value) selection[dim.id] = value;
+        if (value) selection[dim.key || dim.id] = String(value);
       });
 
       return selection;
+    }
+
+    _findDimensionCell(row, dim) {
+      if (!row) return null;
+      return Array.from(row.querySelectorAll("td[data-dimension-id], td[data-dimension-key]")).find(
+        (cell) => cell.getAttribute("data-dimension-key") === dim.key || cell.getAttribute("data-dimension-id") === dim.id,
+      );
+    }
+
+    _readFeedValues(feed) {
+      if (Array.isArray(feed)) return feed;
+      if (Array.isArray(feed?.values)) return feed.values;
+      return [];
     }
 
     async _writeBackValue(rowIndex, measureId, value, cell) {
@@ -670,9 +705,15 @@
 
       try {
         if (cell) cell.classList.remove("writeback-error");
-        planning.setUserInput(selection, String(value));
+        const inputResult = await Promise.resolve(planning.setUserInput(selection, String(value)));
+        if (inputResult === false) {
+          throw new Error("SAC rejected setUserInput for this cell selection.");
+        }
         if (this.autoSubmit !== false) {
-          await planning.submitData();
+          const submitResult = await Promise.resolve(planning.submitData());
+          if (submitResult === false) {
+            throw new Error("SAC rejected submitData for this planning change.");
+          }
         }
         this.dispatchEvent(new CustomEvent("onDataSubmitted", { detail: { rowIndex, measureId, value, selection } }));
         console.log("Planning writeback submitted:", { rowIndex, measureId, value, selection });

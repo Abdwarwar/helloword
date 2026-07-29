@@ -143,9 +143,6 @@
       .cell-input.error { background: #ffebeb; }
       .cell-input.success { background: #edf8f0; }
 
-      td.dimension-select { padding: 0; }
-      select { padding: 0 26px 0 8px; cursor: pointer; }
-
       .empty {
         padding: 18px;
         color: #556b82;
@@ -154,8 +151,7 @@
     </style>
     <div class="shell">
       <div class="toolbar">
-        <button id="addRowButton" type="button">Add New Row</button>
-        <button id="submitButton" type="button" class="secondary">Submit</button>
+        <button id="submitButton" type="button" class="secondary">Submit Data</button>
         <span id="status" class="status"></span>
       </div>
       <div id="root" class="table-wrap"></div>
@@ -171,7 +167,6 @@
       this._root = this._shadowRoot.getElementById("root");
       this._status = this._shadowRoot.getElementById("status");
       this._dataBinding = null;
-      this._newRows = [];
       this._selectedRows = new Set();
       this._pendingValues = new Map();
 
@@ -179,7 +174,6 @@
       this.autoSubmit = true;
       this.autoPublish = false;
 
-      this._shadowRoot.getElementById("addRowButton").addEventListener("click", () => this.addEmptyRow());
       this._shadowRoot.getElementById("submitButton").addEventListener("click", () => this.submitPlanningData());
     }
 
@@ -245,53 +239,27 @@
       table.appendChild(thead);
 
       const tbody = document.createElement("tbody");
-      rows.forEach((row, rowIndex) => tbody.appendChild(this._createTableRow(row, rowIndex, false, dimensions, measures)));
-      this._newRows.forEach((row, index) => tbody.appendChild(this._createTableRow(row, rows.length + index, true, dimensions, measures)));
+      rows.forEach((row, rowIndex) => tbody.appendChild(this._createTableRow(row, rowIndex, dimensions, measures)));
       table.appendChild(tbody);
 
       this._root.replaceChildren(table);
       this._updateButtons();
     }
 
-    _createTableRow(row, rowIndex, isNew, dimensions, measures) {
+    _createTableRow(row, rowIndex, dimensions, measures) {
       const tr = document.createElement("tr");
       tr.dataset.rowIndex = String(rowIndex);
-      tr.dataset.newRow = String(isNew);
       tr.addEventListener("click", () => this._selectRow(tr));
 
       dimensions.forEach((dimension) => {
         const cell = document.createElement("td");
         cell.dataset.dimensionId = dimension.id;
         cell.dataset.dimensionKey = dimension.key;
-
-        if (isNew) {
-          cell.className = "dimension-select";
-          const select = document.createElement("select");
-          const members = this._getDimensionMembers(dimension);
-          members.forEach((member) => {
-            const option = document.createElement("option");
-            option.value = member.id;
-            option.textContent = member.label || member.id;
-            select.appendChild(option);
-          });
-          const current = row.dimensions[dimension.key] || row.dimensions[dimension.id] || members[0]?.id || "";
-          select.value = current;
-          row.dimensions[dimension.key] = current;
-          cell.dataset.dimensionValue = current;
-          select.addEventListener("change", () => {
-            row.dimensions[dimension.key] = select.value;
-            cell.dataset.dimensionValue = select.value;
-            this.fireOnResultChange({ rowIndex, dimensionId: dimension.id, memberId: select.value });
-          });
-          cell.appendChild(select);
-        } else {
-          const member = this._readCell(row, dimension);
-          const value = this._memberId(member);
-          cell.dataset.dimensionValue = value;
-          cell.title = value;
-          cell.textContent = this._memberText(member);
-        }
-
+        const member = this._readCell(row, dimension);
+        const memberValue = this._memberId(member);
+        cell.dataset.dimensionValue = memberValue;
+        cell.title = memberValue;
+        cell.textContent = this._memberText(member);
         tr.appendChild(cell);
       });
 
@@ -306,7 +274,7 @@
         input.type = "text";
         input.inputMode = "decimal";
         input.disabled = this.planningEnabled === false;
-        input.value = this._measureText(isNew ? row.measures[measure.key] : this._readCell(row, measure));
+        input.value = this._measureText(this._readCell(row, measure));
         input.dataset.originalValue = input.value;
 
         input.addEventListener("focus", () => {
@@ -331,17 +299,6 @@
       });
 
       return tr;
-    }
-
-    async addEmptyRow() {
-      const dimensions = this.getDimensions();
-      const row = { dimensions: {}, measures: {} };
-      dimensions.forEach((dimension) => {
-        row.dimensions[dimension.key] = this._getDimensionMembers(dimension)[0]?.id || "";
-      });
-      this._newRows.push(row);
-      this.render();
-      this._setStatus("New row added. Select members and enter plan values.", "");
     }
 
     async submitPlanningData() {
@@ -532,22 +489,13 @@
     }
 
     _dimensionValueForRow(rowIndex, dimension) {
-      const existingRows = this._getRows();
-      if (rowIndex < existingRows.length) {
-        const member = this._readCell(existingRows[rowIndex], dimension);
-        return this._memberId(member);
-      }
-      const newRow = this._newRows[rowIndex - existingRows.length];
-      return newRow?.dimensions?.[dimension.key] || newRow?.dimensions?.[dimension.id] || "";
+      const row = this._getRows()[rowIndex];
+      return row ? this._memberId(this._readCell(row, dimension)) : "";
     }
 
     _measureValueForRow(rowIndex, measure) {
-      const existingRows = this._getRows();
-      if (rowIndex < existingRows.length) {
-        return this._numericValue(this._readCell(existingRows[rowIndex], measure));
-      }
-      const newRow = this._newRows[rowIndex - existingRows.length];
-      return newRow?.measures?.[measure.key] ?? null;
+      const row = this._getRows()[rowIndex];
+      return row ? this._numericValue(this._readCell(row, measure)) : null;
     }
 
     _rowSnapshot(rowIndex) {
@@ -562,14 +510,8 @@
     }
 
     _updateLocalRow(rowIndex, measureKey, value) {
-      const existingRows = this._getRows();
-      if (rowIndex < existingRows.length) {
-        const row = existingRows[rowIndex];
-        if (row) row[measureKey] = { raw: value, formatted: this._formatNumber(value) };
-        return;
-      }
-      const newRow = this._newRows[rowIndex - existingRows.length];
-      if (newRow) newRow.measures[measureKey] = value;
+      const row = this._getRows()[rowIndex];
+      if (row) row[measureKey] = { raw: value, formatted: this._formatNumber(value) };
     }
 
     _getDataBinding() {
@@ -618,20 +560,6 @@
         if (Array.isArray(resultSet)) return resultSet;
       } catch (error) {}
       return [];
-    }
-
-    _getDimensionMembers(dimension) {
-      const members = new Map();
-      const metadataMembers = this._getMetadata()?.dimensions?.[dimension.key]?.members;
-      if (Array.isArray(metadataMembers)) {
-        metadataMembers.forEach((member) => members.set(this._memberId(member), this._memberText(member)));
-      }
-      this._getRows().forEach((row) => {
-        const member = this._readCell(row, dimension);
-        const id = this._memberId(member);
-        if (id) members.set(id, this._memberText(member));
-      });
-      return Array.from(members.entries()).map(([id, label]) => ({ id, label }));
     }
 
     _readCell(row, item) {
